@@ -9,8 +9,17 @@ package di
 import (
 	"github.com/google/wire"
 	"oil/config"
-	"oil/internal/handlers/test"
+	"oil/infras/jwt"
+	"oil/infras/otel"
+	"oil/infras/postgres"
+	service2 "oil/internal/domains/auth/service"
+	"oil/internal/domains/todo/repository"
+	"oil/internal/domains/todo/service"
+	repository2 "oil/internal/domains/user/repository"
+	"oil/internal/handlers/auth"
+	"oil/internal/handlers/todo"
 	"oil/transport/http"
+	"oil/transport/http/middleware"
 	"oil/transport/http/router"
 )
 
@@ -18,12 +27,23 @@ import (
 
 func InitializeService() *http.HTTP {
 	configConfig := config.Get()
-	handler := test.New()
+	connection := postgres.New(configConfig)
+	otelOtel := otel.New(configConfig)
+	repositoryTodo := repository.New(connection, otelOtel)
+	serviceTodo := service.New(repositoryTodo, configConfig, otelOtel)
+	jwtJWT := jwt.New(configConfig)
+	authRole := middleware.NewAuthRoleMiddleware(jwtJWT, otelOtel)
+	handler := todo.New(serviceTodo, authRole, otelOtel)
+	user := repository2.New(connection, otelOtel)
+	serviceAuth := service2.New(user, configConfig, otelOtel, jwtJWT)
+	authHandler := auth.New(serviceAuth, otelOtel)
 	domainHandlers := router.DomainHandlers{
-		Test: handler,
+		Todo: handler,
+		Auth: authHandler,
 	}
 	routerRouter := router.New(domainHandlers)
-	httpHTTP := http.New(configConfig, routerRouter)
+	appMiddleware := middleware.NewAppMiddleware(otelOtel, configConfig)
+	httpHTTP := http.New(configConfig, routerRouter, connection, appMiddleware)
 	return httpHTTP
 }
 
@@ -31,4 +51,17 @@ func InitializeService() *http.HTTP {
 
 var configurations = wire.NewSet(config.Get)
 
-var routing = wire.NewSet(wire.Struct(new(router.DomainHandlers), "*"), test.New, router.New)
+var infrastructures = wire.NewSet(postgres.New, otel.New, jwt.New)
+
+var middlewares = wire.NewSet(middleware.NewAppMiddleware, middleware.NewAuthRoleMiddleware)
+
+var todoDomain = wire.NewSet(repository.New, service.New)
+
+var authDomain = wire.NewSet(repository2.New, service2.New)
+
+var domains = wire.NewSet(
+	todoDomain,
+	authDomain,
+)
+
+var routing = wire.NewSet(wire.Struct(new(router.DomainHandlers), "*"), todo.New, auth.New, router.New)

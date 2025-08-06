@@ -482,9 +482,6 @@ const docTemplate = `{
                 "access_token": {
                     "type": "string"
                 },
-                "expires_in": {
-                    "type": "integer"
-                },
                 "refresh_token": {
                     "type": "string"
                 }
@@ -506,9 +503,6 @@ const docTemplate = `{
             "properties": {
                 "access_token": {
                     "type": "string"
-                },
-                "expires_in": {
-                    "type": "integer"
                 },
                 "refresh_token": {
                     "type": "string"

@@ -35,7 +35,7 @@ func InitializeService() *http.HTTP {
 	client := redis.New(configConfig)
 	redisCache := cache.NewRedisCache(client, otelOtel)
 	serviceTodo := service.New(repositoryTodo, configConfig, redisCache, otelOtel)
-	jwtJWT := jwt.New(configConfig)
+	jwtJWT := jwt.New(configConfig, redisCache)
 	authRole := middleware.NewAuthRoleMiddleware(jwtJWT, otelOtel)
 	handler := todo.New(serviceTodo, authRole, otelOtel)
 	user := repository2.New(connection, otelOtel)
@@ -55,7 +55,7 @@ func InitializeService() *http.HTTP {
 
 var configurations = wire.NewSet(config.Get)
 
-var infrastructures = wire.NewSet(postgres.New, otel.New, jwt.New, redis.New)
+var infrastructures = wire.NewSet(postgres.New, otel.New, redis.New, jwt.New)
 
 var middlewares = wire.NewSet(middleware.NewAppMiddleware, middleware.NewAuthRoleMiddleware)
 

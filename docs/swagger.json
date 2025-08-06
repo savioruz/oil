@@ -471,9 +471,6 @@
                 "access_token": {
                     "type": "string"
                 },
-                "expires_in": {
-                    "type": "integer"
-                },
                 "refresh_token": {
                     "type": "string"
                 }
@@ -495,9 +492,6 @@
             "properties": {
                 "access_token": {
                     "type": "string"
-                },
-                "expires_in": {
-                    "type": "integer"
                 },
                 "refresh_token": {
                     "type": "string"

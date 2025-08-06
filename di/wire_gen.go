@@ -12,12 +12,14 @@ import (
 	"oil/infras/jwt"
 	"oil/infras/otel"
 	"oil/infras/postgres"
+	"oil/infras/redis"
 	service2 "oil/internal/domains/auth/service"
 	"oil/internal/domains/todo/repository"
 	"oil/internal/domains/todo/service"
 	repository2 "oil/internal/domains/user/repository"
 	"oil/internal/handlers/auth"
 	"oil/internal/handlers/todo"
+	"oil/shared/cache"
 	"oil/transport/http"
 	"oil/transport/http/middleware"
 	"oil/transport/http/router"
@@ -30,7 +32,9 @@ func InitializeService() *http.HTTP {
 	connection := postgres.New(configConfig)
 	otelOtel := otel.New(configConfig)
 	repositoryTodo := repository.New(connection, otelOtel)
-	serviceTodo := service.New(repositoryTodo, configConfig, otelOtel)
+	client := redis.New(configConfig)
+	redisCache := cache.NewRedisCache(client, otelOtel)
+	serviceTodo := service.New(repositoryTodo, configConfig, redisCache, otelOtel)
 	jwtJWT := jwt.New(configConfig)
 	authRole := middleware.NewAuthRoleMiddleware(jwtJWT, otelOtel)
 	handler := todo.New(serviceTodo, authRole, otelOtel)
@@ -42,7 +46,7 @@ func InitializeService() *http.HTTP {
 		Auth: authHandler,
 	}
 	routerRouter := router.New(domainHandlers)
-	appMiddleware := middleware.NewAppMiddleware(otelOtel, configConfig)
+	appMiddleware := middleware.NewAppMiddleware(otelOtel, configConfig, redisCache)
 	httpHTTP := http.New(configConfig, routerRouter, connection, appMiddleware)
 	return httpHTTP
 }
@@ -51,9 +55,11 @@ func InitializeService() *http.HTTP {
 
 var configurations = wire.NewSet(config.Get)
 
-var infrastructures = wire.NewSet(postgres.New, otel.New, jwt.New)
+var infrastructures = wire.NewSet(postgres.New, otel.New, jwt.New, redis.New)
 
 var middlewares = wire.NewSet(middleware.NewAppMiddleware, middleware.NewAuthRoleMiddleware)
+
+var sharedHelpers = wire.NewSet(cache.NewRedisCache)
 
 var todoDomain = wire.NewSet(repository.New, service.New)
 

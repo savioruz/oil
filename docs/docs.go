@@ -228,11 +228,6 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Create a new todo item with the provided details.",
                 "consumes": [
                     "application/json"
@@ -274,7 +269,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.Error"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/v1/todos/{id}": {
@@ -327,11 +327,6 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Delete a todo item using its unique identifier.",
                 "consumes": [
                     "application/json"
@@ -377,14 +372,14 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.Error"
                         }
                     }
-                }
-            },
-            "patch": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            },
+            "patch": {
                 "description": "Update the details of an existing todo item.",
                 "consumes": [
                     "application/json"
@@ -439,7 +434,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.Error"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         }
     },

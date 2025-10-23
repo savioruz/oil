@@ -36,11 +36,9 @@ func InitializeService() *http.HTTP {
 	client := redis.New(configConfig)
 	redisCache := cache.NewRedisCache(client, otelOtel)
 	serviceTodo := service.New(repositoryTodo, configConfig, redisCache, otelOtel)
-	jwtJWT := jwt.New(configConfig, redisCache)
-	permissionData := permissions.Get()
-	authRole := middleware.NewAuthRoleMiddleware(jwtJWT, otelOtel, permissionData, configConfig)
-	handler := todo.New(serviceTodo, authRole, otelOtel)
+	handler := todo.New(serviceTodo, otelOtel)
 	user := repository2.New(connection, otelOtel)
+	jwtJWT := jwt.New(configConfig, redisCache)
 	serviceAuth := service2.New(user, configConfig, otelOtel, jwtJWT)
 	authHandler := auth.New(serviceAuth, otelOtel)
 	domainHandlers := router.DomainHandlers{
@@ -49,6 +47,8 @@ func InitializeService() *http.HTTP {
 	}
 	routerRouter := router.New(domainHandlers)
 	appMiddleware := middleware.NewAppMiddleware(otelOtel, configConfig, redisCache)
+	permissionData := permissions.Get()
+	authRole := middleware.NewAuthRoleMiddleware(jwtJWT, otelOtel, permissionData, configConfig)
 	httpHTTP := http.New(configConfig, routerRouter, connection, appMiddleware, authRole)
 	return httpHTTP
 }

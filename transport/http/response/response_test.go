@@ -157,13 +157,13 @@ func TestWithError_ValidationErrorWithFields(t *testing.T) {
 		Fields: []failure.ValidationFieldError{
 			{
 				Field:   "title",
-				Message: "Title is required",
+				Message: "validation.required",
 				Key:     "validation.required.title",
 				Param:   "",
 			},
 			{
 				Field:   "images[0]",
-				Message: "Images[0] must be a valid URL",
+				Message: "validation.url",
 				Key:     "validation.url.images",
 				Param:   "",
 			},
@@ -194,9 +194,9 @@ func TestWithError_ValidationErrorWithFields(t *testing.T) {
 
 	// Verify first field error
 	assert.Equal(t, "title", errorResponse.Errors[0].Field)
-	assert.Equal(t, "Title is required", errorResponse.Errors[0].Message)
+	assert.Equal(t, "validation.required", errorResponse.Errors[0].Message)
 
 	// Verify second field error
 	assert.Equal(t, "images[0]", errorResponse.Errors[1].Field)
-	assert.Equal(t, "Images[0] must be a valid URL", errorResponse.Errors[1].Message)
+	assert.Equal(t, "validation.url", errorResponse.Errors[1].Message)
 }

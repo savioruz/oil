@@ -157,8 +157,8 @@ func buildValidationError(err error) error {
 		// Generate error key (e.g., "validation.required.title")
 		errorKey := errkey.FormatFieldError(tag, fieldName)
 
-		// Generate human-readable message
-		message := generateFieldMessage(fieldName, tag, param)
+		// Generate error message (e.g., "validation.required")
+		message := generateFieldMessage(tag)
 
 		validationErr.Fields = append(validationErr.Fields, failure.ValidationFieldError{
 			Field:   fieldPath,
@@ -209,15 +209,13 @@ func buildFieldPath(valErr val.FieldError) string {
 	return strings.ToLower(result)
 }
 
-// generateFieldMessage generates a human-readable error message
-func generateFieldMessage(field, tag, param string) string {
+// generateFieldMessage returns the error key for the validation tag
+func generateFieldMessage(tag string) string {
 	msg := messages[tag]
 	if msg != "" {
-		msg = strings.ReplaceAll(msg, "{field}", field)
-		msg = strings.ReplaceAll(msg, "{param}", param)
-
 		return msg
 	}
 
-	return fmt.Sprintf("%s validation failed for tag '%s'", field, tag)
+	// Fallback for unmapped tags
+	return "validation." + tag
 }

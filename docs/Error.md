@@ -21,11 +21,11 @@ Validation errors return an `errors` array containing all validation failures:
   "errors": [
     {
       "field": "title",
-      "message": "Title is required"
+      "message": "validation.required"
     },
     {
       "field": "email",
-      "message": "Email must be a valid email address"
+      "message": "validation.email"
     }
   ]
 }
@@ -33,7 +33,12 @@ Validation errors return an `errors` array containing all validation failures:
 
 Each error object contains:
 - `field`: The name of the field that failed validation (in snake_case, e.g., "title", "email", "images[0]")
-- `message`: A human-readable error message describing what went wrong
+- `message`: An error key representing the validation rule that failed (e.g., "validation.required", "validation.email")
+
+**Important:** The `message` field contains error keys (not human-readable text), allowing frontends to:
+- Translate errors to any language
+- Customize error messages per field
+- Provide consistent validation UX
 
 This format allows the API to return **all validation errors at once**, enabling frontends to highlight all problematic fields in a single response.
 
@@ -60,7 +65,7 @@ POST /api/galleries
   "errors": [
     {
       "field": "title",
-      "message": "Title is required"
+      "message": "validation.required"
     }
   ]
 }
@@ -75,11 +80,11 @@ POST /api/galleries
   "errors": [
     {
       "field": "title",
-      "message": "Title is required"
+      "message": "validation.required"
     },
     {
       "field": "images",
-      "message": "Images must be a valid URL"
+      "message": "validation.url"
     }
   ]
 }
@@ -245,6 +250,27 @@ Examples:
 **Basic Error Handling:**
 
 ```typescript
+// Translation map for validation error keys
+const VALIDATION_MESSAGES: Record<string, string> = {
+  'validation.required': '{field} is required',
+  'validation.email': '{field} must be a valid email address',
+  'validation.url': '{field} must be a valid URL',
+  'validation.min': '{field} must be at least {param} characters',
+  'validation.max': '{field} must not exceed {param} characters',
+  'validation.gte': '{field} must be greater than or equal to {param}',
+  'validation.lte': '{field} must be less than or equal to {param}',
+};
+
+// Translate validation error key to user-friendly message
+function translateValidationKey(key: string, field: string, param?: string): string {
+  const template = VALIDATION_MESSAGES[key] || 'Validation failed';
+  const fieldName = field.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
+  
+  return template
+    .replace('{field}', fieldName)
+    .replace('{param}', param || '');
+}
+
 // Error handler for API calls
 async function handleApiCall<T>(apiCall: Promise<T>): Promise<T> {
   try {
@@ -255,9 +281,13 @@ async function handleApiCall<T>(apiCall: Promise<T>): Promise<T> {
       // Array of field errors
       const fieldErrors = error.response.data.errors;
       
-      // Show first error or all errors
+      // Translate and show first error
       const firstError = fieldErrors[0];
-      toast.error(firstError.message);
+      const message = translateValidationKey(
+        firstError.message,
+        firstError.field
+      );
+      toast.error(message);
       
       // Log all errors for debugging
       console.error('Validation errors:', fieldErrors);
@@ -315,12 +345,18 @@ async function handleFormSubmit(data: GalleryFormData) {
   } catch (error: any) {
     // Handle validation errors
     if (error.response?.data?.errors) {
-      // errors is an array: [{ field: "title", message: "Title is required" }]
+      // errors is an array: [{ field: "title", message: "validation.required" }]
       error.response.data.errors.forEach(fieldError => {
+        // Translate error key to human-readable message
+        const translatedMessage = translateValidationKey(
+          fieldError.message,
+          fieldError.field
+        );
+        
         // Set field-specific error in form (e.g., using react-hook-form)
         setError(fieldError.field, {
           type: 'server',
-          message: fieldError.message, // Already human-readable!
+          message: translatedMessage,
         });
       });
     } else if (error.response?.data?.error) {
@@ -342,9 +378,10 @@ function GalleryForm() {
       toast.success('Gallery created!');
     } catch (error: any) {
       if (error.response?.data?.errors) {
-        // Highlight all invalid fields at once
+        // Translate and highlight all invalid fields at once
         error.response.data.errors.forEach(({ field, message }) => {
-          setError(field, { type: 'server', message });
+          const translatedMessage = translateValidationKey(message, field);
+          setError(field, { type: 'server', message: translatedMessage });
         });
       }
     }
@@ -366,20 +403,19 @@ function GalleryForm() {
 
 ### Internationalization (i18n)
 
-Since validation messages from the API are already in English, you have two options for internationalization:
+The API returns validation error keys (e.g., `"validation.required"`), which makes internationalization straightforward:
 
-**Option 1: Client-side translation (Recommended for flexibility)**
-
-The API returns English messages, and your frontend translates them:
+**Recommended approach: Client-side translation**
 
 ```typescript
-// en.json
+// en.json (English translations)
 {
   "validation": {
-    "{field} is required": "{{field}} is required",
-    "{field} must be a valid email address": "{{field}} must be a valid email address",
-    "{field} must be a valid URL": "{{field}} must be a valid URL",
-    "{field} must be greater than or equal to {param}": "{{field}} must be at least {{param}}"
+    "validation.required": "{{field}} is required",
+    "validation.email": "{{field}} must be a valid email address",
+    "validation.url": "{{field}} must be a valid URL",
+    "validation.min": "{{field}} must be at least {{param}} characters",
+    "validation.max": "{{field}} must not exceed {{param}} characters"
   },
   "errors": {
     "auth.unauthorized": "Please log in to continue",
@@ -388,18 +424,35 @@ The API returns English messages, and your frontend translates them:
   }
 }
 
-// es.json (Spanish)
+// es.json (Spanish translations)
 {
   "validation": {
-    "{field} is required": "{{field}} es obligatorio",
-    "{field} must be a valid email address": "{{field}} debe ser un correo electrónico válido",
-    "{field} must be a valid URL": "{{field}} debe ser una URL válida",
-    "{field} must be greater than or equal to {param}": "{{field}} debe ser al menos {{param}}"
+    "validation.required": "{{field}} es obligatorio",
+    "validation.email": "{{field}} debe ser un correo electrónico válido",
+    "validation.url": "{{field}} debe ser una URL válida",
+    "validation.min": "{{field}} debe tener al menos {{param}} caracteres",
+    "validation.max": "{{field}} no debe exceder {{param}} caracteres"
   },
   "errors": {
     "auth.unauthorized": "Por favor, inicia sesión para continuar",
     "gallery.not_found": "Galería no encontrada",
     "server.internal_error": "Ocurrió un error inesperado"
+  }
+}
+
+// fr.json (French translations)
+{
+  "validation": {
+    "validation.required": "{{field}} est obligatoire",
+    "validation.email": "{{field}} doit être une adresse e-mail valide",
+    "validation.url": "{{field}} doit être une URL valide",
+    "validation.min": "{{field}} doit contenir au moins {{param}} caractères",
+    "validation.max": "{{field}} ne doit pas dépasser {{param}} caractères"
+  },
+  "errors": {
+    "auth.unauthorized": "Veuillez vous connecter pour continuer",
+    "gallery.not_found": "Galerie introuvable",
+    "server.internal_error": "Une erreur inattendue s'est produite"
   }
 }
 
@@ -412,34 +465,44 @@ function useHandleApiError() {
   return (error: any) => {
     // Validation errors
     if (error.response?.data?.errors) {
-      return error.response.data.errors.map(({ field, message }) => ({
-        field,
-        message: t(`validation.${message}`, { 
-          field: field.replace(/_/g, ' '),
-          defaultValue: message // Fallback to English
-        })
-      }));
+      return error.response.data.errors.map(({ field, message, param }) => {
+        // Translate field name
+        const fieldName = field.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
+        
+        return {
+          field,
+          message: t(`validation.${message}`, { 
+            field: fieldName,
+            param: param || '',
+            defaultValue: `${fieldName} validation failed` // Fallback
+          })
+        };
+      });
     }
     
     // Other errors  
     if (error.response?.data?.error) {
       const errorKey = error.response.data.error;
-      return t(`errors.${errorKey}`, { defaultValue: 'An error occurred' });
+      return t(`errors.${errorKey}`, { 
+        defaultValue: 'An error occurred' 
+      });
     }
     
-    return 'An unexpected error occurred';
+    return t('errors.unknown', { defaultValue: 'An unexpected error occurred' });
   };
 }
 
 // Usage in component
 function GalleryForm() {
   const handleError = useHandleApiError();
+  const { setError } = useForm();
   
   const onSubmit = async (data) => {
     try {
       await createGallery(data);
     } catch (error) {
       const errors = handleError(error);
+      
       // Display translated errors
       if (Array.isArray(errors)) {
         errors.forEach(({ field, message }) => {
@@ -455,22 +518,11 @@ function GalleryForm() {
 }
 ```
 
-**Option 2: Use messages as-is (Simpler, English only)**
-
-If you only support English, use the API messages directly without translation:
-
-```typescript
-// Simply display the message from the API
-try {
-  await createGallery(data);
-} catch (error: any) {
-  if (error.response?.data?.errors) {
-    error.response.data.errors.forEach(({ field, message }) => {
-      setError(field, { type: 'server', message }); // message is already human-readable
-    });
-  }
-}
-```
+**Benefits of error keys:**
+- ✅ Easy to add new languages
+- ✅ Consistent translations across your app
+- ✅ No need to parse human-readable messages
+- ✅ Frontend controls the exact wording
 
 ### Error-Specific UI Actions
 

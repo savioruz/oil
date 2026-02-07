@@ -22,7 +22,7 @@ func TestValidationErrorExamples(t *testing.T) {
 			Fields: []failure.ValidationFieldError{
 				{
 					Field:   "title",
-					Message: "Title is required",
+					Message: "validation.required",
 					Key:     errkey.ErrorKey("validation.required.title"),
 					Param:   "",
 				},
@@ -48,7 +48,7 @@ func TestValidationErrorExamples(t *testing.T) {
 
 		firstError := errors[0].(map[string]interface{})
 		assert.Equal(t, "title", firstError["field"])
-		assert.Equal(t, "Title is required", firstError["message"])
+		assert.Equal(t, "validation.required", firstError["message"])
 	})
 
 	t.Run("Single field validation error - invalid URL", func(t *testing.T) {
@@ -57,7 +57,7 @@ func TestValidationErrorExamples(t *testing.T) {
 			Fields: []failure.ValidationFieldError{
 				{
 					Field:   "images[0]",
-					Message: "Images[0] must be a valid URL",
+					Message: "validation.url",
 					Key:     errkey.ErrorKey("validation.url.images"),
 					Param:   "",
 				},
@@ -81,7 +81,7 @@ func TestValidationErrorExamples(t *testing.T) {
 
 		firstError := errors[0].(map[string]interface{})
 		assert.Equal(t, "images[0]", firstError["field"])
-		assert.Equal(t, "Images[0] must be a valid URL", firstError["message"])
+		assert.Equal(t, "validation.url", firstError["message"])
 	})
 
 	t.Run("Single field validation error - min length", func(t *testing.T) {
@@ -90,7 +90,7 @@ func TestValidationErrorExamples(t *testing.T) {
 			Fields: []failure.ValidationFieldError{
 				{
 					Field:   "title",
-					Message: "Title must be greater than or equal to 3",
+					Message: "validation.min",
 					Key:     errkey.ErrorKey("validation.min.title"),
 					Param:   "3",
 				},
@@ -114,7 +114,7 @@ func TestValidationErrorExamples(t *testing.T) {
 
 		firstError := errors[0].(map[string]interface{})
 		assert.Equal(t, "title", firstError["field"])
-		assert.Equal(t, "Title must be greater than or equal to 3", firstError["message"])
+		assert.Equal(t, "validation.min", firstError["message"])
 	})
 
 	t.Run("Multiple field validation errors", func(t *testing.T) {
@@ -123,13 +123,13 @@ func TestValidationErrorExamples(t *testing.T) {
 			Fields: []failure.ValidationFieldError{
 				{
 					Field:   "title",
-					Message: "Title is required",
+					Message: "validation.required",
 					Key:     errkey.ErrorKey("validation.required.title"),
 					Param:   "",
 				},
 				{
 					Field:   "images",
-					Message: "Images is required",
+					Message: "validation.required",
 					Key:     errkey.ErrorKey("validation.required.images"),
 					Param:   "",
 				},
@@ -154,11 +154,11 @@ func TestValidationErrorExamples(t *testing.T) {
 
 		firstError := errors[0].(map[string]interface{})
 		assert.Equal(t, "title", firstError["field"])
-		assert.Equal(t, "Title is required", firstError["message"])
+		assert.Equal(t, "validation.required", firstError["message"])
 
 		secondError := errors[1].(map[string]interface{})
 		assert.Equal(t, "images", secondError["field"])
-		assert.Equal(t, "Images is required", secondError["message"])
+		assert.Equal(t, "validation.required", secondError["message"])
 	})
 
 	t.Run("Non-validation error - gallery not found", func(t *testing.T) {

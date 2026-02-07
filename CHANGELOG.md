@@ -15,10 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Non-validation errors still return single error key: `{"error": "gallery.not_found"}`
   - This allows frontends to highlight all problematic fields in a single request/response cycle
 
-- **Human-Readable Validation Messages**: Validation error messages are now user-friendly
-  - Messages are generated using template system in `shared/validator/message.go`
-  - Examples: "Title is required", "Email must be a valid email address", "Title must be greater than or equal to 3"
-  - Messages include field names and validation parameters for context
+- **Human-Readable Validation Messages**: Validation error messages now return error keys for frontend translation
+  - Messages are error keys like `"validation.required"`, `"validation.email"`, `"validation.min"`
+  - Frontend can translate these keys to any language and customize wording
+  - Error keys are simpler and don't include field names (just the validation rule)
+  - See `shared/validator/message.go` for complete list of validation error keys
 
 - **Field-Specific Validation Error Keys**: Enhanced validation error system to return field-specific error keys
   - Validation errors now return keys in format: `validation.{rule}.{field_name}`
@@ -36,10 +37,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created complete test suite for error key functionality
 
 ### Changed
+- **Breaking Change**: Validation error message field now returns error keys instead of human-readable text
+  - Old format: `{"errors": [{"field": "title", "message": "Title is required"}]}`
+  - New format: `{"errors": [{"field": "title", "message": "validation.required"}]}`
+  - The `message` field now contains error keys (e.g., `"validation.required"`, `"validation.email"`)
+  - Frontend must translate error keys to localized messages
+  - Error keys are simpler and language-agnostic (no field names in message)
+  - **Frontend Impact**: 
+    - Create translation map for validation error keys
+    - Translate keys like `"validation.required"` → `"Title is required"` (en) or `"Título es obligatorio"` (es)
+    - Field name is already available in the `field` property
+  - See `docs/Error.md` for complete frontend translation examples
+
 - **Breaking Change**: Validation error response format changed to array-based format
   - Old format: `{"error": "validation.required.title"}` (single field only)
-  - New format: `{"errors": [{"field": "title", "message": "Title is required"}, {"field": "images", "message": "Images is required"}]}` (all fields)
-  - The `message` field contains human-readable text, not error keys
+  - New format: `{"errors": [{"field": "title", "message": "validation.required"}, {"field": "images", "message": "validation.required"}]}` (all fields)
   - Non-validation errors unchanged: `{"error": "gallery.not_found"}`
   - **Frontend Impact**: Frontends must handle two different response formats:
     - For 422 status: Check `response.data.errors` array

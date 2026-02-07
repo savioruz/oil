@@ -42,15 +42,16 @@ func WithJSON(writer http.ResponseWriter, code int, jsonPayload interface{}) {
 	response(writer, code, Data[any]{Data: &jsonPayload})
 }
 
-// WithError sends a response with an error message
+// WithError sends a response with an error key
 // For validation errors (422), it returns an array of field errors with format:
 //
-//	{"errors": [{"field": "title", "message": "Title is required"}]}
+//	{"errors": [{"field": "title", "message": "validation.required"}]}
 //
 // For other errors, it returns a single error key:
 //
 //	{"error": "gallery.not_found"}
 //
+// The message field contains error keys that should be translated by the frontend.
 // See Error.md for complete error documentation
 func WithError(writer http.ResponseWriter, err error) {
 	code := failure.GetCode(err)
@@ -63,11 +64,12 @@ func WithError(writer http.ResponseWriter, err error) {
 		for i, fieldErr := range valErr.Fields {
 			fieldErrors[i] = FieldError{
 				Field:   fieldErr.Field,
-				Message: fieldErr.Message, // Human-readable message, not the error key
+				Message: fieldErr.Message, // Error key (e.g., "validation.required")
 			}
 		}
 
 		response(writer, code, ValidationErrors{Errors: fieldErrors})
+
 		return
 	}
 

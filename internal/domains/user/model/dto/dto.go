@@ -52,7 +52,6 @@ func (r *CreateUserRequest) ToModel(username string, hashedPassword string) mode
 }
 
 type UserResponse struct {
-	ID           string  `json:"id"`
 	Email        string  `json:"email"`
 	Level        string  `json:"level"`
 	FullName     *string `json:"full_name,omitempty"`
@@ -64,7 +63,6 @@ type UserResponse struct {
 }
 
 func (r *UserResponse) FromModel(model model.User) {
-	r.ID = model.ID
 	r.Email = model.Email
 	r.Level = model.Level
 	r.FullName = model.FullName

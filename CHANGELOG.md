@@ -9,15 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Enhanced Authentication Security**: Refresh tokens now support HTTP-only cookie storage
-  - Login endpoint always returns both `access_token` and `refresh_token` in response body
-  - When `remember=true` in login request, refresh token is also set as HTTP-only, secure cookie
-  - Refresh token endpoint can now read token from either request body or HTTP-only cookie
+  - **Cookie-based authentication** (when `remember=true`):
+    - Login returns only `access_token` in response body
+    - Refresh token is set as HTTP-only cookie (not in response body)
+    - RefreshToken endpoint returns only `access_token` in response body
+    - New refresh token is automatically updated in cookie
+    - JavaScript cannot access refresh token (XSS protection)
+  - **Traditional authentication** (when `remember=false`):
+    - Login returns both `access_token` and `refresh_token` in response body
+    - RefreshToken endpoint returns both tokens in response body
+    - Client manages token storage
   - Cookie-based refresh tokens are automatically rotated on refresh
   - Cookies expiration matches JWT refresh token lifetime (configurable via `JWT_REFRESH_EXPIRE_MIN`, defaults to 7 days)
   - Cookies use `SameSite=Strict` for CSRF protection
-  - This prevents XSS attacks from stealing refresh tokens stored in browser localStorage
   - **Frontend Impact**:
-    - When `remember=true`: Store `access_token` in memory, browser auto-sends refresh token via cookie
+    - When `remember=true`: Store only `access_token` in memory, browser auto-sends refresh token via cookie
     - When `remember=false`: Store both tokens in memory/localStorage (traditional approach)
     - Refresh token endpoint accepts empty body when using cookies
 
@@ -52,6 +58,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created complete test suite for error key functionality
 
 ### Changed
+- **Breaking Change**: Cookie-based authentication now excludes refresh token from response body
+  - When using cookie-based auth (`remember=true`), refresh token is NO LONGER returned in JSON response
+  - Old behavior: `{"access_token": "...", "refresh_token": "..."}` + cookie set
+  - New behavior: `{"access_token": "..."}` only + refresh token in HTTP-only cookie
+  - This enhances security by preventing JavaScript access to refresh tokens
+  - Traditional auth (`remember=false`) unchanged: both tokens still in response body
+  - **Frontend Impact**:
+    - Cookie-based: Only read `access_token` from response, refresh token is in cookie
+    - Traditional: Read both `access_token` and `refresh_token` from response as before
+
 - **Cookie MaxAge Configuration**: Cookie expiration now uses `JWT_REFRESH_EXPIRE_MIN` from config
   - Cookie `MaxAge` dynamically calculated from JWT refresh token expiration setting
   - Cookie lifetime automatically syncs with JWT configuration (defaults to 7 days/10080 minutes)
@@ -110,6 +126,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Multi-word fields are automatically converted to snake_case (e.g., `UserEmail` → `user_email`)
 
 ### Security
+- **Enhanced Refresh Token Security**: When using cookie-based authentication, refresh tokens are never exposed to JavaScript
+  - Refresh tokens are only set as HTTP-only cookies (JavaScript cannot read them)
+  - Refresh tokens are excluded from JSON response body when using cookies
+  - This prevents XSS attacks from stealing refresh tokens
+  - Only the access token is accessible to frontend JavaScript
 - Improved security by never exposing internal error details in API responses
 - All error responses now use standardized keys that don't leak implementation details
 

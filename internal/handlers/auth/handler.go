@@ -77,12 +77,12 @@ func (handler *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 // Login handles user login
 // @Summary Login a user
-// @Description Login a user with the provided credentials. If 'remember' is true, the refresh token will also be set as an HTTP-only cookie for enhanced security.
+// @Description Login a user with the provided credentials. If 'remember' is true, the refresh token will be set as an HTTP-only cookie and excluded from the response body for security. If 'remember' is false, both tokens are returned in the response body.
 // @Tags Auth
 // @Accept json
 // @Produce json
 // @Param request body dto.LoginRequest true "Login Request"
-// @Success 200 {object} dto.LoginResponse "User logged in successfully. Both access_token and refresh_token are returned in the response. If remember=true, refresh_token is also set as an HTTP-only cookie."
+// @Success 200 {object} dto.LoginResponse "User logged in successfully. Response contains access_token. If remember=false, refresh_token is also included in response. If remember=true, refresh_token is only set as HTTP-only cookie."
 // @Failure 400 {object} response.Error
 // @Failure 500 {object} response.Error
 // @Router /v1/auth/login [post]
@@ -112,8 +112,10 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If remember is true, set refresh token as HTTP-only cookie
+	// and exclude it from JSON response for security
 	if req.Remember {
 		cookie.SetRefreshToken(w, res.RefreshToken)
+		res.RefreshToken = constant.Empty // Clear from response body
 	}
 
 	scope.AddEvent("User logged in successfully")
@@ -123,12 +125,12 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 // RefreshToken handles token refresh
 // @Summary Refresh user token
-// @Description Refresh user token using the refresh token from request body or HTTP-only cookie. If the refresh token was set as a cookie during login (remember=true), it will be automatically read from the cookie. The new refresh token will also be set as a cookie if the original request used a cookie.
+// @Description Refresh user token using the refresh token from request body or HTTP-only cookie. If using cookie-based authentication, the new refresh token will only be set in the cookie and excluded from the response body for security.
 // @Tags Auth
 // @Accept json
 // @Produce json
 // @Param request body dto.RefreshTokenRequest false "Refresh Token Request (optional if using cookie)"
-// @Success 200 {object} dto.RefreshTokenResponse "Token refreshed successfully. Returns new access_token and refresh_token."
+// @Success 200 {object} dto.RefreshTokenResponse "Token refreshed successfully. Response contains access_token. If using cookie, new refresh_token is only in cookie. If using request body, new refresh_token is in response body."
 // @Failure 400 {object} response.Error
 // @Failure 422 {object} response.ValidationErrors
 // @Failure 500 {object} response.Error
@@ -186,8 +188,11 @@ func (handler *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If refresh token came from cookie, update the cookie with new refresh token
-	if cookie.HasRefreshToken(r) {
+	// and exclude it from JSON response for security
+	usingCookie := cookie.HasRefreshToken(r)
+	if usingCookie {
 		cookie.SetRefreshToken(w, res.RefreshToken)
+		res.RefreshToken = constant.Empty // Clear from response body
 	}
 
 	scope.AddEvent("Token refreshed successfully")

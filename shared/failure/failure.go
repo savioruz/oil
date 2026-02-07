@@ -142,12 +142,13 @@ func GetKey(err error) errkey.ErrorKey {
 				return errkey.ErrUnauthorized
 			case fail.Code == http.StatusForbidden:
 				return errkey.ErrForbidden
-			case fail.Code >= 500:
+			case fail.Code >= http.StatusInternalServerError:
 				return errkey.ErrInternalServer
 			default:
 				return errkey.ErrInternalServer
 			}
 		}
+
 		return fail.Key
 	}
 

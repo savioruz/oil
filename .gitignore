@@ -11,8 +11,8 @@
 **/mock.go
 **/mock*
 
-# Ignore generated files
-**gen.go
+# Disable Ignore generated files
+#**gen.go
 
 # Ignore build artifacts
 node_modules/

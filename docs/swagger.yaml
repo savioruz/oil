@@ -1,0 +1,713 @@
+definitions:
+  dto.CreateGalleryRequest:
+    properties:
+      description:
+        type: string
+      images:
+        items:
+          type: string
+        type: array
+      title:
+        maxLength: 100
+        minLength: 3
+        type: string
+    required:
+    - images
+    - title
+    type: object
+  dto.CreateTodoRequest:
+    properties:
+      description:
+        maxLength: 255
+        type: string
+      title:
+        maxLength: 255
+        type: string
+    required:
+    - description
+    - title
+    type: object
+  dto.DeleteImagesRequest:
+    properties:
+      image_urls:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - image_urls
+    type: object
+  dto.GalleryResponse:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      images:
+        items:
+          type: string
+        type: array
+      modified_at:
+        type: string
+      modified_by:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.GetGalleriesResponse:
+    properties:
+      galleries:
+        items:
+          $ref: '#/definitions/dto.GalleryResponse'
+        type: array
+      total_data:
+        type: integer
+      total_page:
+        type: integer
+    type: object
+  dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  dto.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  dto.RefreshTokenResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  dto.RegisterRequest:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      password:
+        minLength: 8
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.TodoResponse:
+    properties:
+      completed:
+        type: boolean
+      created_at:
+        type: string
+      created_by:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      modified_at:
+        type: string
+      modified_by:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.UpdateGalleryRequest:
+    properties:
+      description:
+        type: string
+      images:
+        items:
+          type: string
+        type: array
+      title:
+        maxLength: 100
+        minLength: 3
+        type: string
+    type: object
+  dto.UpdateTodoRequest:
+    properties:
+      completed:
+        type: boolean
+      description:
+        maxLength: 255
+        type: string
+      title:
+        maxLength: 255
+        type: string
+    type: object
+  dto.UploadImageResponse:
+    properties:
+      file_name:
+        type: string
+      url:
+        type: string
+    type: object
+  model.Todo:
+    properties:
+      completed:
+        type: boolean
+      created_at:
+        type: string
+      createdBy:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      modified_at:
+        type: string
+      modifiedBy:
+        type: string
+      title:
+        type: string
+    type: object
+  response.Error:
+    properties:
+      error:
+        type: string
+    type: object
+  response.Message:
+    properties:
+      message:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Health Check APIEndpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Message'
+      summary: Health Check
+      tags:
+      - service
+  /v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Login a user with the provided credentials.
+      parameters:
+      - description: Login Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User logged in successfully
+          schema:
+            $ref: '#/definitions/dto.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Login a user
+      tags:
+      - Auth
+  /v1/auth/refresh-token:
+    post:
+      consumes:
+      - application/json
+      description: Refresh user token using the provided refresh token.
+      parameters:
+      - description: Refresh Token Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token refreshed successfully
+          schema:
+            $ref: '#/definitions/dto.RefreshTokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Refresh user token
+      tags:
+      - Auth
+  /v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user with the provided details.
+      parameters:
+      - description: Register Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User registered successfully
+          schema:
+            $ref: '#/definitions/response.Message'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Register a new user
+      tags:
+      - Auth
+  /v1/galleries:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all galleries with optional filtering and pagination.
+      parameters:
+      - description: Filter by title
+        in: query
+        name: title
+        type: string
+      - description: Filter by description
+        in: query
+        name: description
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of galleries
+          schema:
+            $ref: '#/definitions/dto.GetGalleriesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get all galleries
+      tags:
+      - Gallery
+    post:
+      consumes:
+      - application/json
+      description: Create a new gallery with the provided details.
+      parameters:
+      - description: Create Gallery Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateGalleryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Gallery created successfully
+          schema:
+            $ref: '#/definitions/response.Message'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      security:
+      - BearerAuth: []
+      summary: Create a new gallery
+      tags:
+      - Gallery
+  /v1/galleries/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a gallery using its unique identifier.
+      parameters:
+      - description: Gallery ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Gallery deleted successfully
+          schema:
+            $ref: '#/definitions/response.Message'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      security:
+      - BearerAuth: []
+      summary: Delete a gallery by ID
+      tags:
+      - Gallery
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a gallery by its unique identifier.
+      parameters:
+      - description: Gallery ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Gallery details
+          schema:
+            $ref: '#/definitions/dto.GalleryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get a gallery by ID
+      tags:
+      - Gallery
+    patch:
+      consumes:
+      - application/json
+      description: Update the details of an existing gallery.
+      parameters:
+      - description: Gallery ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update Gallery Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateGalleryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Gallery updated successfully
+          schema:
+            $ref: '#/definitions/response.Message'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      security:
+      - BearerAuth: []
+      summary: Update a gallery by ID
+      tags:
+      - Gallery
+  /v1/galleries/images:
+    delete:
+      consumes:
+      - application/json
+      description: Delete multiple images from S3 by providing their URLs.
+      parameters:
+      - description: Delete Images Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DeleteImagesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Images deleted successfully
+          schema:
+            $ref: '#/definitions/response.Message'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      security:
+      - BearerAuth: []
+      summary: Delete images from S3
+      tags:
+      - Gallery
+  /v1/galleries/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload an image file to S3 and return the URL.
+      parameters:
+      - description: Image file to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Image uploaded successfully
+          schema:
+            $ref: '#/definitions/dto.UploadImageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      security:
+      - BearerAuth: []
+      summary: Upload an image to S3
+      tags:
+      - Gallery
+  /v1/todos:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all todo items with optional filtering and pagination.
+      parameters:
+      - description: Filter by title
+        in: query
+        name: title
+        type: string
+      - description: Filter by completion status
+        in: query
+        name: completed
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of todo items
+          schema:
+            items:
+              $ref: '#/definitions/model.Todo'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get all todo items
+      tags:
+      - Todo
+    post:
+      consumes:
+      - application/json
+      description: Create a new todo item with the provided details.
+      parameters:
+      - description: Create Todo Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateTodoRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Todo created successfully
+          schema:
+            $ref: '#/definitions/response.Message'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      security:
+      - BearerAuth: []
+      summary: Create a new todo item
+      tags:
+      - Todo
+  /v1/todos/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a todo item using its unique identifier.
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Todo deleted successfully
+          schema:
+            $ref: '#/definitions/response.Message'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      security:
+      - BearerAuth: []
+      summary: Delete a todo item by ID @SuperAdmin
+      tags:
+      - Todo
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a todo item by its unique identifier.
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Todo item details
+          schema:
+            $ref: '#/definitions/dto.TodoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get a todo item by ID
+      tags:
+      - Todo
+    patch:
+      consumes:
+      - application/json
+      description: Update the details of an existing todo item.
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update Todo Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateTodoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Todo updated successfully
+          schema:
+            $ref: '#/definitions/response.Message'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      security:
+      - BearerAuth: []
+      summary: Update a todo item by ID
+      tags:
+      - Todo
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

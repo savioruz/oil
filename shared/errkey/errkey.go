@@ -131,16 +131,19 @@ func (e *ErrorWithDetails) WithDetail(key string, value interface{}) *ErrorWithD
 // ToSnakeCase converts a field name from PascalCase/camelCase to snake_case
 func ToSnakeCase(str string) string {
 	var result strings.Builder
+
 	for i, r := range str {
 		if unicode.IsUpper(r) {
 			if i > 0 {
 				result.WriteRune('_')
 			}
+
 			result.WriteRune(unicode.ToLower(r))
 		} else {
 			result.WriteRune(r)
 		}
 	}
+
 	return result.String()
 }
 
@@ -153,5 +156,6 @@ func FormatFieldError(tag string, fieldName string) ErrorKey {
 	}
 
 	snakeField := ToSnakeCase(fieldName)
+
 	return ErrorKey(fmt.Sprintf("%s.%s", baseKey, snakeField))
 }

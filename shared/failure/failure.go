@@ -32,6 +32,7 @@ func (e *ValidationError) Error() string {
 	if len(e.Fields) > 0 {
 		return e.Fields[0].Message
 	}
+
 	return "validation failed"
 }
 

@@ -44,6 +44,7 @@ func WithError(writer http.ResponseWriter, err error) {
 		// Return the first field's error key (e.g., "validation.required.title")
 		errorValue := string(valErr.Fields[0].Key)
 		response(writer, code, Error{Error: &errorValue})
+
 		return
 	}
 

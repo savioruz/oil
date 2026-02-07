@@ -184,21 +184,23 @@ func buildFieldPath(valErr val.FieldError) string {
 	// Convert to snake_case but preserve array indices
 	result := ""
 	inBracket := false
+
 	for i, r := range fieldPath {
-		if r == '[' {
+		switch {
+		case r == '[':
 			inBracket = true
 			result += string(r)
-		} else if r == ']' {
+		case r == ']':
 			inBracket = false
 			result += string(r)
-		} else if inBracket {
+		case inBracket:
 			result += string(r)
-		} else if r >= 'A' && r <= 'Z' {
+		case r >= 'A' && r <= 'Z':
 			if i > 0 && !inBracket {
 				result += "_"
 			}
 			result += strings.ToLower(string(r))
-		} else {
+		default:
 			result += string(r)
 		}
 	}
@@ -212,7 +214,9 @@ func generateFieldMessage(field, tag, param string) string {
 	if msg != "" {
 		msg = strings.ReplaceAll(msg, "{field}", field)
 		msg = strings.ReplaceAll(msg, "{param}", param)
+
 		return msg
 	}
+
 	return fmt.Sprintf("%s validation failed for tag '%s'", field, tag)
 }

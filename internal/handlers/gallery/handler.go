@@ -52,7 +52,7 @@ func (handler *Handler) Router(router chi.Router) {
 // @Success 201 {object} response.Message "Gallery created successfully"
 // @Failure 400 {object} response.Error
 // @Failure 500 {object} response.Error
-// @Router /v1/galleries [post]
+// @Router /api/galleries [post]
 // @Security BearerAuth
 func (handler *Handler) CreateGallery(writer http.ResponseWriter, request *http.Request) {
 	ctx, scope := handler.otel.NewScope(request.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".CreateGallery")
@@ -95,7 +95,7 @@ func (handler *Handler) CreateGallery(writer http.ResponseWriter, request *http.
 // @Success 200 {object} response.Data[dto.GetGalleriesResponse] "List of galleries"
 // @Failure 400 {object} response.Error
 // @Failure 500 {object} response.Error
-// @Router /v1/galleries [get]
+// @Router /api/galleries [get]
 func (handler *Handler) GetGalleries(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".GetGalleries")
 	defer scope.End()
@@ -155,7 +155,7 @@ func (handler *Handler) GetGalleries(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} response.Error
 // @Failure 404 {object} response.Error
 // @Failure 500 {object} response.Error
-// @Router /v1/galleries/{id} [get]
+// @Router /api/galleries/{id} [get]
 func (handler *Handler) GetGalleryByID(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".GetGalleryByID")
 	defer scope.End()
@@ -189,7 +189,7 @@ func (handler *Handler) GetGalleryByID(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} response.Error
 // @Failure 404 {object} response.Error
 // @Failure 500 {object} response.Error
-// @Router /v1/galleries/{id} [patch]
+// @Router /api/galleries/{id} [patch]
 // @Security BearerAuth
 func (handler *Handler) UpdateGallery(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".UpdateGallery")
@@ -233,7 +233,7 @@ func (handler *Handler) UpdateGallery(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} response.Error
 // @Failure 404 {object} response.Error
 // @Failure 500 {object} response.Error
-// @Router /v1/galleries/{id} [delete]
+// @Router /api/galleries/{id} [delete]
 // @Security BearerAuth
 func (handler *Handler) DeleteGallery(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".DeleteGallery")
@@ -266,7 +266,7 @@ func (handler *Handler) DeleteGallery(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} dto.UploadImageResponse "Image uploaded successfully"
 // @Failure 400 {object} response.Error
 // @Failure 500 {object} response.Error
-// @Router /v1/galleries/upload [post]
+// @Router /api/galleries/upload [post]
 // @Security BearerAuth
 func (handler *Handler) UploadImage(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".UploadImage")
@@ -323,7 +323,7 @@ func (handler *Handler) UploadImage(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} response.Message "Images deleted successfully"
 // @Failure 400 {object} response.Error
 // @Failure 500 {object} response.Error
-// @Router /v1/galleries/images [delete]
+// @Router /api/galleries/images [delete]
 // @Security BearerAuth
 func (handler *Handler) DeleteImages(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".DeleteImages")

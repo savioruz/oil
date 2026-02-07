@@ -8,6 +8,7 @@ import (
 	"oil/docs"
 	"oil/infras/postgres"
 	"oil/shared/constant"
+	"oil/shared/errkey"
 	"oil/shared/logger"
 	httpMiddleware "oil/transport/http/middleware"
 	"oil/transport/http/response"
@@ -37,7 +38,7 @@ const (
 
 const (
 	RouteHealthCheck = "/health"
-	RouteSwaggerDocs = "/swagger/*"
+	RouteSwaggerDocs = "/docs/*"
 )
 
 type HTTP struct {
@@ -78,6 +79,7 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *HTTP) setup() {
 	h.setupChi()
 	h.setupMiddlewares()
+	h.setupNotFoundHandler()
 	h.setupRoutes()
 	h.setupSwaggerDocs()
 	h.setupGracefulShutdown()
@@ -106,12 +108,17 @@ func (h *HTTP) setupMiddlewares() {
 	h.setupLogger()
 	h.setupCORS()
 	h.setupServerState()
+	h.setupCleanPaths()
 	h.setupIdentity()
 	h.setupRecover()
 	h.setupRateLimit()
 	h.setupTracing()
 
 	h.logCORSConfigInfo()
+}
+
+func (h *HTTP) setupCleanPaths() {
+	h.mux.Use(middleware.CleanPath)
 }
 
 func (h *HTTP) setupIdentity() {
@@ -190,7 +197,7 @@ func (h *HTTP) setupSwaggerDocs() {
 		docs.SwaggerInfo.Title = h.Config.App.Name
 		h.mux.Get(RouteSwaggerDocs, httpSwagger.Handler())
 
-		log.Info().Str("url", fmt.Sprintf("http://localhost:%s/swagger/index.html", h.Config.Server.Port)).Msg("Swagger docs available at")
+		log.Info().Str("url", fmt.Sprintf("http://localhost:%s/docs/index.html", h.Config.Server.Port)).Msg("Swagger docs available at")
 
 		return
 	}
@@ -279,6 +286,12 @@ func (h *HTTP) logCORSConfigInfo() {
 	} else {
 		log.Info().Msg("CORS Headers are disabled.")
 	}
+}
+
+func (h *HTTP) setupNotFoundHandler() {
+	h.mux.NotFound(func(writer http.ResponseWriter, request *http.Request) {
+		response.WithMessage(writer, http.StatusNotFound, string(errkey.ErrNotFound))
+	})
 }
 
 // HealthCheck performs a health check on the server.

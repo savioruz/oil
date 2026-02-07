@@ -49,7 +49,7 @@ func (handler *Handler) Router(router chi.Router) {
 // @Success 201 {object} response.Message "Todo created successfully"
 // @Failure 400 {object} response.Error
 // @Failure 500 {object} response.Error
-// @Router /v1/todos [post]
+// @Router /api/todos [post]
 // @Security BearerAuth
 func (handler *Handler) CreateTodo(writer http.ResponseWriter, request *http.Request) {
 	ctx, scope := handler.otel.NewScope(request.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".CreateTodo")
@@ -92,7 +92,7 @@ func (handler *Handler) CreateTodo(writer http.ResponseWriter, request *http.Req
 // @Success 200 {array} model.Todo "List of todo items"
 // @Failure 400 {object} response.Error
 // @Failure 500 {object} response.Error
-// @Router /v1/todos [get]
+// @Router /api/todos [get]
 func (handler *Handler) GetTodos(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".GetTodos")
 	defer scope.End()
@@ -149,7 +149,7 @@ func (handler *Handler) GetTodos(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} response.Error
 // @Failure 404 {object} response.Error
 // @Failure 500 {object} response.Error
-// @Router /v1/todos/{id} [get]
+// @Router /api/todos/{id} [get]
 func (handler *Handler) GetTodoByID(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".GetTodoByID")
 	defer scope.End()
@@ -183,7 +183,7 @@ func (handler *Handler) GetTodoByID(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} response.Error
 // @Failure 404 {object} response.Error
 // @Failure 500 {object} response.Error
-// @Router /v1/todos/{id} [patch]
+// @Router /api/todos/{id} [patch]
 // @Security BearerAuth
 func (handler *Handler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".UpdateTodo")
@@ -227,7 +227,7 @@ func (handler *Handler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} response.Error
 // @Failure 404 {object} response.Error
 // @Failure 500 {object} response.Error
-// @Router /v1/todos/{id} [delete]
+// @Router /api/todos/{id} [delete]
 // @Security BearerAuth
 func (handler *Handler) DeleteTodo(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".DeleteTodo")

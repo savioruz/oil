@@ -42,6 +42,7 @@ var infrastructures = wire.NewSet(
 	redis.New,
 	s3.New,
 	jwt.New,
+	// kafka.New,
 )
 
 var middlewares = wire.NewSet(

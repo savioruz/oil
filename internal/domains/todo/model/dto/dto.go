@@ -6,7 +6,7 @@ import (
 	"oil/shared"
 	gDto "oil/shared/dto"
 	gModel "oil/shared/model"
-	"oil/shared/timezone"
+	"time"
 )
 
 type CreateTodoRequest struct {
@@ -15,14 +15,16 @@ type CreateTodoRequest struct {
 }
 
 func (c *CreateTodoRequest) ToModel(user string) model.Todo {
+	now := time.Now()
+
 	return model.Todo{
 		ID:          uuid.NewString(),
 		Title:       c.Title,
 		Description: c.Description,
 		Completed:   false,
 		Metadata: gModel.Metadata{
-			CreatedAt:  timezone.Now(),
-			ModifiedAt: timezone.Now(),
+			CreatedAt:  now,
+			ModifiedAt: now,
 			CreatedBy:  user,
 			ModifiedBy: user,
 		},

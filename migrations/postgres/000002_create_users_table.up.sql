@@ -9,10 +9,10 @@ CREATE TABLE IF NOT EXISTS users (
     full_name VARCHAR(255) DEFAULT NULL,
     profile_image TEXT DEFAULT NULL,
     is_verified BOOLEAN DEFAULT FALSE,
-    last_login TIMESTAMP DEFAULT NULL,
+    last_login TIMESTAMPTZ DEFAULT NULL,
     active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT now(),
-    modified_at TIMESTAMP DEFAULT now(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    modified_at TIMESTAMPTZ DEFAULT NOW(),
     created_by VARCHAR(36) NOT NULL,
     modified_by VARCHAR(36) NOT NULL
 );
@@ -21,16 +21,16 @@ CREATE TABLE IF NOT EXISTS email_verifications (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
     token VARCHAR(255) UNIQUE NOT NULL,
-    expires_at TIMESTAMP DEFAULT now() + INTERVAL '1 hours',
-    created_at TIMESTAMP DEFAULT now()
+    expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '1 hours',
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS password_resets (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
     token VARCHAR(255) UNIQUE NOT NULL,
-    expires_at TIMESTAMP DEFAULT now() + INTERVAL '1 hours',
-    created_at TIMESTAMP DEFAULT now()
+    expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '1 hours',
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_users_email ON users(email);

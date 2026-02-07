@@ -6,7 +6,7 @@ import (
 	"oil/shared/constant"
 	gDto "oil/shared/dto"
 	gModel "oil/shared/model"
-	"oil/shared/timezone"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -31,6 +31,8 @@ func (r *CreateUserRequest) ToModel(username string, hashedPassword string) mode
 		isVerified = *r.IsVerified
 	}
 
+	now := time.Now()
+
 	return model.User{
 		ID:           uuid.NewString(),
 		Email:        r.Email,
@@ -41,8 +43,8 @@ func (r *CreateUserRequest) ToModel(username string, hashedPassword string) mode
 		IsVerified:   isVerified,
 		Active:       true,
 		Metadata: gModel.Metadata{
-			CreatedAt:  timezone.Now(),
-			ModifiedAt: timezone.Now(),
+			CreatedAt:  now,
+			ModifiedAt: now,
 			CreatedBy:  username,
 			ModifiedBy: username,
 		},

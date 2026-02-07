@@ -3,8 +3,8 @@ CREATE TABLE IF NOT EXISTS galleries (
     title VARCHAR(100) NOT NULL,
     description TEXT,
     images TEXT[] DEFAULT '{}',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    modified_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    modified_at TIMESTAMPTZ DEFAULT NOW(),
     created_by VARCHAR(36) NOT NULL,
     modified_by VARCHAR(36) NOT NULL
 )

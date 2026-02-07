@@ -5,7 +5,6 @@ import (
 	userModel "oil/internal/domains/user/model"
 	"oil/shared/constant"
 	gModel "oil/shared/model"
-	"oil/shared/timezone"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,6 +17,8 @@ type RegisterRequest struct {
 }
 
 func (r *RegisterRequest) ToUserModel(username string, hashedPassword string) userModel.User {
+	now := time.Now()
+
 	return userModel.User{
 		ID:         uuid.NewString(),
 		Email:      r.Email,
@@ -27,8 +28,8 @@ func (r *RegisterRequest) ToUserModel(username string, hashedPassword string) us
 		IsVerified: false,
 		Active:     true,
 		Metadata: gModel.Metadata{
-			CreatedAt:  timezone.Now(),
-			ModifiedAt: timezone.Now(),
+			CreatedAt:  now,
+			ModifiedAt: now,
 			CreatedBy:  username,
 			ModifiedBy: username,
 		},

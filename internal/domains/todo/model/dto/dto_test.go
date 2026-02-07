@@ -2,11 +2,11 @@ package dto_test
 
 import (
 	"testing"
+	"time"
 
 	"oil/internal/domains/todo/model"
 	"oil/internal/domains/todo/model/dto"
 	gModel "oil/shared/model"
-	"oil/shared/timezone"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -31,7 +31,7 @@ func TestCreateTodoRequest_ToModel(t *testing.T) {
 }
 
 func TestTodoResponse_FromModel(t *testing.T) {
-	now := timezone.Now()
+	now := time.Now()
 	todoModel := model.Todo{
 		ID:          "test-id",
 		Title:       "Test Todo",
@@ -57,7 +57,7 @@ func TestTodoResponse_FromModel(t *testing.T) {
 }
 
 func TestGetTodosResponse_FromModels(t *testing.T) {
-	now := timezone.Now()
+	now := time.Now()
 	todos := []model.Todo{
 		{
 			ID:          "test-id-1",
@@ -92,10 +92,9 @@ func TestGetTodosResponse_FromModels(t *testing.T) {
 	response.FromModels(todos, totalData, limit)
 
 	assert.Equal(t, totalData, response.TotalData)
-	assert.Equal(t, 2, response.TotalPage) // 15 items with limit 10 should give 2 pages
+	assert.Equal(t, 2, response.TotalPage)
 	assert.Len(t, response.Todos, len(todos))
 
-	// Test individual todo mapping
 	for i, todo := range response.Todos {
 		assert.Equal(t, todos[i].ID, todo.ID)
 		assert.Equal(t, todos[i].Title, todo.Title)

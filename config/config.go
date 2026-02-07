@@ -22,9 +22,8 @@ type Config struct {
 	} `envconfig:"SERVER"`
 
 	App struct {
-		Name     string `envconfig:"APP_NAME"`
-		Timezone string `envconfig:"TIMEZONE"`
-		CORS     struct {
+		Name string `envconfig:"APP_NAME"`
+		CORS struct {
 			AllowCredentials bool     `envconfig:"ALLOW_CREDENTIALS"`
 			AllowedHeaders   []string `envconfig:"ALLOWED_HEADERS"`
 			AllowedMethods   []string `envconfig:"ALLOWED_METHODS"`
@@ -87,6 +86,16 @@ type Config struct {
 			} `envconfig:"WRITE"`
 		} `envconfig:"POSTGRES"`
 	} `envconfig:"DB"`
+
+	Kafka struct {
+		SASL struct {
+			Username string `envconfig:"USERNAME"`
+			Password string `envconfig:"PASSWORD"`
+		} `envconfig:"SASL"`
+		Brokers       []string `envconfig:"BROKERS"`
+		ConsumerGroup string   `envconfig:"CONSUMER_GROUP"`
+		Topics        struct{} `envconfig:"TOPICS"`
+	} `envconfig:"KAFKA"`
 
 	External struct {
 		S3 struct {

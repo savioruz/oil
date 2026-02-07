@@ -21,8 +21,10 @@ tmp/
 bin/
 .vercel
 
-# Disable Ignore docs
-#docs/
+# Ignore swagger files
+docs/docs.go
+docs/swagger.json
+docs/swagger.yaml
 
 # Ignore permission file
 permissions/permissions.json

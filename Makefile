@@ -3,6 +3,10 @@ COMPOSE=docker-compose
 MIGRATION_PATH=migrations/postgres
 
 help: ## Display this help screen
+	@if [ -z "$(shell which awk)" ]; then \
+		echo "awk is required to display help"; \
+		exit 1; \
+	fi
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_.-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 .PHONY: help
 
@@ -95,6 +99,11 @@ migrate.create: ## Create a new migration file. Usage: make migrate.create name=
 .PHONY: migrate.create
 
 migrate.order: ## Order migrations. Usage: make migrate-order table=<table name> n=<order number>
+	@if [ -z "$(table)" ] || [ -z "$(n)" ]; then \
+		echo "Please set the table and n variables"; \
+		echo "Example: make migrate.order table=users n=2"; \
+		exit 1; \
+	fi
 	cmd/migrate/order.sh $(table) $(n)
 .PHONY: migrate.order
 

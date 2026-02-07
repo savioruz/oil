@@ -207,7 +207,7 @@ const docTemplate = `{
                     "200": {
                         "description": "List of galleries",
                         "schema": {
-                            "$ref": "#/definitions/dto.GetGalleriesResponse"
+                            "$ref": "#/definitions/response.Data-dto_GetGalleriesResponse"
                         }
                     },
                     "400": {
@@ -400,7 +400,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Gallery details",
                         "schema": {
-                            "$ref": "#/definitions/dto.GalleryResponse"
+                            "$ref": "#/definitions/response.Data-dto_GalleryResponse"
                         }
                     },
                     "400": {
@@ -923,6 +923,9 @@ const docTemplate = `{
                 },
                 "password": {
                     "type": "string"
+                },
+                "remember": {
+                    "type": "boolean"
                 }
             }
         },
@@ -939,9 +942,6 @@ const docTemplate = `{
         },
         "dto.RefreshTokenRequest": {
             "type": "object",
-            "required": [
-                "refresh_token"
-            ],
             "properties": {
                 "refresh_token": {
                     "type": "string"
@@ -1013,12 +1013,6 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
-                "images": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "title": {
                     "type": "string",
                     "maxLength": 100,
@@ -1059,10 +1053,10 @@ const docTemplate = `{
                 "completed": {
                     "type": "boolean"
                 },
-                "createdBy": {
+                "createdAt": {
                     "type": "string"
                 },
-                "created_at": {
+                "createdBy": {
                     "type": "string"
                 },
                 "description": {
@@ -1071,14 +1065,30 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "modifiedBy": {
+                "modifiedAt": {
                     "type": "string"
                 },
-                "modified_at": {
+                "modifiedBy": {
                     "type": "string"
                 },
                 "title": {
                     "type": "string"
+                }
+            }
+        },
+        "response.Data-dto_GalleryResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.GalleryResponse"
+                }
+            }
+        },
+        "response.Data-dto_GetGalleriesResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.GetGalleriesResponse"
                 }
             }
         },

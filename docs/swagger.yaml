@@ -75,6 +75,8 @@ definitions:
         type: string
       password:
         type: string
+      remember:
+        type: boolean
     required:
     - email
     - password
@@ -90,8 +92,6 @@ definitions:
     properties:
       refresh_token:
         type: string
-    required:
-    - refresh_token
     type: object
   dto.RefreshTokenResponse:
     properties:
@@ -136,10 +136,6 @@ definitions:
     properties:
       description:
         type: string
-      images:
-        items:
-          type: string
-        type: array
       title:
         maxLength: 100
         minLength: 3
@@ -167,7 +163,7 @@ definitions:
     properties:
       completed:
         type: boolean
-      created_at:
+      createdAt:
         type: string
       createdBy:
         type: string
@@ -175,12 +171,22 @@ definitions:
         type: string
       id:
         type: string
-      modified_at:
+      modifiedAt:
         type: string
       modifiedBy:
         type: string
       title:
         type: string
+    type: object
+  response.Data-dto_GalleryResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.GalleryResponse'
+    type: object
+  response.Data-dto_GetGalleriesResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.GetGalleriesResponse'
     type: object
   response.Error:
     properties:
@@ -320,7 +326,7 @@ paths:
         "200":
           description: List of galleries
           schema:
-            $ref: '#/definitions/dto.GetGalleriesResponse'
+            $ref: '#/definitions/response.Data-dto_GetGalleriesResponse'
         "400":
           description: Bad Request
           schema:
@@ -414,7 +420,7 @@ paths:
         "200":
           description: Gallery details
           schema:
-            $ref: '#/definitions/dto.GalleryResponse'
+            $ref: '#/definitions/response.Data-dto_GalleryResponse'
         "400":
           description: Bad Request
           schema:

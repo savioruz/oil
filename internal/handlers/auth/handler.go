@@ -6,6 +6,7 @@ import (
 	"oil/internal/domains/auth/model/dto"
 	"oil/internal/domains/auth/service"
 	"oil/shared/constant"
+	"oil/shared/failure"
 	"oil/shared/validator"
 	"oil/transport/http/response"
 
@@ -75,12 +76,12 @@ func (handler *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 // Login handles user login
 // @Summary Login a user
-// @Description Login a user with the provided credentials.
+// @Description Login a user with the provided credentials. If 'remember' is true, the refresh token will also be set as an HTTP-only cookie for enhanced security.
 // @Tags Auth
 // @Accept json
 // @Produce json
 // @Param request body dto.LoginRequest true "Login Request"
-// @Success 200 {object} dto.LoginResponse "User logged in successfully"
+// @Success 200 {object} dto.LoginResponse "User logged in successfully. Both access_token and refresh_token are returned in the response. If remember=true, refresh_token is also set as an HTTP-only cookie."
 // @Failure 400 {object} response.Error
 // @Failure 500 {object} response.Error
 // @Router /v1/auth/login [post]
@@ -109,6 +110,19 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If remember is true, set refresh token as HTTP-only cookie
+	if req.Remember {
+		http.SetCookie(w, &http.Cookie{
+			Name:     constant.CookieRefreshToken,
+			Value:    res.RefreshToken,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteStrictMode,
+			MaxAge:   constant.CookieMaxAge,
+		})
+	}
+
 	scope.AddEvent("User logged in successfully")
 
 	response.WithJSON(w, http.StatusOK, res)
@@ -116,13 +130,14 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 // RefreshToken handles token refresh
 // @Summary Refresh user token
-// @Description Refresh user token using the provided refresh token.
+// @Description Refresh user token using the refresh token from request body or HTTP-only cookie. If the refresh token was set as a cookie during login (remember=true), it will be automatically read from the cookie. The new refresh token will also be set as a cookie if the original request used a cookie.
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param request body dto.RefreshTokenRequest true "Refresh Token Request"
-// @Success 200 {object} dto.RefreshTokenResponse "Token refreshed successfully"
+// @Param request body dto.RefreshTokenRequest false "Refresh Token Request (optional if using cookie)"
+// @Success 200 {object} dto.RefreshTokenResponse "Token refreshed successfully. Returns new access_token and refresh_token."
 // @Failure 400 {object} response.Error
+// @Failure 422 {object} response.ValidationErrors
 // @Failure 500 {object} response.Error
 // @Router /v1/auth/refresh-token [post]
 func (handler *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
@@ -140,6 +155,34 @@ func (handler *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If no refresh token in body, try to get from cookie
+	if req.RefreshToken == "" {
+		cookie, err := r.Cookie(constant.CookieRefreshToken)
+		if err == nil {
+			req.RefreshToken = cookie.Value
+		}
+	}
+
+	// Validate that we have a refresh token
+	if req.RefreshToken == "" {
+		err := &failure.ValidationError{
+			Code: http.StatusUnprocessableEntity,
+			Fields: []failure.ValidationFieldError{
+				{
+					Field:   "refresh_token",
+					Message: "validation.required",
+					Key:     "validation.required.refresh_token",
+				},
+			},
+		}
+		scope.TraceError(err)
+		log.Error().Err(err).Msg("refresh token is required")
+
+		response.WithError(w, err)
+
+		return
+	}
+
 	res, err := handler.service.RefreshToken(ctx, req)
 	if err != nil {
 		scope.TraceError(err)
@@ -148,6 +191,19 @@ func (handler *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		response.WithError(w, err)
 
 		return
+	}
+
+	// If refresh token came from cookie, update the cookie with new refresh token
+	if _, cookieErr := r.Cookie(constant.CookieRefreshToken); cookieErr == nil {
+		http.SetCookie(w, &http.Cookie{
+			Name:     constant.CookieRefreshToken,
+			Value:    res.RefreshToken,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteStrictMode,
+			MaxAge:   constant.CookieMaxAge,
+		})
 	}
 
 	scope.AddEvent("Token refreshed successfully")

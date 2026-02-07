@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Enhanced Authentication Security**: Refresh tokens now support HTTP-only cookie storage
+  - Login endpoint always returns both `access_token` and `refresh_token` in response body
+  - When `remember=true` in login request, refresh token is also set as HTTP-only, secure cookie
+  - Refresh token endpoint can now read token from either request body or HTTP-only cookie
+  - Cookie-based refresh tokens are automatically rotated on refresh
+  - Cookies have 7-day expiration and use `SameSite=Strict` for CSRF protection
+  - This prevents XSS attacks from stealing refresh tokens stored in browser localStorage
+  - **Frontend Impact**:
+    - When `remember=true`: Store `access_token` in memory, browser auto-sends refresh token via cookie
+    - When `remember=false`: Store both tokens in memory/localStorage (traditional approach)
+    - Refresh token endpoint accepts empty body when using cookies
+
 - **Array-Based Validation Error Response**: Validation errors now return ALL field errors at once
   - Validation errors (422) return an `errors` array containing all validation failures
   - Each error contains `field` (snake_case field name, e.g., `"title"`, `"user_email"`, `"images[0]"`) and `message` (error key)
@@ -39,6 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created complete test suite for error key functionality
 
 ### Changed
+- **Breaking Change**: `remember` field in LoginRequest is now optional (defaults to `false`)
+  - Old: `remember` was required in login requests
+  - New: `remember` is optional, if omitted defaults to `false` (no cookie set)
+  
 - **Breaking Change**: Validation error message field now returns error keys instead of human-readable text
   - Old format: `{"errors": [{"field": "title", "message": "Title is required"}]}`
   - New format: `{"errors": [{"field": "title", "message": "validation.required"}]}`

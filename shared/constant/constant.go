@@ -33,7 +33,7 @@ const (
 
 const (
 	RequestParamID   = "id"
-	RequestMaxMemory = 10 << 20 // 10 MB
+	RequestMaxMemory = 1 << 20 // 1 MB
 )
 
 const (

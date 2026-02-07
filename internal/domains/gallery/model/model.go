@@ -1,6 +1,10 @@
 package model
 
-import "oil/shared/model"
+import (
+	"oil/shared/model"
+
+	"github.com/lib/pq"
+)
 
 const (
 	TableName  = "galleries"
@@ -13,9 +17,9 @@ const (
 )
 
 type Gallery struct {
-	ID          string   `db:"id"`
-	Title       string   `db:"title"`
-	Description string   `db:"description"`
-	Images      []string `db:"images"`
+	ID          string         `db:"id"`
+	Title       string         `db:"title"`
+	Description string         `db:"description"`
+	Images      pq.StringArray `db:"images"`
 	model.Metadata
 }

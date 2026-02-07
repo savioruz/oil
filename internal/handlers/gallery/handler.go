@@ -92,7 +92,7 @@ func (handler *Handler) CreateGallery(writer http.ResponseWriter, request *http.
 // @Produce json
 // @Param title query string false "Filter by title"
 // @Param description query string false "Filter by description"
-// @Success 200 {object} dto.GetGalleriesResponse "List of galleries"
+// @Success 200 {object} response.Data[dto.GetGalleriesResponse] "List of galleries"
 // @Failure 400 {object} response.Error
 // @Failure 500 {object} response.Error
 // @Router /v1/galleries [get]
@@ -151,7 +151,7 @@ func (handler *Handler) GetGalleries(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param id path string true "Gallery ID"
-// @Success 200 {object} dto.GalleryResponse "Gallery details"
+// @Success 200 {object} response.Data[dto.GalleryResponse] "Gallery details"
 // @Failure 400 {object} response.Error
 // @Failure 404 {object} response.Error
 // @Failure 500 {object} response.Error

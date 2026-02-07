@@ -137,32 +137,55 @@ Error keys follow the pattern: `category.specific_error`
 
 ### Validation Errors (400, 422)
 
-**Field-Specific Validation Keys:**
+**Field-Specific Validation:**
 
-Validation errors return field-specific error keys in the format: `validation.{rule}.{field_name}`
+Validation errors return an `errors` array with field-specific information. Each error contains:
+- `field`: The field name in snake_case (e.g., `"title"`, `"user_email"`, `"images[0]"`)
+- `message`: The validation rule that failed (e.g., `"validation.required"`, `"validation.email"`)
+- `param` (optional): Additional context like min/max values
 
-Examples:
-- `validation.required.title` - Title field is required
-- `validation.min.title` - Title doesn't meet minimum length
-- `validation.url.images` - Images field contains invalid URL
-- `validation.email.email` - Email field has invalid format
+**Validation Message Keys:**
 
-| Error Key Pattern | HTTP Status | Description | Example Response |
-|-------------------|-------------|-------------|------------------|
-| `validation.required.{field}` | 422 | Required field is missing | `{"error": "validation.required.title"}` |
-| `validation.min.{field}` | 422 | Value too short/small | `{"error": "validation.min.title"}` |
-| `validation.max.{field}` | 422 | Value too long/large | `{"error": "validation.max.description"}` |
-| `validation.gte.{field}` | 422 | Value must be ≥ param | `{"error": "validation.gte.age"}` |
-| `validation.lte.{field}` | 422 | Value must be ≤ param | `{"error": "validation.lte.price"}` |
-| `validation.url.{field}` | 422 | URL format is invalid | `{"error": "validation.url.images"}` |
-| `validation.email.{field}` | 422 | Email format is invalid | `{"error": "validation.email.email"}` |
-| `validation.oneof.{field}` | 422 | Value not in allowed list | `{"error": "validation.oneof.status"}` |
-| `validation.mimetypes.{field}` | 422 | File type not allowed | `{"error": "validation.mimetypes.image"}` |
-| `validation.maxfilesize.{field}` | 422 | File size exceeds limit | `{"error": "validation.maxfilesize.image"}` |
-| `validation.empty.{field}` | 422 | Field must be empty | `{"error": "validation.empty.optional_field"}` |
-| `validation.dive.{field}` | 422 | Array element validation failed | `{"error": "validation.dive.tags"}` |
+| Message Key | HTTP Status | Description | Example Response |
+|-------------|-------------|-------------|------------------|
+| `validation.required` | 422 | Required field is missing | `{"errors": [{"field": "title", "message": "validation.required"}]}` |
+| `validation.min` | 422 | Value too short/small | `{"errors": [{"field": "title", "message": "validation.min", "param": "3"}]}` |
+| `validation.max` | 422 | Value too long/large | `{"errors": [{"field": "description", "message": "validation.max", "param": "500"}]}` |
+| `validation.gte` | 422 | Value must be ≥ param | `{"errors": [{"field": "age", "message": "validation.gte", "param": "18"}]}` |
+| `validation.lte` | 422 | Value must be ≤ param | `{"errors": [{"field": "price", "message": "validation.lte", "param": "1000"}]}` |
+| `validation.url` | 422 | URL format is invalid | `{"errors": [{"field": "images[0]", "message": "validation.url"}]}` |
+| `validation.email` | 422 | Email format is invalid | `{"errors": [{"field": "user_email", "message": "validation.email"}]}` |
+| `validation.oneof` | 422 | Value not in allowed list | `{"errors": [{"field": "status", "message": "validation.oneof"}]}` |
+| `validation.mimetypes` | 422 | File type not allowed | `{"errors": [{"field": "image", "message": "validation.mimetypes"}]}` |
+| `validation.maxfilesize` | 422 | File size exceeds limit | `{"errors": [{"field": "image", "message": "validation.maxfilesize"}]}` |
+| `validation.empty` | 422 | Field must be empty | `{"errors": [{"field": "optional_field", "message": "validation.empty"}]}` |
+
+**Multiple Validation Errors:**
+
+When multiple fields fail validation, all errors are returned in the same response:
+
+```json
+{
+  "errors": [
+    {
+      "field": "title",
+      "message": "validation.required"
+    },
+    {
+      "field": "user_email",
+      "message": "validation.email"
+    },
+    {
+      "field": "images[0]",
+      "message": "validation.url"
+    }
+  ]
+}
+```
 
 **General Validation Keys:**
+
+These are returned for non-field-specific validation errors:
 
 | Error Key | HTTP Status | Description | Example Scenario |
 |-----------|-------------|-------------|------------------|

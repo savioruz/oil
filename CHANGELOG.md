@@ -10,8 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Array-Based Validation Error Response**: Validation errors now return ALL field errors at once
   - Validation errors (422) return an `errors` array containing all validation failures
-  - Each error contains `field` (snake_case field name) and `message` (human-readable text)
-  - Example: `{"errors": [{"field": "title", "message": "Title is required"}, {"field": "email", "message": "Email must be a valid email address"}]}`
+  - Each error contains `field` (snake_case field name, e.g., `"title"`, `"user_email"`, `"images[0]"`) and `message` (error key)
+  - Example: `{"errors": [{"field": "title", "message": "validation.required"}, {"field": "user_email", "message": "validation.email"}]}`
+  - Field names use JSON tag names and are automatically converted to snake_case
+  - Array indices are preserved in field names (e.g., `"images[0]"`)
   - Non-validation errors still return single error key: `{"error": "gallery.not_found"}`
   - This allows frontends to highlight all problematic fields in a single request/response cycle
 
@@ -68,16 +70,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `transport/http/response` package to always return error keys
 - Simplified response logic by removing environment-dependent error formatting
 
+### Fixed
+- **Validation Error Field Names**: Fixed issue where validation error `field` property was returning empty strings
+  - Registered JSON tag name function to use `json` tag names instead of struct field names
+  - Fixed `buildFieldPath` to properly extract field name from validator namespace
+  - Field names now correctly show as `"title"`, `"user_email"`, `"images[0]"` instead of empty strings
+  - Multi-word fields are automatically converted to snake_case (e.g., `UserEmail` → `user_email`)
+
 ### Security
 - Improved security by never exposing internal error details in API responses
 - All error responses now use standardized keys that don't leak implementation details
 
 ### Documentation
 - Updated comprehensive `docs/Error.md` with:
-  - Field-specific validation error key patterns and examples
-  - Complete error key reference table with validation patterns
-  - Frontend integration examples showing field-level error handling
-  - Enhanced i18n implementation guide with pattern matching
+  - Validation error response format with actual field and message examples
+  - Complete validation message keys table showing array-based response format
+  - Field name conventions (snake_case, array indices preserved)
+  - Frontend integration examples showing field-level error handling with translation
+  - Enhanced i18n implementation guide for multiple languages
   - API response examples for various error scenarios
   - Error handling best practices
   - Migration guide for existing clients

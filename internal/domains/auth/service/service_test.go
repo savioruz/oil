@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -18,7 +19,6 @@ import (
 	userModel "oil/internal/domains/user/model"
 	"oil/shared/constant"
 	gModel "oil/shared/model"
-	"oil/shared/timezone"
 )
 
 func TestAuthService_Register(t *testing.T) {
@@ -140,8 +140,8 @@ func TestAuthService_Login(t *testing.T) {
 		IsVerified: true,
 		Active:     true,
 		Metadata: gModel.Metadata{
-			CreatedAt:  timezone.Now(),
-			ModifiedAt: timezone.Now(),
+			CreatedAt:  time.Now(),
+			ModifiedAt: time.Now(),
 			CreatedBy:  "system",
 			ModifiedBy: "system",
 		},
@@ -367,8 +367,8 @@ func TestAuthService_ChangePassword(t *testing.T) {
 		IsVerified: true,
 		Active:     true,
 		Metadata: gModel.Metadata{
-			CreatedAt:  timezone.Now(),
-			ModifiedAt: timezone.Now(),
+			CreatedAt:  time.Now(),
+			ModifiedAt: time.Now(),
 			CreatedBy:  "system",
 			ModifiedBy: "system",
 		},

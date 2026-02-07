@@ -6,7 +6,7 @@ import (
 	"oil/shared"
 	gDto "oil/shared/dto"
 	gModel "oil/shared/model"
-	"oil/shared/timezone"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -18,14 +18,16 @@ type CreateGalleryRequest struct {
 }
 
 func (c *CreateGalleryRequest) ToModel(user string) model.Gallery {
+	now := time.Now()
+
 	return model.Gallery{
 		ID:          uuid.NewString(),
 		Title:       c.Title,
 		Description: c.Description,
 		Images:      c.Images,
 		Metadata: gModel.Metadata{
-			CreatedAt:  timezone.Now(),
-			ModifiedAt: timezone.Now(),
+			CreatedAt:  now,
+			ModifiedAt: now,
 			CreatedBy:  user,
 			ModifiedBy: user,
 		},

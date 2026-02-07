@@ -1,8 +1,8 @@
 package dto
 
 import (
-	"oil/shared/constant"
 	"oil/shared/model"
+	"oil/shared/timezone"
 )
 
 type Metadata struct {
@@ -13,8 +13,9 @@ type Metadata struct {
 }
 
 func (m *Metadata) FromModel(model model.Metadata) {
-	m.CreatedAt = model.CreatedAt.Format(constant.DateFormat)
-	m.ModifiedAt = model.ModifiedAt.Format(constant.DateFormat)
+	// Ensure times are converted to UTC before formatting
+	m.CreatedAt = timezone.FormatRFC3339(model.CreatedAt)
+	m.ModifiedAt = timezone.FormatRFC3339(model.ModifiedAt)
 	m.CreatedBy = model.CreatedBy
 	m.ModifiedBy = model.ModifiedBy
 }

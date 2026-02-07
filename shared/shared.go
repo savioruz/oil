@@ -65,7 +65,7 @@ func TransformFields(data interface{}, user string) map[string]any {
 		updatedFields[fieldName] = field.Interface()
 	}
 
-	updatedFields[constant.FieldModifiedAt] = timezone.Now()
+	updatedFields[constant.FieldModifiedAt] = timezone.NowUTC()
 	updatedFields[constant.FieldModifiedBy] = user
 
 	return updatedFields
@@ -136,7 +136,7 @@ func InvalidateCaches(ctx context.Context, cache cache.RedisCache, key string) {
 
 // GenerateUniqueFilename generates a unique filename with timestamp and original extension
 func GenerateUniqueFilename(originalFilename string) string {
-	timestamp := timezone.Now().Unix()
+	timestamp := timezone.NowUTC().Unix()
 	parts := strings.Split(originalFilename, ".")
 	extension := ""
 

@@ -3,8 +3,8 @@ CREATE TABLE IF NOT EXISTS todos (
     title VARCHAR(100) NOT NULL,
     description VARCHAR(255) NOT NULL,
     completed BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    modified_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    modified_at TIMESTAMPTZ DEFAULT NOW(),
     created_by VARCHAR(36) NOT NULL,
     modified_by VARCHAR(36) NOT NULL
 );

@@ -22,9 +22,8 @@ type Config struct {
 	} `envconfig:"SERVER"`
 
 	App struct {
-		Name     string `envconfig:"APP_NAME"`
-		Timezone string `envconfig:"TIMEZONE"`
-		CORS     struct {
+		Name string `envconfig:"APP_NAME"`
+		CORS struct {
 			AllowCredentials bool     `envconfig:"ALLOW_CREDENTIALS"`
 			AllowedHeaders   []string `envconfig:"ALLOWED_HEADERS"`
 			AllowedMethods   []string `envconfig:"ALLOWED_METHODS"`

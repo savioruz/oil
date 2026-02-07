@@ -193,10 +193,24 @@ definitions:
       error:
         type: string
     type: object
+  response.FieldError:
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+    type: object
   response.Message:
     properties:
       message:
         type: string
+    type: object
+  response.ValidationErrors:
+    properties:
+      errors:
+        items:
+          $ref: '#/definitions/response.FieldError'
+        type: array
     type: object
 info:
   contact: {}
@@ -220,7 +234,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Login a user with the provided credentials.
+      description: Login a user with the provided credentials. If 'remember' is true,
+        the refresh token will also be set as an HTTP-only cookie for enhanced security.
       parameters:
       - description: Login Request
         in: body
@@ -232,7 +247,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: User logged in successfully
+          description: User logged in successfully. Both access_token and refresh_token
+            are returned in the response. If remember=true, refresh_token is also
+            set as an HTTP-only cookie.
           schema:
             $ref: '#/definitions/dto.LoginResponse'
         "400":
@@ -250,25 +267,32 @@ paths:
     post:
       consumes:
       - application/json
-      description: Refresh user token using the provided refresh token.
+      description: Refresh user token using the refresh token from request body or
+        HTTP-only cookie. If the refresh token was set as a cookie during login (remember=true),
+        it will be automatically read from the cookie. The new refresh token will
+        also be set as a cookie if the original request used a cookie.
       parameters:
-      - description: Refresh Token Request
+      - description: Refresh Token Request (optional if using cookie)
         in: body
         name: request
-        required: true
         schema:
           $ref: '#/definitions/dto.RefreshTokenRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Token refreshed successfully
+          description: Token refreshed successfully. Returns new access_token and
+            refresh_token.
           schema:
             $ref: '#/definitions/dto.RefreshTokenResponse'
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/response.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/response.ValidationErrors'
         "500":
           description: Internal Server Error
           schema:

@@ -6,6 +6,7 @@ import (
 	"oil/internal/domains/auth/model/dto"
 	"oil/internal/domains/auth/service"
 	"oil/shared/constant"
+	"oil/shared/cookie"
 	"oil/shared/failure"
 	"oil/shared/validator"
 	"oil/transport/http/response"
@@ -112,15 +113,7 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// If remember is true, set refresh token as HTTP-only cookie
 	if req.Remember {
-		http.SetCookie(w, &http.Cookie{
-			Name:     constant.CookieRefreshToken,
-			Value:    res.RefreshToken,
-			Path:     "/",
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteStrictMode,
-			MaxAge:   constant.CookieMaxAge,
-		})
+		cookie.SetRefreshToken(w, res.RefreshToken)
 	}
 
 	scope.AddEvent("User logged in successfully")
@@ -157,9 +150,8 @@ func (handler *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	// If no refresh token in body, try to get from cookie
 	if req.RefreshToken == "" {
-		cookie, err := r.Cookie(constant.CookieRefreshToken)
-		if err == nil {
-			req.RefreshToken = cookie.Value
+		if token, err := cookie.GetRefreshToken(r); err == nil {
+			req.RefreshToken = token
 		}
 	}
 
@@ -194,16 +186,8 @@ func (handler *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If refresh token came from cookie, update the cookie with new refresh token
-	if _, cookieErr := r.Cookie(constant.CookieRefreshToken); cookieErr == nil {
-		http.SetCookie(w, &http.Cookie{
-			Name:     constant.CookieRefreshToken,
-			Value:    res.RefreshToken,
-			Path:     "/",
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteStrictMode,
-			MaxAge:   constant.CookieMaxAge,
-		})
+	if cookie.HasRefreshToken(r) {
+		cookie.SetRefreshToken(w, res.RefreshToken)
 	}
 
 	scope.AddEvent("Token refreshed successfully")

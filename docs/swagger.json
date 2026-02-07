@@ -29,7 +29,7 @@
         },
         "/v1/auth/login": {
             "post": {
-                "description": "Login a user with the provided credentials.",
+                "description": "Login a user with the provided credentials. If 'remember' is true, the refresh token will also be set as an HTTP-only cookie for enhanced security.",
                 "consumes": [
                     "application/json"
                 ],
@@ -53,7 +53,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "User logged in successfully",
+                        "description": "User logged in successfully. Both access_token and refresh_token are returned in the response. If remember=true, refresh_token is also set as an HTTP-only cookie.",
                         "schema": {
                             "$ref": "#/definitions/dto.LoginResponse"
                         }
@@ -75,7 +75,7 @@
         },
         "/v1/auth/refresh-token": {
             "post": {
-                "description": "Refresh user token using the provided refresh token.",
+                "description": "Refresh user token using the refresh token from request body or HTTP-only cookie. If the refresh token was set as a cookie during login (remember=true), it will be automatically read from the cookie. The new refresh token will also be set as a cookie if the original request used a cookie.",
                 "consumes": [
                     "application/json"
                 ],
@@ -88,10 +88,9 @@
                 "summary": "Refresh user token",
                 "parameters": [
                     {
-                        "description": "Refresh Token Request",
+                        "description": "Refresh Token Request (optional if using cookie)",
                         "name": "request",
                         "in": "body",
-                        "required": true,
                         "schema": {
                             "$ref": "#/definitions/dto.RefreshTokenRequest"
                         }
@@ -99,7 +98,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Token refreshed successfully",
+                        "description": "Token refreshed successfully. Returns new access_token and refresh_token.",
                         "schema": {
                             "$ref": "#/definitions/dto.RefreshTokenResponse"
                         }
@@ -108,6 +107,12 @@
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/response.ValidationErrors"
                         }
                     },
                     "500": {
@@ -1089,11 +1094,33 @@
                 }
             }
         },
+        "response.FieldError": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
         "response.Message": {
             "type": "object",
             "properties": {
                 "message": {
                     "type": "string"
+                }
+            }
+        },
+        "response.ValidationErrors": {
+            "type": "object",
+            "properties": {
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.FieldError"
+                    }
                 }
             }
         }

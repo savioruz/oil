@@ -104,7 +104,7 @@ func Validate[T any](r io.Reader, data *T) error {
 	err := decoder.Decode(data)
 
 	if err != nil {
-		return failure.BadRequest(fmt.Errorf("failed to decode request body: %w", err)) //nolint:wrapcheck
+		return failure.UnprocessableEntity(fmt.Errorf("failed to decode request body: %w", err)) //nolint:wrapcheck
 	}
 
 	return ValidateStruct(data)
@@ -116,7 +116,7 @@ func ValidateStruct[T any](data *T) error {
 	if err != nil {
 		msg := message(err)
 
-		return failure.BadRequestFromString(msg) //nolint:wrapcheck
+		return failure.UnprocessableEntityFromString(msg) //nolint:wrapcheck
 	}
 
 	return nil
@@ -128,7 +128,7 @@ func ValidateVar(field any, tag string) error {
 	if err != nil {
 		msg := message(err)
 
-		return failure.BadRequestFromString(msg) //nolint:wrapcheck
+		return failure.UnprocessableEntityFromString(msg) //nolint:wrapcheck
 	}
 
 	return nil

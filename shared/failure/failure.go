@@ -41,6 +41,26 @@ func BadRequestFromString(msg string) error {
 	}
 }
 
+// UnprocessableEntity returns a new Failure with code for unprocessable entity and message derived from an error interface.
+func UnprocessableEntity(err error) error {
+	if err != nil {
+		return &Failure{
+			Code:    http.StatusUnprocessableEntity,
+			Message: err.Error(),
+		}
+	}
+
+	return nil
+}
+
+// UnprocessableEntityFromString returns a new Failure with code for unprocessable entity with message set from string.
+func UnprocessableEntityFromString(msg string) error {
+	return &Failure{
+		Code:    http.StatusUnprocessableEntity,
+		Message: msg,
+	}
+}
+
 // Unauthorized returns a new Failure with code for unauthorized requests.
 func Unauthorized(msg string) error {
 	return &Failure{

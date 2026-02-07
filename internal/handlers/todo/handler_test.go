@@ -65,10 +65,12 @@ func TestCreateTodo(t *testing.T) {
 
 	var responseMessage response.Message
 	var responseErr response.Error
+	var responseValidationErr response.ValidationErrors
 
 	resetResponse := func() {
 		responseMessage = response.Message{}
 		responseErr = response.Error{}
+		responseValidationErr = response.ValidationErrors{}
 	}
 
 	getClient := func() *resty.Request {
@@ -77,6 +79,14 @@ func TestCreateTodo(t *testing.T) {
 			R().
 			SetResult(&responseMessage).
 			SetError(&responseErr)
+	}
+
+	getClientForValidation := func() *resty.Request {
+		return resty.New().
+			SetBaseURL(ts.URL + "/api").
+			R().
+			SetResult(&responseMessage).
+			SetError(&responseValidationErr)
 	}
 
 	validBody := dto.CreateTodoRequest{
@@ -91,7 +101,7 @@ func TestCreateTodo(t *testing.T) {
 			"description": "This is a test todo item",
 		}
 
-		resp, err := getClient().
+		resp, err := getClientForValidation().
 			SetBody(invalidBody).
 			Post("/todos")
 		if err != nil {
@@ -99,7 +109,7 @@ func TestCreateTodo(t *testing.T) {
 		}
 
 		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-		assert.NotEmpty(t, responseErr.Error)
+		assert.NotEmpty(t, responseValidationErr.Errors)
 	})
 
 	t.Run("Error: invalid request - missing description", func(t *testing.T) {
@@ -109,7 +119,7 @@ func TestCreateTodo(t *testing.T) {
 			"title": "Test Todo",
 		}
 
-		resp, err := getClient().
+		resp, err := getClientForValidation().
 			SetBody(invalidBody).
 			Post("/todos")
 		if err != nil {
@@ -117,7 +127,7 @@ func TestCreateTodo(t *testing.T) {
 		}
 
 		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-		assert.NotEmpty(t, responseErr.Error)
+		assert.NotEmpty(t, responseValidationErr.Errors)
 	})
 
 	t.Run("Error: invalid request - title too long", func(t *testing.T) {
@@ -133,7 +143,7 @@ func TestCreateTodo(t *testing.T) {
 			"description": "Valid description",
 		}
 
-		resp, err := getClient().
+		resp, err := getClientForValidation().
 			SetBody(invalidBody).
 			Post("/todos")
 		if err != nil {
@@ -141,7 +151,7 @@ func TestCreateTodo(t *testing.T) {
 		}
 
 		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-		assert.NotEmpty(t, responseErr.Error)
+		assert.NotEmpty(t, responseValidationErr.Errors)
 	})
 
 	t.Run("Error: failed to insert todo", func(t *testing.T) {
@@ -585,10 +595,12 @@ func TestUpdateTodo(t *testing.T) {
 
 	var responseMessage response.Message
 	var responseErr response.Error
+	var responseValidationErr response.ValidationErrors
 
 	resetResponse := func() {
 		responseMessage = response.Message{}
 		responseErr = response.Error{}
+		responseValidationErr = response.ValidationErrors{}
 	}
 
 	getClient := func() *resty.Request {
@@ -597,6 +609,14 @@ func TestUpdateTodo(t *testing.T) {
 			R().
 			SetResult(&responseMessage).
 			SetError(&responseErr)
+	}
+
+	getClientForValidation := func() *resty.Request {
+		return resty.New().
+			SetBaseURL(ts.URL + "/api").
+			R().
+			SetResult(&responseMessage).
+			SetError(&responseValidationErr)
 	}
 
 	completed := true
@@ -617,7 +637,7 @@ func TestUpdateTodo(t *testing.T) {
 			"title": longTitle,
 		}
 
-		resp, err := getClient().
+		resp, err := getClientForValidation().
 			SetBody(invalidBody).
 			Patch("/todos/test-id")
 		if err != nil {
@@ -625,7 +645,7 @@ func TestUpdateTodo(t *testing.T) {
 		}
 
 		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-		assert.NotEmpty(t, responseErr.Error)
+		assert.NotEmpty(t, responseValidationErr.Errors)
 	})
 
 	t.Run("Error: todo not found", func(t *testing.T) {

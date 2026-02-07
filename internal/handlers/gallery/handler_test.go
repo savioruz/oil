@@ -70,10 +70,12 @@ func TestCreateGallery(t *testing.T) {
 
 	var responseMessage response.Message
 	var responseErr response.Error
+	var responseValidationErr response.ValidationErrors
 
 	resetResponse := func() {
 		responseMessage = response.Message{}
 		responseErr = response.Error{}
+		responseValidationErr = response.ValidationErrors{}
 	}
 
 	getClient := func() *resty.Request {
@@ -82,6 +84,14 @@ func TestCreateGallery(t *testing.T) {
 			R().
 			SetResult(&responseMessage).
 			SetError(&responseErr)
+	}
+
+	getClientForValidation := func() *resty.Request {
+		return resty.New().
+			SetBaseURL(ts.URL + "/api").
+			R().
+			SetResult(&responseMessage).
+			SetError(&responseValidationErr)
 	}
 
 	validBody := dto.CreateGalleryRequest{
@@ -98,7 +108,7 @@ func TestCreateGallery(t *testing.T) {
 			"images":      []string{"https://example.com/image1.jpg"},
 		}
 
-		resp, err := getClient().
+		resp, err := getClientForValidation().
 			SetBody(invalidBody).
 			Post("/galleries")
 		if err != nil {
@@ -106,7 +116,7 @@ func TestCreateGallery(t *testing.T) {
 		}
 
 		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-		assert.NotEmpty(t, responseErr.Error)
+		assert.NotEmpty(t, responseValidationErr.Errors)
 	})
 
 	t.Run("Error: invalid request - title too short", func(t *testing.T) {
@@ -118,7 +128,7 @@ func TestCreateGallery(t *testing.T) {
 			"images":      []string{"https://example.com/image1.jpg"},
 		}
 
-		resp, err := getClient().
+		resp, err := getClientForValidation().
 			SetBody(invalidBody).
 			Post("/galleries")
 		if err != nil {
@@ -126,7 +136,7 @@ func TestCreateGallery(t *testing.T) {
 		}
 
 		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-		assert.NotEmpty(t, responseErr.Error)
+		assert.NotEmpty(t, responseValidationErr.Errors)
 	})
 
 	t.Run("Error: invalid request - missing images", func(t *testing.T) {
@@ -137,7 +147,7 @@ func TestCreateGallery(t *testing.T) {
 			"description": "This is a test gallery",
 		}
 
-		resp, err := getClient().
+		resp, err := getClientForValidation().
 			SetBody(invalidBody).
 			Post("/galleries")
 		if err != nil {
@@ -145,7 +155,7 @@ func TestCreateGallery(t *testing.T) {
 		}
 
 		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-		assert.NotEmpty(t, responseErr.Error)
+		assert.NotEmpty(t, responseValidationErr.Errors)
 	})
 
 	t.Run("Error: invalid request - invalid image URL", func(t *testing.T) {
@@ -157,7 +167,7 @@ func TestCreateGallery(t *testing.T) {
 			"images":      []string{"not-a-url"},
 		}
 
-		resp, err := getClient().
+		resp, err := getClientForValidation().
 			SetBody(invalidBody).
 			Post("/galleries")
 		if err != nil {
@@ -165,7 +175,7 @@ func TestCreateGallery(t *testing.T) {
 		}
 
 		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-		assert.NotEmpty(t, responseErr.Error)
+		assert.NotEmpty(t, responseValidationErr.Errors)
 	})
 
 	t.Run("Error: failed to insert gallery", func(t *testing.T) {
@@ -577,10 +587,12 @@ func TestUpdateGallery(t *testing.T) {
 
 	var responseMessage response.Message
 	var responseErr response.Error
+	var responseValidationErr response.ValidationErrors
 
 	resetResponse := func() {
 		responseMessage = response.Message{}
 		responseErr = response.Error{}
+		responseValidationErr = response.ValidationErrors{}
 	}
 
 	getClient := func() *resty.Request {
@@ -589,6 +601,14 @@ func TestUpdateGallery(t *testing.T) {
 			R().
 			SetResult(&responseMessage).
 			SetError(&responseErr)
+	}
+
+	getClientForValidation := func() *resty.Request {
+		return resty.New().
+			SetBaseURL(ts.URL + "/api").
+			R().
+			SetResult(&responseMessage).
+			SetError(&responseValidationErr)
 	}
 
 	validBody := dto.UpdateGalleryRequest{
@@ -604,7 +624,7 @@ func TestUpdateGallery(t *testing.T) {
 			"title": "ab",
 		}
 
-		resp, err := getClient().
+		resp, err := getClientForValidation().
 			SetBody(invalidBody).
 			Patch("/galleries/test-id")
 		if err != nil {
@@ -612,7 +632,7 @@ func TestUpdateGallery(t *testing.T) {
 		}
 
 		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-		assert.NotEmpty(t, responseErr.Error)
+		assert.NotEmpty(t, responseValidationErr.Errors)
 	})
 
 	t.Run("Error: invalid request - invalid image URL", func(t *testing.T) {
@@ -622,7 +642,7 @@ func TestUpdateGallery(t *testing.T) {
 			"images": []string{"not-a-url"},
 		}
 
-		resp, err := getClient().
+		resp, err := getClientForValidation().
 			SetBody(invalidBody).
 			Patch("/galleries/test-id")
 		if err != nil {
@@ -630,7 +650,7 @@ func TestUpdateGallery(t *testing.T) {
 		}
 
 		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-		assert.NotEmpty(t, responseErr.Error)
+		assert.NotEmpty(t, responseValidationErr.Errors)
 	})
 
 	t.Run("Error: gallery not found", func(t *testing.T) {
@@ -995,10 +1015,12 @@ func TestDeleteImages(t *testing.T) {
 
 	var responseMessage response.Message
 	var responseErr response.Error
+	var responseValidationErr response.ValidationErrors
 
 	resetResponse := func() {
 		responseMessage = response.Message{}
 		responseErr = response.Error{}
+		responseValidationErr = response.ValidationErrors{}
 	}
 
 	getClient := func() *resty.Request {
@@ -1009,12 +1031,20 @@ func TestDeleteImages(t *testing.T) {
 			SetError(&responseErr)
 	}
 
+	getClientForValidation := func() *resty.Request {
+		return resty.New().
+			SetBaseURL(ts.URL + "/api").
+			R().
+			SetResult(&responseMessage).
+			SetError(&responseValidationErr)
+	}
+
 	t.Run("Error: invalid request - missing image URLs", func(t *testing.T) {
 		defer resetResponse()
 
 		invalidBody := map[string]interface{}{}
 
-		resp, err := getClient().
+		resp, err := getClientForValidation().
 			SetBody(invalidBody).
 			Delete("/galleries/images")
 		if err != nil {
@@ -1022,7 +1052,7 @@ func TestDeleteImages(t *testing.T) {
 		}
 
 		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-		assert.NotEmpty(t, responseErr.Error)
+		assert.NotEmpty(t, responseValidationErr.Errors)
 	})
 
 	t.Run("Error: invalid request - empty image URLs array", func(t *testing.T) {
@@ -1032,7 +1062,7 @@ func TestDeleteImages(t *testing.T) {
 			"image_urls": []string{},
 		}
 
-		resp, err := getClient().
+		resp, err := getClientForValidation().
 			SetBody(invalidBody).
 			Delete("/galleries/images")
 		if err != nil {
@@ -1040,7 +1070,7 @@ func TestDeleteImages(t *testing.T) {
 		}
 
 		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-		assert.NotEmpty(t, responseErr.Error)
+		assert.NotEmpty(t, responseValidationErr.Errors)
 	})
 
 	t.Run("Error: invalid request - invalid URL format", func(t *testing.T) {
@@ -1050,7 +1080,7 @@ func TestDeleteImages(t *testing.T) {
 			"image_urls": []string{"not-a-url"},
 		}
 
-		resp, err := getClient().
+		resp, err := getClientForValidation().
 			SetBody(invalidBody).
 			Delete("/galleries/images")
 		if err != nil {
@@ -1058,7 +1088,7 @@ func TestDeleteImages(t *testing.T) {
 		}
 
 		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-		assert.NotEmpty(t, responseErr.Error)
+		assert.NotEmpty(t, responseValidationErr.Errors)
 	})
 
 	t.Run("Error: failed to delete from S3", func(t *testing.T) {

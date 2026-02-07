@@ -17,6 +17,17 @@ type Error struct {
 	Error *string `json:"error,omitempty"`
 }
 
+// FieldError represents a single field validation error
+type FieldError struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
+// ValidationErrors represents validation errors response
+type ValidationErrors struct {
+	Errors []FieldError `json:"errors"`
+}
+
 type Message struct {
 	Message *string `json:"message,omitempty"`
 }
@@ -31,20 +42,32 @@ func WithJSON(writer http.ResponseWriter, code int, jsonPayload interface{}) {
 	response(writer, code, Data[any]{Data: &jsonPayload})
 }
 
-// WithError sends a response with an error key
-// For validation errors (422), it returns the first field-specific error key (e.g., "validation.required.title")
-// For other errors, it returns the general error key (e.g., "gallery.not_found")
-// See Error.md for complete error key documentation
+// WithError sends a response with an error message
+// For validation errors (422), it returns an array of field errors with format:
+//
+//	{"errors": [{"field": "title", "message": "Title is required"}]}
+//
+// For other errors, it returns a single error key:
+//
+//	{"error": "gallery.not_found"}
+//
+// See Error.md for complete error documentation
 func WithError(writer http.ResponseWriter, err error) {
 	code := failure.GetCode(err)
 
 	// Check if this is a validation error with field details
 	var valErr *failure.ValidationError
 	if errors.As(err, &valErr) && len(valErr.Fields) > 0 {
-		// Return the first field's error key (e.g., "validation.required.title")
-		errorValue := string(valErr.Fields[0].Key)
-		response(writer, code, Error{Error: &errorValue})
+		// Build array of field errors
+		fieldErrors := make([]FieldError, len(valErr.Fields))
+		for i, fieldErr := range valErr.Fields {
+			fieldErrors[i] = FieldError{
+				Field:   fieldErr.Field,
+				Message: fieldErr.Message, // Human-readable message, not the error key
+			}
+		}
 
+		response(writer, code, ValidationErrors{Errors: fieldErrors})
 		return
 	}
 

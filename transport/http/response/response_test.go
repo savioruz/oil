@@ -176,20 +176,27 @@ func TestWithError_ValidationErrorWithFields(t *testing.T) {
 	// Check status code
 	assert.Equal(t, 422, recorder.Code)
 
-	// Parse response
+	// Parse response - should have errors array, not error field
 	var errorResponse struct {
+		Errors []struct {
+			Field   string `json:"field"`
+			Message string `json:"message"`
+		} `json:"errors,omitempty"`
 		Error *string `json:"error,omitempty"`
 	}
 	err := json.Unmarshal(recorder.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	// Verify only the error key is present (no fields array)
-	assert.NotNil(t, errorResponse.Error)
+	// Verify errors array is present (not error field)
+	assert.Nil(t, errorResponse.Error, "Should not have error field for validation errors")
+	assert.NotNil(t, errorResponse.Errors, "Should have errors array")
+	assert.Len(t, errorResponse.Errors, 2, "Should have 2 field errors")
 
-	// Should return the FIRST field's error key
-	assert.Equal(t, "validation.required.title", *errorResponse.Error)
+	// Verify first field error
+	assert.Equal(t, "title", errorResponse.Errors[0].Field)
+	assert.Equal(t, "Title is required", errorResponse.Errors[0].Message)
 
-	// Verify the response format is simple - just error key
-	assert.Regexp(t, `^validation\.[a-z_]+\.[a-z_0-9\[\]]+$`, *errorResponse.Error,
-		"Validation error key should follow pattern: validation.tag.field_name")
+	// Verify second field error
+	assert.Equal(t, "images[0]", errorResponse.Errors[1].Field)
+	assert.Equal(t, "Images[0] must be a valid URL", errorResponse.Errors[1].Message)
 }

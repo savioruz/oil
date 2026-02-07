@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Array-Based Validation Error Response**: Validation errors now return ALL field errors at once
+  - Validation errors (422) return an `errors` array containing all validation failures
+  - Each error contains `field` (snake_case field name) and `message` (human-readable text)
+  - Example: `{"errors": [{"field": "title", "message": "Title is required"}, {"field": "email", "message": "Email must be a valid email address"}]}`
+  - Non-validation errors still return single error key: `{"error": "gallery.not_found"}`
+  - This allows frontends to highlight all problematic fields in a single request/response cycle
+
+- **Human-Readable Validation Messages**: Validation error messages are now user-friendly
+  - Messages are generated using template system in `shared/validator/message.go`
+  - Examples: "Title is required", "Email must be a valid email address", "Title must be greater than or equal to 3"
+  - Messages include field names and validation parameters for context
+
 - **Field-Specific Validation Error Keys**: Enhanced validation error system to return field-specific error keys
   - Validation errors now return keys in format: `validation.{rule}.{field_name}`
   - Examples: `validation.required.title`, `validation.url.images`, `validation.min.title`
@@ -15,7 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `FormatFieldError()` and `ToSnakeCase()` helper functions in errkey package
   - Added validation tag to error key mapping
   - Enhanced validator package to build structured validation errors
-  - Updated response package to return first field's error key for validation errors
 
 - **Error Key System**: Implemented machine-readable error keys for all API responses
   - Added `shared/errkey` package with 51+ standardized error keys using dot notation
@@ -25,13 +36,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created complete test suite for error key functionality
 
 ### Changed
-- **Breaking Change**: Validation errors now return field-specific error keys
-  - Old format: `{"error": "validation.failed"}`
-  - New format: `{"error": "validation.required.title"}` or `{"error": "validation.url.images"}`
-  - When multiple validation errors occur, the first error's key is returned
-  - This allows frontends to show field-specific error messages and highlight problematic fields
+- **Breaking Change**: Validation error response format changed to array-based format
+  - Old format: `{"error": "validation.required.title"}` (single field only)
+  - New format: `{"errors": [{"field": "title", "message": "Title is required"}, {"field": "images", "message": "Images is required"}]}` (all fields)
+  - The `message` field contains human-readable text, not error keys
+  - Non-validation errors unchanged: `{"error": "gallery.not_found"}`
+  - **Frontend Impact**: Frontends must handle two different response formats:
+    - For 422 status: Check `response.data.errors` array
+    - For other errors: Check `response.data.error` string
+  - See `docs/Error.md` for complete frontend integration examples
 
-- **Breaking Change**: API error responses now return error keys instead of error messages
+- **Breaking Change**: API error responses now return error keys instead of error messages (for non-validation errors)
   - Old format: `{"error": "gallery not found"}`
   - New format: `{"error": "gallery.not_found"}`
   - All error responses now return machine-readable keys consistently

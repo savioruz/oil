@@ -2,7 +2,7 @@
 
 ## Overview
 
-All API error responses return a single `error` field containing a machine-readable error key. This allows frontends to:
+All API error responses return machine-readable error keys. This allows frontends to:
 - Implement consistent error handling across all endpoints
 - Provide translated error messages based on user locale
 - Display appropriate UI for specific error types
@@ -10,7 +10,36 @@ All API error responses return a single `error` field containing a machine-reada
 
 ## Response Format
 
-All error responses follow a simple, consistent format with a single `error` field containing the machine-readable error key:
+Error responses use two different formats depending on the error type:
+
+### Validation Errors (422 Unprocessable Entity)
+
+Validation errors return an `errors` array containing all validation failures:
+
+```json
+{
+  "errors": [
+    {
+      "field": "title",
+      "message": "Title is required"
+    },
+    {
+      "field": "email",
+      "message": "Email must be a valid email address"
+    }
+  ]
+}
+```
+
+Each error object contains:
+- `field`: The name of the field that failed validation (in snake_case, e.g., "title", "email", "images[0]")
+- `message`: A human-readable error message describing what went wrong
+
+This format allows the API to return **all validation errors at once**, enabling frontends to highlight all problematic fields in a single response.
+
+### Non-Validation Errors (4xx, 5xx)
+
+All other errors return a single `error` field:
 
 ```json
 {
@@ -22,23 +51,37 @@ The HTTP status code provides the error category (4xx for client errors, 5xx for
 
 ### Examples
 
-**Validation Error (Field-Specific):**
+**Validation Error (Single Field):**
 ```http
 POST /api/galleries
 422 Unprocessable Entity
 
 {
-  "error": "validation.required.title"
+  "errors": [
+    {
+      "field": "title",
+      "message": "Title is required"
+    }
+  ]
 }
 ```
 
-**Validation Error (Invalid URL):**
+**Validation Error (Multiple Fields):**
 ```http
 POST /api/galleries
 422 Unprocessable Entity
 
 {
-  "error": "validation.url.images"
+  "errors": [
+    {
+      "field": "title",
+      "message": "Title is required"
+    },
+    {
+      "field": "images",
+      "message": "Images must be a valid URL"
+    }
+  ]
 }
 ```
 
@@ -202,85 +245,53 @@ Examples:
 **Basic Error Handling:**
 
 ```typescript
-// Error message mapping
-const ERROR_MESSAGES: Record<string, string> = {
-  // Validation errors - general
-  'validation.failed': 'Please check your input and try again.',
-  'validation.invalid_page': 'Invalid page number.',
-  'validation.invalid_limit': 'Invalid limit parameter.',
-  
-  // Validation errors - field-specific (can use patterns or specific fields)
-  'validation.required.title': 'Title is required.',
-  'validation.required.email': 'Email is required.',
-  'validation.min.title': 'Title must be at least 3 characters.',
-  'validation.max.description': 'Description is too long.',
-  'validation.url.images': 'Please provide a valid image URL.',
-  'validation.email.email': 'Please provide a valid email address.',
-  
-  // Auth errors
-  'auth.unauthorized': 'Please log in to continue.',
-  'auth.forbidden': 'You don\'t have permission to perform this action.',
-  
-  // Resource errors
-  'gallery.not_found': 'Gallery not found.',
-  'todo.not_found': 'Todo item not found.',
-  
-  // Server errors
-  'database.query_failed': 'A system error occurred. Please try again later.',
-  'server.internal_error': 'An unexpected error occurred. Please try again later.',
-};
-
-// Generic fallback messages for validation patterns
-function getValidationMessage(errorKey: string): string {
-  // Check exact match first
-  if (ERROR_MESSAGES[errorKey]) {
-    return ERROR_MESSAGES[errorKey];
-  }
-  
-  // Parse field-specific validation errors: validation.{rule}.{field}
-  const match = errorKey.match(/^validation\.(\w+)\.(.+)$/);
-  if (match) {
-    const [, rule, field] = match;
-    const fieldName = field.replace(/_/g, ' ').replace(/\[.*?\]/g, ''); // Clean field name
-    
-    const genericMessages: Record<string, string> = {
-      required: `${fieldName} is required.`,
-      min: `${fieldName} is too short.`,
-      max: `${fieldName} is too long.`,
-      gte: `${fieldName} must be greater than or equal to the minimum value.`,
-      lte: `${fieldName} must be less than or equal to the maximum value.`,
-      url: `${fieldName} must be a valid URL.`,
-      email: `${fieldName} must be a valid email address.`,
-      oneof: `${fieldName} has an invalid value.`,
-      mimetypes: `${fieldName} has an unsupported file type.`,
-      maxfilesize: `${fieldName} file size is too large.`,
-    };
-    
-    return genericMessages[rule] || `${fieldName} validation failed.`;
-  }
-  
-  return 'An error occurred. Please try again.';
-}
-
-// Error handler
+// Error handler for API calls
 async function handleApiCall<T>(apiCall: Promise<T>): Promise<T> {
   try {
     return await apiCall;
   } catch (error: any) {
+    // Handle validation errors (422)
+    if (error.response?.data?.errors) {
+      // Array of field errors
+      const fieldErrors = error.response.data.errors;
+      
+      // Show first error or all errors
+      const firstError = fieldErrors[0];
+      toast.error(firstError.message);
+      
+      // Log all errors for debugging
+      console.error('Validation errors:', fieldErrors);
+      
+      throw error;
+    }
+    
+    // Handle other errors (error key format)
     if (error.response?.data?.error) {
       const errorKey = error.response.data.error;
-      const message = getValidationMessage(errorKey);
+      const message = translateErrorKey(errorKey);
       
-      // Show error to user
       toast.error(message);
-      
-      // Log for debugging
       console.error(`API Error [${errorKey}]:`, error);
       
       throw new Error(message);
     }
+    
     throw error;
   }
+}
+
+// Translate error keys to user-friendly messages
+function translateErrorKey(errorKey: string): string {
+  const ERROR_MESSAGES: Record<string, string> = {
+    'auth.unauthorized': 'Please log in to continue.',
+    'auth.forbidden': 'You don\'t have permission to perform this action.',
+    'gallery.not_found': 'Gallery not found.',
+    'todo.not_found': 'Todo item not found.',
+    'database.query_failed': 'A system error occurred. Please try again later.',
+    'server.internal_error': 'An unexpected error occurred. Please try again later.',
+  };
+  
+  return ERROR_MESSAGES[errorKey] || 'An error occurred. Please try again.';
 }
 
 // Usage example
@@ -295,16 +306,6 @@ try {
 **Form-Specific Error Handling:**
 
 ```typescript
-interface FormErrors {
-  [key: string]: string;
-}
-
-// Extract field name from validation error key
-function extractFieldName(errorKey: string): string | null {
-  const match = errorKey.match(/^validation\.\w+\.(.+)$/);
-  return match ? match[1] : null;
-}
-
 // Handle form submission with field-specific errors
 async function handleFormSubmit(data: GalleryFormData) {
   try {
@@ -312,117 +313,163 @@ async function handleFormSubmit(data: GalleryFormData) {
     toast.success('Gallery created successfully!');
     router.push('/galleries');
   } catch (error: any) {
-    if (error.response?.data?.error) {
-      const errorKey = error.response.data.error;
-      const fieldName = extractFieldName(errorKey);
-      
-      if (fieldName) {
-        // Set field-specific error in form
-        setError(fieldName, {
+    // Handle validation errors
+    if (error.response?.data?.errors) {
+      // errors is an array: [{ field: "title", message: "Title is required" }]
+      error.response.data.errors.forEach(fieldError => {
+        // Set field-specific error in form (e.g., using react-hook-form)
+        setError(fieldError.field, {
           type: 'server',
-          message: getValidationMessage(errorKey),
+          message: fieldError.message, // Already human-readable!
         });
-      } else {
-        // Show general error toast
-        toast.error(getValidationMessage(errorKey));
-      }
+      });
+    } else if (error.response?.data?.error) {
+      // Handle non-validation errors
+      toast.error(translateErrorKey(error.response.data.error));
     }
   }
+}
+
+// With React Hook Form
+import { useForm } from 'react-hook-form';
+
+function GalleryForm() {
+  const { register, handleSubmit, setError, formState: { errors } } = useForm();
+
+  const onSubmit = async (data) => {
+    try {
+      await createGallery(data);
+      toast.success('Gallery created!');
+    } catch (error: any) {
+      if (error.response?.data?.errors) {
+        // Highlight all invalid fields at once
+        error.response.data.errors.forEach(({ field, message }) => {
+          setError(field, { type: 'server', message });
+        });
+      }
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <input {...register('title')} />
+      {errors.title && <span>{errors.title.message}</span>}
+      
+      <input {...register('email')} />
+      {errors.email && <span>{errors.email.message}</span>}
+      
+      <button type="submit">Create</button>
+    </form>
+  );
 }
 ```
 
 ### Internationalization (i18n)
 
+Since validation messages from the API are already in English, you have two options for internationalization:
+
+**Option 1: Client-side translation (Recommended for flexibility)**
+
+The API returns English messages, and your frontend translates them:
+
 ```typescript
 // en.json
 {
+  "validation": {
+    "{field} is required": "{{field}} is required",
+    "{field} must be a valid email address": "{{field}} must be a valid email address",
+    "{field} must be a valid URL": "{{field}} must be a valid URL",
+    "{field} must be greater than or equal to {param}": "{{field}} must be at least {{param}}"
+  },
   "errors": {
-    // General validation
-    "validation.failed": "Please check your input and try again.",
-    "validation.invalid_page": "Invalid page number.",
-    "validation.invalid_limit": "Invalid limit parameter.",
-    
-    // Field-specific validation (examples - add as needed)
-    "validation.required.title": "Title is required.",
-    "validation.required.email": "Email is required.",
-    "validation.required.images": "At least one image is required.",
-    "validation.min.title": "Title must be at least 3 characters.",
-    "validation.max.description": "Description cannot exceed 500 characters.",
-    "validation.url.images": "Please provide a valid image URL.",
-    "validation.email.email": "Please provide a valid email address.",
-    
-    // Generic patterns (fallback for any field)
-    "validation.required": "{{field}} is required.",
-    "validation.min": "{{field}} must be at least {{param}} characters.",
-    "validation.max": "{{field}} cannot exceed {{param}} characters.",
-    "validation.url": "{{field}} must be a valid URL.",
-    "validation.email": "{{field}} must be a valid email address.",
-    
-    // Auth & other errors
-    "auth.unauthorized": "Please log in to continue.",
-    "auth.forbidden": "You don't have permission to perform this action.",
-    "gallery.not_found": "Gallery not found.",
-    "server.internal_error": "An unexpected error occurred."
+    "auth.unauthorized": "Please log in to continue",
+    "gallery.not_found": "Gallery not found",
+    "server.internal_error": "An unexpected error occurred"
   }
 }
 
 // es.json (Spanish)
 {
+  "validation": {
+    "{field} is required": "{{field}} es obligatorio",
+    "{field} must be a valid email address": "{{field}} debe ser un correo electrónico válido",
+    "{field} must be a valid URL": "{{field}} debe ser una URL válida",
+    "{field} must be greater than or equal to {param}": "{{field}} debe ser al menos {{param}}"
+  },
   "errors": {
-    "validation.failed": "Por favor, verifica tu entrada e inténtalo de nuevo.",
-    "validation.required.title": "El título es obligatorio.",
-    "validation.required.email": "El correo electrónico es obligatorio.",
-    "validation.min.title": "El título debe tener al menos 3 caracteres.",
-    "validation.url.images": "Por favor proporciona una URL de imagen válida.",
-    "validation.email.email": "Por favor proporciona un correo electrónico válido.",
-    
-    // Generic patterns
-    "validation.required": "{{field}} es obligatorio.",
-    "validation.min": "{{field}} debe tener al menos {{param}} caracteres.",
-    "validation.url": "{{field}} debe ser una URL válida.",
-    
-    "auth.unauthorized": "Por favor, inicia sesión para continuar.",
-    "gallery.not_found": "Galería no encontrada.",
-    "server.internal_error": "Ocurrió un error inesperado."
+    "auth.unauthorized": "Por favor, inicia sesión para continuar",
+    "gallery.not_found": "Galería no encontrada",
+    "server.internal_error": "Ocurrió un error inesperado"
   }
 }
 
 // Usage with i18next
 import { useTranslation } from 'react-i18next';
 
-function parseErrorKey(errorKey: string) {
-  const match = errorKey.match(/^validation\.(\w+)\.(.+)$/);
-  if (match) {
-    const [, rule, field] = match;
-    return { rule, field: field.replace(/_/g, ' ') };
-  }
-  return null;
-}
-
-function useErrorMessage(errorKey: string, param?: string) {
+function useHandleApiError() {
   const { t } = useTranslation();
   
-  // Try specific key first
-  if (t(`errors.${errorKey}`) !== `errors.${errorKey}`) {
-    return t(`errors.${errorKey}`, { param });
-  }
-  
-  // Try generic pattern for validation errors
-  const parsed = parseErrorKey(errorKey);
-  if (parsed) {
-    const genericKey = `errors.validation.${parsed.rule}`;
-    if (t(genericKey) !== genericKey) {
-      return t(genericKey, { field: parsed.field, param });
+  return (error: any) => {
+    // Validation errors
+    if (error.response?.data?.errors) {
+      return error.response.data.errors.map(({ field, message }) => ({
+        field,
+        message: t(`validation.${message}`, { 
+          field: field.replace(/_/g, ' '),
+          defaultValue: message // Fallback to English
+        })
+      }));
     }
-  }
-  
-  // Fallback
-  return t('errors.validation.failed');
+    
+    // Other errors  
+    if (error.response?.data?.error) {
+      const errorKey = error.response.data.error;
+      return t(`errors.${errorKey}`, { defaultValue: 'An error occurred' });
+    }
+    
+    return 'An unexpected error occurred';
+  };
 }
 
-// Usage
-const errorMessage = useErrorMessage('validation.required.title');
-// Returns: "Title is required." (en) or "El título es obligatorio." (es)
+// Usage in component
+function GalleryForm() {
+  const handleError = useHandleApiError();
+  
+  const onSubmit = async (data) => {
+    try {
+      await createGallery(data);
+    } catch (error) {
+      const errors = handleError(error);
+      // Display translated errors
+      if (Array.isArray(errors)) {
+        errors.forEach(({ field, message }) => {
+          setError(field, { type: 'server', message });
+        });
+      } else {
+        toast.error(errors);
+      }
+    }
+  };
+  
+  return <form onSubmit={handleSubmit(onSubmit)}>...</form>;
+}
+```
+
+**Option 2: Use messages as-is (Simpler, English only)**
+
+If you only support English, use the API messages directly without translation:
+
+```typescript
+// Simply display the message from the API
+try {
+  await createGallery(data);
+} catch (error: any) {
+  if (error.response?.data?.errors) {
+    error.response.data.errors.forEach(({ field, message }) => {
+      setError(field, { type: 'server', message }); // message is already human-readable
+    });
+  }
+}
 ```
 
 ### Error-Specific UI Actions

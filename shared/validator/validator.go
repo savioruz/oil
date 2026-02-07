@@ -199,6 +199,7 @@ func buildFieldPath(valErr val.FieldError) string {
 			if i > 0 && !inBracket {
 				result += "_"
 			}
+
 			result += strings.ToLower(string(r))
 		default:
 			result += string(r)

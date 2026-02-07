@@ -111,11 +111,9 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If remember is true, set refresh token as HTTP-only cookie
-	// and exclude it from JSON response for security
 	if req.Remember {
 		cookie.SetRefreshToken(w, res.RefreshToken)
-		res.RefreshToken = constant.Empty // Clear from response body
+		res.RefreshToken = constant.Empty
 	}
 
 	scope.AddEvent("User logged in successfully")
@@ -187,12 +185,10 @@ func (handler *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If refresh token came from cookie, update the cookie with new refresh token
-	// and exclude it from JSON response for security
 	usingCookie := cookie.HasRefreshToken(r)
 	if usingCookie {
 		cookie.SetRefreshToken(w, res.RefreshToken)
-		res.RefreshToken = constant.Empty // Clear from response body
+		res.RefreshToken = constant.Empty
 	}
 
 	scope.AddEvent("Token refreshed successfully")

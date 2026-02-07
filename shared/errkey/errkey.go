@@ -96,6 +96,8 @@ func (e *ErrorWithDetails) WithDetail(key string, value interface{}) *ErrorWithD
 	if e.Details == nil {
 		e.Details = make(map[string]interface{})
 	}
+
 	e.Details[key] = value
+
 	return e
 }

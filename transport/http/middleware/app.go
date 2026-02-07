@@ -46,21 +46,48 @@ func (a *appMiddleware) Tracing(next http.Handler) http.Handler {
 		ctx, scope := a.otel.NewScope(ctx, otelHTTPScopeName, spanName)
 		defer scope.End()
 
-		scope.SetAttributes(map[string]any{
-			"app.name":        a.config.App.Name,
-			"http.path":       path,
-			"http.route":      path,
-			"http.method":     method,
-			"http.user_agent": userAgent,
-			"http.host":       request.Host,
-			"http.source":     request.RemoteAddr,
-		})
+		// Set comprehensive request attributes
+		attrs := map[string]any{
+			"app.name":            a.config.App.Name,
+			"http.path":           path,
+			"http.route":          path,
+			"http.method":         method,
+			"http.user_agent":     userAgent,
+			"http.host":           request.Host,
+			"http.source":         request.RemoteAddr,
+			"http.request_id":     middleware.GetReqID(ctx),
+			"http.client_ip":      a.getClientIP(request),
+			"http.scheme":         request.URL.Scheme,
+			"http.proto":          request.Proto,
+			"http.content_length": request.ContentLength,
+		}
+
+		// Add optional headers if present
+		if referer := request.Referer(); referer != "" {
+			attrs["http.referer"] = referer
+		}
+
+		if contentType := request.Header.Get("Content-Type"); contentType != "" {
+			attrs["http.content_type"] = contentType
+		}
+
+		if queryParams := request.URL.RawQuery; queryParams != "" {
+			attrs["http.query_params"] = queryParams
+		}
+
+		if xff := request.Header.Get("X-Forwarded-For"); xff != "" {
+			attrs["http.x_forwarded_for"] = xff
+		}
+
+		scope.SetAttributes(attrs)
 
 		ww := middleware.NewWrapResponseWriter(writer, request.ProtoMajor)
 		next.ServeHTTP(ww, request.WithContext(ctx))
 
+		// Set response attributes
 		scope.SetAttributes(map[string]any{
-			"http.status_code": ww.Status(),
+			"http.status_code":   ww.Status(),
+			"http.response_size": ww.BytesWritten(),
 		})
 	})
 }

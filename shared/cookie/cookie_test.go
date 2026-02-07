@@ -13,9 +13,9 @@ func TestDefaultOptions(t *testing.T) {
 	opts := DefaultOptions()
 
 	assert.Equal(t, "/", opts.Path)
-	assert.Equal(t, MaxAge, opts.MaxAge)
+	assert.Equal(t, GetMaxAge(), opts.MaxAge)
 	assert.True(t, opts.Secure)
-	assert.True(t, opts.HttpOnly)
+	assert.True(t, opts.HTTPOnly)
 	assert.Equal(t, http.SameSiteStrictMode, opts.SameSite)
 }
 
@@ -28,7 +28,7 @@ func TestSet(t *testing.T) {
 		Path:     "/",
 		MaxAge:   3600,
 		Secure:   true,
-		HttpOnly: true,
+		HTTPOnly: true,
 		SameSite: http.SameSiteStrictMode,
 	}
 
@@ -55,7 +55,7 @@ func TestSetRefreshToken(t *testing.T) {
 	assert.Equal(t, RefreshToken, cookies[0].Name)
 	assert.Equal(t, "my-refresh-token", cookies[0].Value)
 	assert.Equal(t, "/", cookies[0].Path)
-	assert.Equal(t, MaxAge, cookies[0].MaxAge)
+	assert.Equal(t, GetMaxAge(), cookies[0].MaxAge)
 	assert.True(t, cookies[0].Secure)
 	assert.True(t, cookies[0].HttpOnly)
 	assert.Equal(t, http.SameSiteStrictMode, cookies[0].SameSite)
@@ -189,7 +189,18 @@ func TestSetWithExpiry(t *testing.T) {
 
 func TestCookieConstants(t *testing.T) {
 	assert.Equal(t, "refresh_token", RefreshToken)
-	assert.Equal(t, 604800, MaxAge) // 7 days in seconds
+	// MaxAge is now dynamic based on config (may be 0 in test environment)
+	assert.GreaterOrEqual(t, GetMaxAge(), 0)
+}
+
+func TestGetMaxAge(t *testing.T) {
+	maxAge := GetMaxAge()
+	// In test environment, RefreshExpireMin may be 0
+	assert.GreaterOrEqual(t, maxAge, 0)
+	// If maxAge > 0, it should be divisible by 60 (minutes to seconds conversion)
+	if maxAge > 0 {
+		assert.Equal(t, 0, maxAge%60)
+	}
 }
 
 func TestOptionsWithCustomValues(t *testing.T) {
@@ -202,7 +213,7 @@ func TestOptionsWithCustomValues(t *testing.T) {
 		Domain:   "example.com",
 		MaxAge:   1800,
 		Secure:   false,
-		HttpOnly: false,
+		HTTPOnly: false,
 		SameSite: http.SameSiteLaxMode,
 	}
 

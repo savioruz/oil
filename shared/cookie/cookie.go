@@ -2,14 +2,21 @@ package cookie
 
 import (
 	"net/http"
+	"oil/config"
+	"oil/shared/constant"
 	"time"
 )
 
 const (
 	RefreshToken = "refresh_token"
-
-	MaxAge = 60 * 60 * 24 * 7
 )
+
+// GetMaxAge returns the cookie max age in seconds from config
+func GetMaxAge() int {
+	cfg := config.Get()
+
+	return cfg.JWT.RefreshExpireMin * constant.MinutesToSeconds
+}
 
 // Options represents cookie configuration options
 type Options struct {
@@ -19,7 +26,7 @@ type Options struct {
 	Domain   string
 	MaxAge   int
 	Secure   bool
-	HttpOnly bool
+	HTTPOnly bool
 	SameSite http.SameSite
 }
 
@@ -27,9 +34,9 @@ type Options struct {
 func DefaultOptions() Options {
 	return Options{
 		Path:     "/",
-		MaxAge:   MaxAge,
+		MaxAge:   GetMaxAge(),
 		Secure:   true,
-		HttpOnly: true,
+		HTTPOnly: true,
 		SameSite: http.SameSiteStrictMode,
 	}
 }
@@ -43,7 +50,7 @@ func Set(w http.ResponseWriter, opts Options) {
 		Domain:   opts.Domain,
 		MaxAge:   opts.MaxAge,
 		Secure:   opts.Secure,
-		HttpOnly: opts.HttpOnly,
+		HttpOnly: opts.HTTPOnly, // http.Cookie uses HttpOnly, not HTTPOnly
 		SameSite: opts.SameSite,
 	})
 }
@@ -62,6 +69,7 @@ func Get(r *http.Request, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return cookie.Value, nil
 }
 
@@ -73,6 +81,7 @@ func GetRefreshToken(r *http.Request) (string, error) {
 // HasCookie checks if a cookie exists in the request
 func HasCookie(r *http.Request, name string) bool {
 	_, err := r.Cookie(name)
+
 	return err == nil
 }
 
@@ -110,7 +119,7 @@ func SetWithExpiry(w http.ResponseWriter, name, value string, expiry time.Time) 
 		Domain:   opts.Domain,
 		Expires:  expiry,
 		Secure:   opts.Secure,
-		HttpOnly: opts.HttpOnly,
+		HttpOnly: opts.HTTPOnly, // http.Cookie uses HttpOnly, not HTTPOnly
 		SameSite: opts.SameSite,
 	}
 

@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When `remember=true` in login request, refresh token is also set as HTTP-only, secure cookie
   - Refresh token endpoint can now read token from either request body or HTTP-only cookie
   - Cookie-based refresh tokens are automatically rotated on refresh
-  - Cookies have 7-day expiration and use `SameSite=Strict` for CSRF protection
+  - Cookies expiration matches JWT refresh token lifetime (configurable via `JWT_REFRESH_EXPIRE_MIN`, defaults to 7 days)
+  - Cookies use `SameSite=Strict` for CSRF protection
   - This prevents XSS attacks from stealing refresh tokens stored in browser localStorage
   - **Frontend Impact**:
     - When `remember=true`: Store `access_token` in memory, browser auto-sends refresh token via cookie
@@ -51,6 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created complete test suite for error key functionality
 
 ### Changed
+- **Cookie MaxAge Configuration**: Cookie expiration now uses `JWT_REFRESH_EXPIRE_MIN` from config
+  - Cookie `MaxAge` dynamically calculated from JWT refresh token expiration setting
+  - Cookie lifetime automatically syncs with JWT configuration (defaults to 7 days/10080 minutes)
+  - Single source of truth for refresh token expiration across tokens and cookies
+  - Easily adjustable via `JWT_REFRESH_EXPIRE_MIN` environment variable
+
 - **Breaking Change**: `remember` field in LoginRequest is now optional (defaults to `false`)
   - Old: `remember` was required in login requests
   - New: `remember` is optional, if omitted defaults to `false` (no cookie set)

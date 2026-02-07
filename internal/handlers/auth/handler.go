@@ -134,7 +134,7 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} response.Error
 // @Router /v1/auth/refresh-token [post]
 func (handler *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".RefreshToken")
+	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".RefreshTokenCookieName")
 	defer scope.End()
 
 	req := dto.RefreshTokenRequest{}
@@ -149,14 +149,14 @@ func (handler *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If no refresh token in body, try to get from cookie
-	if req.RefreshToken == "" {
+	if req.RefreshToken == constant.Empty {
 		if token, err := cookie.GetRefreshToken(r); err == nil {
 			req.RefreshToken = token
 		}
 	}
 
 	// Validate that we have a refresh token
-	if req.RefreshToken == "" {
+	if req.RefreshToken == constant.Empty {
 		err := &failure.ValidationError{
 			Code: http.StatusUnprocessableEntity,
 			Fields: []failure.ValidationFieldError{

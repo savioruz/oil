@@ -13,6 +13,7 @@ import (
 	"oil/shared"
 	"oil/shared/constant"
 	gDto "oil/shared/dto"
+	"oil/shared/errkey"
 	"oil/shared/failure"
 	"oil/shared/password"
 	"time"
@@ -67,7 +68,7 @@ func (s *serviceImpl) Register(ctx context.Context, req dto.RegisterRequest) (er
 	}
 
 	if exists {
-		return failure.BadRequestFromString("email already registered")
+		return failure.ConflictWithKey(errkey.ErrEmailAlreadyExists, "email already registered")
 	}
 
 	hashedPassword, err := password.Hash(req.Password)
@@ -108,17 +109,17 @@ func (s *serviceImpl) Login(ctx context.Context, req dto.LoginRequest) (res dto.
 	if err != nil {
 		log.Warn().Str("email", req.Email).Msg("login attempt with non-existent email")
 
-		return res, failure.BadRequestFromString("invalid email or password")
+		return res, failure.UnauthorizedWithKey(errkey.ErrInvalidCredentials, "invalid email or password")
 	}
 
 	if err := password.Verify(req.Password, user.Password); err != nil {
 		log.Warn().Str("email", req.Email).Msg("login attempt with wrong password")
 
-		return res, failure.BadRequestFromString("invalid email or password")
+		return res, failure.UnauthorizedWithKey(errkey.ErrInvalidCredentials, "invalid email or password")
 	}
 
 	if !user.Active {
-		return res, failure.BadRequestFromString("user account is deactivated")
+		return res, failure.ForbiddenWithKey(errkey.ErrAccountDeactivated, "user account is deactivated")
 	}
 
 	tokenPair, err := s.jwtService.GenerateTokenPair(ctx, user.ID, user.Email, user.Level)
@@ -155,7 +156,7 @@ func (s *serviceImpl) RefreshToken(ctx context.Context, req dto.RefreshTokenRequ
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to refresh tokens")
 
-		return res, failure.Unauthorized("invalid refresh token")
+		return res, failure.UnauthorizedWithKey(errkey.ErrTokenInvalid, "invalid refresh token")
 	}
 
 	res.FromTokenPair(tokenPair)
@@ -188,11 +189,11 @@ func (s *serviceImpl) ChangePassword(ctx context.Context, req dto.ChangePassword
 	}
 
 	if model.ID == "" {
-		return failure.NotFound("user not found")
+		return failure.NotFoundWithKey(errkey.ErrNotFound, "user not found")
 	}
 
 	if err := password.Verify(req.CurrentPassword, model.Password); err != nil {
-		return failure.BadRequestFromString("current password is incorrect")
+		return failure.UnauthorizedWithKey(errkey.ErrInvalidCredentials, "current password is incorrect")
 	}
 
 	hashedPassword, err := password.Hash(req.NewPassword)

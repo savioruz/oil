@@ -8,17 +8,15 @@ import (
 )
 
 const (
-	RefreshToken = "refresh_token"
+	RefreshTokenCookieName = "refresh_token"
 )
 
-// GetMaxAge returns the cookie max age in seconds from config
 func GetMaxAge() int {
 	cfg := config.Get()
 
 	return cfg.JWT.RefreshExpireMin * constant.MinutesToSeconds
 }
 
-// Options represents cookie configuration options
 type Options struct {
 	Name     string
 	Value    string
@@ -58,7 +56,7 @@ func Set(w http.ResponseWriter, opts Options) {
 // SetRefreshToken sets a refresh token cookie with secure defaults
 func SetRefreshToken(w http.ResponseWriter, token string) {
 	opts := DefaultOptions()
-	opts.Name = RefreshToken
+	opts.Name = RefreshTokenCookieName
 	opts.Value = token
 	Set(w, opts)
 }
@@ -75,7 +73,7 @@ func Get(r *http.Request, name string) (string, error) {
 
 // GetRefreshToken retrieves the refresh token from the cookie
 func GetRefreshToken(r *http.Request) (string, error) {
-	return Get(r, RefreshToken)
+	return Get(r, RefreshTokenCookieName)
 }
 
 // HasCookie checks if a cookie exists in the request
@@ -87,7 +85,7 @@ func HasCookie(r *http.Request, name string) bool {
 
 // HasRefreshToken checks if a refresh token cookie exists
 func HasRefreshToken(r *http.Request) bool {
-	return HasCookie(r, RefreshToken)
+	return HasCookie(r, RefreshTokenCookieName)
 }
 
 // Delete deletes a cookie by setting its MaxAge to -1
@@ -102,7 +100,7 @@ func Delete(w http.ResponseWriter, name string) {
 
 // DeleteRefreshToken deletes the refresh token cookie
 func DeleteRefreshToken(w http.ResponseWriter) {
-	Delete(w, RefreshToken)
+	Delete(w, RefreshTokenCookieName)
 }
 
 // SetWithExpiry sets a cookie with a specific expiration time instead of MaxAge
@@ -119,7 +117,7 @@ func SetWithExpiry(w http.ResponseWriter, name, value string, expiry time.Time) 
 		Domain:   opts.Domain,
 		Expires:  expiry,
 		Secure:   opts.Secure,
-		HttpOnly: opts.HTTPOnly, // http.Cookie uses HttpOnly, not HTTPOnly
+		HttpOnly: opts.HTTPOnly,
 		SameSite: opts.SameSite,
 	}
 

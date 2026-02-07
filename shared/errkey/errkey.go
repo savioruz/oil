@@ -38,6 +38,8 @@ const (
 	ErrTokenInvalid           ErrorKey = "auth.token_invalid"
 	ErrResourceRestricted     ErrorKey = "auth.resource_restricted"
 	ErrInsufficientPermission ErrorKey = "auth.insufficient_permission"
+	ErrEmailAlreadyExists     ErrorKey = "auth.email_already_exists"
+	ErrAccountDeactivated     ErrorKey = "auth.account_deactivated"
 
 	// Resource errors
 	ErrNotFound       ErrorKey = "resource.not_found"

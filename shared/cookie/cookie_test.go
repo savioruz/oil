@@ -52,7 +52,7 @@ func TestSetRefreshToken(t *testing.T) {
 
 	cookies := w.Result().Cookies()
 	assert.Len(t, cookies, 1)
-	assert.Equal(t, RefreshToken, cookies[0].Name)
+	assert.Equal(t, RefreshTokenCookieName, cookies[0].Name)
 	assert.Equal(t, "my-refresh-token", cookies[0].Value)
 	assert.Equal(t, "/", cookies[0].Path)
 	assert.Equal(t, GetMaxAge(), cookies[0].MaxAge)
@@ -90,7 +90,7 @@ func TestGetRefreshToken(t *testing.T) {
 	t.Run("refresh token exists", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		req.AddCookie(&http.Cookie{
-			Name:  RefreshToken,
+			Name:  RefreshTokenCookieName,
 			Value: "my-refresh-token",
 		})
 
@@ -132,7 +132,7 @@ func TestHasRefreshToken(t *testing.T) {
 	t.Run("refresh token exists", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		req.AddCookie(&http.Cookie{
-			Name:  RefreshToken,
+			Name:  RefreshTokenCookieName,
 			Value: "my-refresh-token",
 		})
 
@@ -165,7 +165,7 @@ func TestDeleteRefreshToken(t *testing.T) {
 
 	cookies := w.Result().Cookies()
 	assert.Len(t, cookies, 1)
-	assert.Equal(t, RefreshToken, cookies[0].Name)
+	assert.Equal(t, RefreshTokenCookieName, cookies[0].Name)
 	assert.Equal(t, "", cookies[0].Value)
 	assert.Equal(t, -1, cookies[0].MaxAge)
 }
@@ -188,7 +188,7 @@ func TestSetWithExpiry(t *testing.T) {
 }
 
 func TestCookieConstants(t *testing.T) {
-	assert.Equal(t, "refresh_token", RefreshToken)
+	assert.Equal(t, "refresh_token", RefreshTokenCookieName)
 	// MaxAge is now dynamic based on config (may be 0 in test environment)
 	assert.GreaterOrEqual(t, GetMaxAge(), 0)
 }

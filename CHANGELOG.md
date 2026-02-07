@@ -94,6 +94,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified response logic by removing environment-dependent error formatting
 
 ### Fixed
+- **Authentication HTTP Status Codes**: Fixed non-standard HTTP status codes in authentication endpoints
+  - Invalid credentials (wrong email/password) now return **401 Unauthorized** instead of 400 Bad Request
+  - Deactivated user accounts now return **403 Forbidden** instead of 400 Bad Request  
+  - Email already registered now returns **409 Conflict** instead of 400 Bad Request
+  - Invalid refresh token now uses proper error key `auth.token_invalid`
+  - Wrong password in change password now returns **401 Unauthorized** instead of 400 Bad Request
+  - Added new error keys: `auth.email_already_exists`, `auth.account_deactivated`
+  - **Impact**: Frontend error handling should check for 401/403/409 status codes for proper user feedback
+
 - **Validation Error Field Names**: Fixed issue where validation error `field` property was returning empty strings
   - Registered JSON tag name function to use `json` tag names instead of struct field names
   - Fixed `buildFieldPath` to properly extract field name from validator namespace

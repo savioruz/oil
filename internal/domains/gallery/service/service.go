@@ -14,6 +14,7 @@ import (
 	"oil/shared/cache"
 	"oil/shared/constant"
 	gDto "oil/shared/dto"
+	"oil/shared/errkey"
 	"oil/shared/failure"
 
 	"github.com/rs/zerolog/log"
@@ -66,7 +67,7 @@ func (s *serviceImpl) Create(ctx context.Context, req dto.CreateGalleryRequest) 
 	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
 
 	if err = s.repo.Insert(ctx, req.ToModel(user)); err != nil {
-		return err
+		return failure.InternalErrorWithKey(errkey.ErrGalleryCreateFailed, fmt.Sprintf("failed to create gallery: %v", err))
 	}
 
 	go func() {
@@ -97,14 +98,14 @@ func (s *serviceImpl) GetAll(ctx context.Context, req gDto.QueryParams, filter g
 	if err != nil {
 		log.Error().Err(err).Msg("failed to count galleries")
 
-		return res, err
+		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to count galleries: %v", err))
 	}
 
 	galleries, err := s.repo.GetAll(ctx, req, filter)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get galleries")
 
-		return res, err
+		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get galleries: %v", err))
 	}
 
 	res.FromModels(galleries, total, req.Limit)
@@ -138,7 +139,7 @@ func (s *serviceImpl) Count(ctx context.Context, req gDto.QueryParams, filter gD
 	if err != nil {
 		log.Error().Err(err).Msg("failed to count galleries")
 
-		return total, err
+		return total, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to count galleries: %v", err))
 	}
 
 	go func() {
@@ -170,11 +171,11 @@ func (s *serviceImpl) Get(ctx context.Context, id string) (res dto.GalleryRespon
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get gallery")
 
-		return res, fmt.Errorf("failed to get gallery: %w", err)
+		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get gallery: %v", err))
 	}
 
 	if gallery.ID == constant.Empty {
-		return res, failure.NotFound("gallery not found")
+		return res, failure.NotFoundWithKey(errkey.ErrGalleryNotFound, "gallery not found")
 	}
 
 	res.FromModel(gallery)
@@ -202,20 +203,20 @@ func (s *serviceImpl) Update(ctx context.Context, req dto.UpdateGalleryRequest, 
 	if err != nil {
 		log.Error().Err(err).Msg("failed to check gallery existence")
 
-		return err
+		return failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to check gallery existence: %v", err))
 	}
 
 	if !exist {
 		log.Error().Msg("gallery not found")
 
-		return failure.NotFound("gallery not found")
+		return failure.NotFoundWithKey(errkey.ErrGalleryNotFound, "gallery not found")
 	}
 
 	updatedFields := shared.TransformFields(req, user)
 	if err = s.repo.Update(ctx, updatedFields, filter); err != nil {
 		log.Error().Err(err).Msg("failed to update gallery")
 
-		return fmt.Errorf("failed to update gallery: %w", err)
+		return failure.InternalErrorWithKey(errkey.ErrGalleryUpdateFailed, fmt.Sprintf("failed to update gallery: %v", err))
 	}
 
 	go func() {
@@ -243,19 +244,19 @@ func (s *serviceImpl) Delete(ctx context.Context, id string) (err error) {
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get gallery for image deletion")
 
-		return fmt.Errorf("failed to get gallery: %w", err)
+		return failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get gallery: %v", err))
 	}
 
 	if gallery.ID == constant.Empty {
 		log.Error().Msg("gallery not found")
 
-		return failure.NotFound("gallery not found")
+		return failure.NotFoundWithKey(errkey.ErrGalleryNotFound, "gallery not found")
 	}
 
 	if err = s.repo.Delete(ctx, filter); err != nil {
 		log.Error().Err(err).Msg("failed to delete gallery")
 
-		return fmt.Errorf("failed to delete gallery: %w", err)
+		return failure.InternalErrorWithKey(errkey.ErrGalleryDeleteFailed, fmt.Sprintf("failed to delete gallery: %v", err))
 	}
 
 	go func() {
@@ -292,7 +293,7 @@ func (s *serviceImpl) UploadImage(ctx context.Context, req dto.UploadImageReques
 	if err != nil {
 		log.Error().Err(err).Msg("failed to upload file to S3")
 
-		return res, fmt.Errorf("failed to upload file to S3: %w", err)
+		return res, failure.InternalErrorWithKey(errkey.ErrS3Upload, fmt.Sprintf("failed to upload file to S3: %v", err))
 	}
 
 	res.FromModel(url, req.Image.Filename)
@@ -324,7 +325,7 @@ func (s *serviceImpl) DeleteImagesFromS3(ctx context.Context, req dto.DeleteImag
 	}
 
 	if len(deleteErrors) > 0 {
-		return fmt.Errorf("%w: %d images", ErrDeleteImagesFromS3, len(deleteErrors))
+		return failure.InternalErrorWithKey(errkey.ErrS3Delete, fmt.Sprintf("failed to delete %d images from S3", len(deleteErrors)))
 	}
 
 	return nil

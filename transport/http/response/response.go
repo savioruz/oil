@@ -2,6 +2,7 @@ package response
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"oil/shared/constant"
 	"oil/shared/failure"
@@ -14,6 +15,17 @@ type Data[T any] struct {
 
 type Error struct {
 	Error *string `json:"error,omitempty"`
+}
+
+// FieldError represents a single field validation error
+type FieldError struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
+// ValidationErrors represents validation errors response
+type ValidationErrors struct {
+	Errors []FieldError `json:"errors"`
 }
 
 type Message struct {
@@ -30,12 +42,41 @@ func WithJSON(writer http.ResponseWriter, code int, jsonPayload interface{}) {
 	response(writer, code, Data[any]{Data: &jsonPayload})
 }
 
-// WithError sends a response with an error message
+// WithError sends a response with an error key
+// For validation errors (422), it returns an array of field errors with format:
+//
+//	{"errors": [{"field": "title", "message": "validation.required"}]}
+//
+// For other errors, it returns a single error key:
+//
+//	{"error": "gallery.not_found"}
+//
+// The message field contains error keys that should be translated by the frontend.
+// See Error.md for complete error documentation
 func WithError(writer http.ResponseWriter, err error) {
 	code := failure.GetCode(err)
-	errMsg := err.Error()
 
-	response(writer, code, Error{Error: &errMsg})
+	// Check if this is a validation error with field details
+	var valErr *failure.ValidationError
+	if errors.As(err, &valErr) && len(valErr.Fields) > 0 {
+		// Build array of field errors
+		fieldErrors := make([]FieldError, len(valErr.Fields))
+		for i, fieldErr := range valErr.Fields {
+			fieldErrors[i] = FieldError{
+				Field:   fieldErr.Field,
+				Message: fieldErr.Message, // Error key (e.g., "validation.required")
+			}
+		}
+
+		response(writer, code, ValidationErrors{Errors: fieldErrors})
+
+		return
+	}
+
+	// For non-validation errors, return the general error key
+	key := failure.GetKey(err)
+	errorValue := string(key)
+	response(writer, code, Error{Error: &errorValue})
 }
 
 // WithRequestLimitExceeded sends a default response for when the request limit is exceeded

@@ -8,6 +8,7 @@ import (
 	"oil/internal/domains/gallery/model/dto"
 	gModel "oil/shared/model"
 
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +25,7 @@ func TestCreateGalleryRequest_ToModel(t *testing.T) {
 	assert.NotEmpty(t, model.ID, "expected ID to be generated")
 	assert.Equal(t, req.Title, model.Title)
 	assert.Equal(t, req.Description, model.Description)
-	assert.Equal(t, req.Images, model.Images)
+	assert.Equal(t, pq.StringArray(req.Images), model.Images) // Compare as pq.StringArray
 	assert.Equal(t, userID, model.CreatedBy)
 	assert.Equal(t, userID, model.ModifiedBy)
 	assert.False(t, model.CreatedAt.IsZero(), "expected CreatedAt to be set")
@@ -37,7 +38,7 @@ func TestGalleryResponse_FromModel(t *testing.T) {
 		ID:          "test-id",
 		Title:       "Test Gallery",
 		Description: "Test Description",
-		Images:      []string{"https://example.com/image1.jpg"},
+		Images:      pq.StringArray{"https://example.com/image1.jpg"}, // Use pq.StringArray
 		Metadata: gModel.Metadata{
 			CreatedAt:  now,
 			ModifiedAt: now,
@@ -52,7 +53,7 @@ func TestGalleryResponse_FromModel(t *testing.T) {
 	assert.Equal(t, galleryModel.ID, response.ID)
 	assert.Equal(t, galleryModel.Title, response.Title)
 	assert.Equal(t, galleryModel.Description, response.Description)
-	assert.Equal(t, galleryModel.Images, response.Images)
+	assert.Equal(t, []string(galleryModel.Images), response.Images) // Compare as []string
 	assert.Equal(t, galleryModel.CreatedBy, response.CreatedBy)
 	assert.Equal(t, galleryModel.ModifiedBy, response.ModifiedBy)
 }
@@ -64,7 +65,7 @@ func TestGetGalleriesResponse_FromModels(t *testing.T) {
 			ID:          "test-id-1",
 			Title:       "Test Gallery 1",
 			Description: "Test Description 1",
-			Images:      []string{"https://example.com/image1.jpg"},
+			Images:      pq.StringArray{"https://example.com/image1.jpg"}, // Use pq.StringArray
 			Metadata: gModel.Metadata{
 				CreatedAt:  now,
 				ModifiedAt: now,
@@ -76,7 +77,7 @@ func TestGetGalleriesResponse_FromModels(t *testing.T) {
 			ID:          "test-id-2",
 			Title:       "Test Gallery 2",
 			Description: "Test Description 2",
-			Images:      []string{"https://example.com/image2.jpg", "https://example.com/image3.jpg"},
+			Images:      pq.StringArray{"https://example.com/image2.jpg", "https://example.com/image3.jpg"}, // Use pq.StringArray
 			Metadata: gModel.Metadata{
 				CreatedAt:  now,
 				ModifiedAt: now,
@@ -100,7 +101,7 @@ func TestGetGalleriesResponse_FromModels(t *testing.T) {
 	for i, gallery := range response.Galleries {
 		assert.Equal(t, galleries[i].ID, gallery.ID)
 		assert.Equal(t, galleries[i].Title, gallery.Title)
-		assert.Equal(t, galleries[i].Images, gallery.Images)
+		assert.Equal(t, []string(galleries[i].Images), gallery.Images) // Compare as []string
 	}
 }
 

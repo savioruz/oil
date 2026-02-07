@@ -1,47 +1,20 @@
 package validator
 
-import (
-	"errors"
-	"strings"
-
-	val "github.com/go-playground/validator/v10"
-)
-
 var (
+	// messages maps validation tags to their corresponding error keys
+	// These keys should be translated by the frontend to localized messages
 	messages = map[string]string{
-		"required": "{field} is required",
-		"gte":      "{field} must be greater than or equal to {param}",
-		"lte":      "{field} must be less than or equal to {param}",
-		"oneof":    "{field} must be one of {param}",
-		"max":      "{field} must be less than or equal to {param}",
-		"min":      "{field} must be greater than or equal to {param}",
-		"email":    "{field} must be a valid email address",
-		"url":      "{field} must be a valid URL",
-		"dive":     "{field} contains a forbidden value",
-		"mimetype": "{field} must be one of the allowed file types: {param}",
+		"required":    "validation.required",
+		"gte":         "validation.gte",
+		"lte":         "validation.lte",
+		"oneof":       "validation.oneof",
+		"max":         "validation.max",
+		"min":         "validation.min",
+		"email":       "validation.email",
+		"url":         "validation.url",
+		"dive":        "validation.dive",
+		"mimetypes":   "validation.mimetypes",
+		"maxfilesize": "validation.maxfilesize",
+		"empty":       "validation.empty",
 	}
 )
-
-func message(err error) string {
-	var valErrors val.ValidationErrors
-
-	if errors.As(err, &valErrors) {
-		for _, valErr := range valErrors {
-			errStr := ""
-			field := valErr.Field()
-			param := valErr.Param()
-
-			errStr = messages[valErr.Tag()]
-			if errStr != "" {
-				errStr = strings.ReplaceAll(errStr, "{field}", field)
-				errStr = strings.ReplaceAll(errStr, "{param}", param)
-
-				return errStr
-			}
-		}
-
-		return valErrors.Error()
-	}
-
-	return err.Error()
-}

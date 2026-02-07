@@ -3,6 +3,7 @@ module oil
 go 1.24.5
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/air-verse/air v1.62.0
 	github.com/aws/aws-sdk-go-v2 v1.39.6
 	github.com/aws/aws-sdk-go-v2/config v1.31.17
@@ -22,6 +23,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.12.0
 	github.com/rs/zerolog v1.34.0
+	github.com/segmentio/kafka-go v0.4.49
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/http-swagger v1.3.4
 	github.com/swaggo/swag v1.16.6
@@ -92,7 +94,6 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.23 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/segmentio/kafka-go v0.4.49 // indirect
 	github.com/spf13/afero v1.14.0 // indirect
 	github.com/spf13/cast v1.8.0 // indirect
 	github.com/swaggo/files v1.0.1 // indirect

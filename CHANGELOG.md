@@ -128,6 +128,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified response logic by removing environment-dependent error formatting
 
 ### Fixed
+- **OpenTelemetry Span Hierarchy**: Fixed cache operations creating separate spans instead of nested under route spans
+  - Reordered middleware stack to ensure tracing runs before rate limiting
+  - Cache operations (Get/Save) in rate limiter now properly appear as child spans of the HTTP route span
+  - Old behavior: Separate sibling spans for route and cache operations
+  - New behavior: Hierarchical trace with cache spans nested under the route span
+  - **Benefits**:
+    - Better trace visualization showing operation relationships
+    - Easier debugging of rate limiter performance
+    - Improved understanding of request flow through distributed tracing
+    - Proper parent-child span relationships for all middleware operations
+
 - **Authentication HTTP Status Codes**: Fixed non-standard HTTP status codes in authentication endpoints
   - Invalid credentials (wrong email/password) now return **401 Unauthorized** instead of 400 Bad Request
   - Deactivated user accounts now return **403 Forbidden** instead of 400 Bad Request  

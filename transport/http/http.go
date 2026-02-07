@@ -111,8 +111,8 @@ func (h *HTTP) setupMiddlewares() {
 	h.setupCleanPaths()
 	h.setupIdentity()
 	h.setupRecover()
-	h.setupRateLimit()
 	h.setupTracing()
+	h.setupRateLimit()
 
 	h.logCORSConfigInfo()
 }

@@ -38,7 +38,7 @@ func (c *CreateGalleryRequest) ToModel(user string) model.Gallery {
 type UpdateGalleryRequest struct {
 	Title       string         `db:"title"       json:"title"       validate:"omitempty,min=3,max=100"`
 	Description string         `db:"description" json:"description" validate:"omitempty"`
-	Images      pq.StringArray `db:"images"      json:"images"      validate:"omitempty,dive,url"`
+	Images      pq.StringArray `db:"images"      json:"-"           swaggerignore:"true"               validate:"omitempty,dive,url"`
 }
 
 type GalleryResponse struct {

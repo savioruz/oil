@@ -635,24 +635,6 @@ func TestUpdateGallery(t *testing.T) {
 		assert.NotEmpty(t, responseValidationErr.Errors)
 	})
 
-	t.Run("Error: invalid request - invalid image URL", func(t *testing.T) {
-		defer resetResponse()
-
-		invalidBody := map[string]interface{}{
-			"images": []string{"not-a-url"},
-		}
-
-		resp, err := getClientForValidation().
-			SetBody(invalidBody).
-			Patch("/galleries/test-id")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-		assert.NotEmpty(t, responseValidationErr.Errors)
-	})
-
 	t.Run("Error: gallery not found", func(t *testing.T) {
 		defer resetResponse()
 

@@ -62,6 +62,21 @@ func init() {
 	cfg := config.Get()
 
 	validate = val.New(val.WithRequiredStructEnabled())
+
+	// Register JSON tag name function to use json field names
+	validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
+		name := fld.Tag.Get("json")
+		if name == "" {
+			return fld.Name
+		}
+		// Handle json:",omitempty" by extracting just the name
+		if idx := strings.Index(name, ","); idx != -1 {
+			name = name[:idx]
+		}
+
+		return name
+	})
+
 	err := validate.RegisterValidation("oil", func(fl val.FieldLevel) bool {
 		method := fl.Field().MethodByName("Validate")
 		if method.IsValid() {
@@ -172,14 +187,22 @@ func buildValidationError(err error) error {
 }
 
 // buildFieldPath constructs the full field path including array indices
-// e.g., "Images[0]" -> "images[0]", "Title" -> "title"
+// e.g., "TestRequest.images[0]" -> "images[0]", "TestRequest.title" -> "title"
 func buildFieldPath(valErr val.FieldError) string {
 	namespace := valErr.Namespace()
-	structName := valErr.StructNamespace()
 
-	// Remove struct name prefix to get just the field path
-	fieldPath := strings.TrimPrefix(namespace, structName)
-	fieldPath = strings.TrimPrefix(fieldPath, ".")
+	// Split namespace to remove struct name prefix
+	// e.g., "TestRequest.email" -> "email"
+	// e.g., "TestRequest.images[0]" -> "images[0]"
+	const namespaceParts = 2
+
+	parts := strings.SplitN(namespace, ".", namespaceParts)
+	if len(parts) < namespaceParts {
+		// No dot found, use the field name directly
+		return strings.ToLower(valErr.Field())
+	}
+
+	fieldPath := parts[1]
 
 	// Convert to snake_case but preserve array indices
 	result := ""
@@ -206,7 +229,7 @@ func buildFieldPath(valErr val.FieldError) string {
 		}
 	}
 
-	return strings.ToLower(result)
+	return result
 }
 
 // generateFieldMessage returns the error key for the validation tag

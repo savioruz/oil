@@ -1,0 +1,151 @@
+package response_test
+
+import (
+	"encoding/json"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"oil/shared/errkey"
+	"oil/shared/failure"
+	"oil/transport/http/response"
+)
+
+func TestWithError_AlwaysReturnsErrorKey(t *testing.T) {
+	tests := []struct {
+		name          string
+		errorCode     int
+		errorKey      errkey.ErrorKey
+		errorMessage  string
+		expectedError string // Always the error key
+	}{
+		{
+			name:          "Internal Server Error",
+			errorCode:     500,
+			errorKey:      errkey.ErrInternalServer,
+			errorMessage:  "database connection failed: timeout at host 10.0.1.5",
+			expectedError: string(errkey.ErrInternalServer),
+		},
+		{
+			name:          "Database Query Error",
+			errorCode:     500,
+			errorKey:      errkey.ErrDatabaseQuery,
+			errorMessage:  "failed to execute query: constraint violation details",
+			expectedError: string(errkey.ErrDatabaseQuery),
+		},
+		{
+			name:          "Service Unavailable",
+			errorCode:     503,
+			errorKey:      errkey.ErrServiceUnavailable,
+			errorMessage:  "service is temporarily unavailable due to maintenance",
+			expectedError: string(errkey.ErrServiceUnavailable),
+		},
+		{
+			name:          "Gallery Not Found",
+			errorCode:     404,
+			errorKey:      errkey.ErrGalleryNotFound,
+			errorMessage:  "gallery with id 'abc-123' not found in database",
+			expectedError: string(errkey.ErrGalleryNotFound),
+		},
+		{
+			name:          "Validation Failed",
+			errorCode:     400,
+			errorKey:      errkey.ErrValidationFailed,
+			errorMessage:  "validation failed: title is required, must be at least 3 characters",
+			expectedError: string(errkey.ErrValidationFailed),
+		},
+		{
+			name:          "Unauthorized",
+			errorCode:     401,
+			errorKey:      errkey.ErrUnauthorized,
+			errorMessage:  "authentication failed: invalid JWT token signature",
+			expectedError: string(errkey.ErrUnauthorized),
+		},
+		{
+			name:          "Forbidden",
+			errorCode:     403,
+			errorKey:      errkey.ErrForbidden,
+			errorMessage:  "access denied: user lacks required permissions",
+			expectedError: string(errkey.ErrForbidden),
+		},
+		{
+			name:          "Gallery Create Failed",
+			errorCode:     500,
+			errorKey:      errkey.ErrGalleryCreateFailed,
+			errorMessage:  "failed to create gallery: database insert error",
+			expectedError: string(errkey.ErrGalleryCreateFailed),
+		},
+		{
+			name:          "Todo Not Found",
+			errorCode:     404,
+			errorKey:      errkey.ErrTodoNotFound,
+			errorMessage:  "todo item with specified ID does not exist",
+			expectedError: string(errkey.ErrTodoNotFound),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create test error with full message
+			var testErr error
+			switch tt.errorCode {
+			case 500:
+				testErr = failure.InternalErrorWithKey(tt.errorKey, tt.errorMessage)
+			case 503:
+				testErr = failure.ServiceUnavailableWithKey(tt.errorKey, tt.errorMessage)
+			case 404:
+				testErr = failure.NotFoundWithKey(tt.errorKey, tt.errorMessage)
+			case 400:
+				testErr = failure.BadRequestWithKey(tt.errorKey, tt.errorMessage)
+			case 401:
+				testErr = failure.UnauthorizedWithKey(tt.errorKey, tt.errorMessage)
+			case 403:
+				testErr = failure.ForbiddenWithKey(tt.errorKey, tt.errorMessage)
+			default:
+				testErr = failure.InternalErrorWithKey(tt.errorKey, tt.errorMessage)
+			}
+
+			// Create response recorder
+			recorder := httptest.NewRecorder()
+
+			// Call WithError
+			response.WithError(recorder, testErr)
+
+			// Check status code
+			assert.Equal(t, tt.errorCode, recorder.Code)
+
+			// Parse response
+			var errorResponse struct {
+				Error *string `json:"error,omitempty"`
+			}
+			err := json.Unmarshal(recorder.Body.Bytes(), &errorResponse)
+			assert.NoError(t, err)
+
+			// Verify error field always contains the error key
+			assert.NotNil(t, errorResponse.Error, "Expected error field to be present")
+			assert.Equal(t, tt.expectedError, *errorResponse.Error, "Error field should always contain the error key")
+
+			// Verify the response does NOT contain the detailed message
+			assert.NotContains(t, *errorResponse.Error, "database connection", "Should not expose internal details")
+			assert.NotContains(t, *errorResponse.Error, "failed to", "Should not expose internal details")
+		})
+	}
+}
+
+func TestWithError_ErrorKeyFormat(t *testing.T) {
+	// Test that error keys follow the expected pattern
+	testErr := failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, "some internal error message")
+	recorder := httptest.NewRecorder()
+
+	response.WithError(recorder, testErr)
+
+	var errorResponse struct {
+		Error *string `json:"error,omitempty"`
+	}
+	err := json.Unmarshal(recorder.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
+
+	// Error keys should follow pattern: category.error_name
+	assert.Regexp(t, `^[a-z]+\.[a-z_]+$`, *errorResponse.Error, "Error key should follow pattern: category.error_name")
+}

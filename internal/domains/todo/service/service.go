@@ -12,6 +12,7 @@ import (
 	"oil/shared/cache"
 	"oil/shared/constant"
 	gDto "oil/shared/dto"
+	"oil/shared/errkey"
 	"oil/shared/failure"
 
 	"github.com/rs/zerolog/log"
@@ -58,7 +59,7 @@ func (s *serviceImpl) Create(ctx context.Context, req dto.CreateTodoRequest) (er
 	if err = s.repo.Insert(ctx, req.ToModel(user)); err != nil {
 		log.Error().Err(err).Msg("failed to create todo")
 
-		return fmt.Errorf("failed to create todo: %w", err)
+		return failure.InternalErrorWithKey(errkey.ErrTodoCreateFailed, fmt.Sprintf("failed to create todo: %v", err))
 	}
 
 	go func() {
@@ -89,14 +90,14 @@ func (s *serviceImpl) GetAll(ctx context.Context, req gDto.QueryParams, filter g
 	if err != nil {
 		log.Error().Err(err).Msg("failed to count todos")
 
-		return res, fmt.Errorf("failed to count todos: %w", err)
+		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to count todos: %v", err))
 	}
 
 	models, err := s.repo.GetAll(ctx, req, filter)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get todos")
 
-		return res, fmt.Errorf("failed to get todos: %w", err)
+		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get todos: %v", err))
 	}
 
 	res.FromModels(models, total, req.Limit)
@@ -130,7 +131,7 @@ func (s *serviceImpl) Count(ctx context.Context, req gDto.QueryParams, filter gD
 	if err != nil {
 		log.Error().Err(err).Msg("failed to count todos")
 
-		return res, fmt.Errorf("failed to count todos: %w", err)
+		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to count todos: %v", err))
 	}
 
 	go func() {
@@ -162,11 +163,11 @@ func (s *serviceImpl) Get(ctx context.Context, id string) (res dto.TodoResponse,
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get todo")
 
-		return res, fmt.Errorf("failed to get todo: %w", err)
+		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get todo: %v", err))
 	}
 
 	if todo.ID == constant.Empty {
-		return res, failure.NotFound("todo not found") // nolint:wrapcheck
+		return res, failure.NotFoundWithKey(errkey.ErrTodoNotFound, "todo not found")
 	}
 
 	res.FromModel(todo)
@@ -198,20 +199,20 @@ func (s *serviceImpl) Update(ctx context.Context, req dto.UpdateTodoRequest, id 
 	if err != nil {
 		log.Error().Err(err).Msg("failed to check if todo exists")
 
-		return fmt.Errorf("failed to check if todo exists: %w", err)
+		return failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to check if todo exists: %v", err))
 	}
 
 	if !exist {
 		log.Error().Msg("todo not found")
 
-		return failure.NotFound("todo not found") // nolint:wrapcheck
+		return failure.NotFoundWithKey(errkey.ErrTodoNotFound, "todo not found")
 	}
 
 	updatedFields := shared.TransformFields(req, user)
 	if err := s.repo.Update(ctx, updatedFields, filter); err != nil {
 		log.Error().Err(err).Msg("failed to update todo")
 
-		return fmt.Errorf("failed to update todo: %w", err)
+		return failure.InternalErrorWithKey(errkey.ErrTodoUpdateFailed, fmt.Sprintf("failed to update todo: %v", err))
 	}
 
 	go func() {
@@ -237,19 +238,19 @@ func (s *serviceImpl) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		log.Error().Err(err).Msg("failed to check if todo exists")
 
-		return fmt.Errorf("failed to check if todo exists: %w", err)
+		return failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to check if todo exists: %v", err))
 	}
 
 	if !exist {
 		log.Error().Msg("todo not found")
 
-		return failure.NotFound("todo not found") // nolint:wrapcheck
+		return failure.NotFoundWithKey(errkey.ErrTodoNotFound, "todo not found")
 	}
 
 	if err := s.repo.Delete(ctx, shared.FilterByID(id, model.FieldID, model.TableName)); err != nil {
 		log.Error().Err(err).Msg("failed to delete todo")
 
-		return fmt.Errorf("failed to delete todo: %w", err)
+		return failure.InternalErrorWithKey(errkey.ErrTodoDeleteFailed, fmt.Sprintf("failed to delete todo: %v", err))
 	}
 
 	go func() {

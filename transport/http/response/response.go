@@ -30,12 +30,16 @@ func WithJSON(writer http.ResponseWriter, code int, jsonPayload interface{}) {
 	response(writer, code, Data[any]{Data: &jsonPayload})
 }
 
-// WithError sends a response with an error message
+// WithError sends a response with an error key
+// The error field always contains the machine-readable error key
+// See Error.md for complete error key documentation
 func WithError(writer http.ResponseWriter, err error) {
 	code := failure.GetCode(err)
-	errMsg := err.Error()
+	key := failure.GetKey(err)
 
-	response(writer, code, Error{Error: &errMsg})
+	// Always return the error key for consistent, machine-readable errors
+	errorValue := string(key)
+	response(writer, code, Error{Error: &errorValue})
 }
 
 // WithRequestLimitExceeded sends a default response for when the request limit is exceeded

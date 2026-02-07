@@ -19,7 +19,6 @@ import (
 	"oil/shared/constant"
 	gDto "oil/shared/dto"
 	gModel "oil/shared/model"
-	"oil/shared/timezone"
 )
 
 func TestTodoService_Create(t *testing.T) {
@@ -134,6 +133,8 @@ func TestTodoService_GetAll(t *testing.T) {
 					Count(gomock.Any(), gomock.Any()).
 					Return(1, nil)
 
+				now := time.Now()
+
 				todos := []model.Todo{
 					{
 						ID:          "test-id",
@@ -141,8 +142,8 @@ func TestTodoService_GetAll(t *testing.T) {
 						Description: "Test Description",
 						Completed:   false,
 						Metadata: gModel.Metadata{
-							CreatedAt:  timezone.Now(),
-							ModifiedAt: timezone.Now(),
+							CreatedAt:  now,
+							ModifiedAt: now,
 							CreatedBy:  "test-user",
 							ModifiedBy: "test-user",
 						},
@@ -348,14 +349,16 @@ func TestTodoService_Get(t *testing.T) {
 
 	svc := service.New(mockRepo, cfg, mockCache, mockOtel)
 
+	now := time.Now()
+
 	todo := model.Todo{
 		ID:          "test-id",
 		Title:       "Test Todo",
 		Description: "Test Description",
 		Completed:   false,
 		Metadata: gModel.Metadata{
-			CreatedAt:  timezone.Now(),
-			ModifiedAt: timezone.Now(),
+			CreatedAt:  now,
+			ModifiedAt: now,
 			CreatedBy:  "test-user",
 			ModifiedBy: "test-user",
 		},

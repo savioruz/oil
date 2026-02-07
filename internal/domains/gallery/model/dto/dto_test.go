@@ -2,11 +2,11 @@ package dto_test
 
 import (
 	"testing"
+	"time"
 
 	"oil/internal/domains/gallery/model"
 	"oil/internal/domains/gallery/model/dto"
 	gModel "oil/shared/model"
-	"oil/shared/timezone"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -32,7 +32,7 @@ func TestCreateGalleryRequest_ToModel(t *testing.T) {
 }
 
 func TestGalleryResponse_FromModel(t *testing.T) {
-	now := timezone.Now()
+	now := time.Now()
 	galleryModel := model.Gallery{
 		ID:          "test-id",
 		Title:       "Test Gallery",
@@ -58,7 +58,7 @@ func TestGalleryResponse_FromModel(t *testing.T) {
 }
 
 func TestGetGalleriesResponse_FromModels(t *testing.T) {
-	now := timezone.Now()
+	now := time.Now()
 	galleries := []model.Gallery{
 		{
 			ID:          "test-id-1",
@@ -113,7 +113,7 @@ func TestGetGalleriesResponse_FromModels_EmptyList(t *testing.T) {
 	response.FromModels(galleries, totalData, limit)
 
 	assert.Equal(t, totalData, response.TotalData)
-	assert.Equal(t, 1, response.TotalPage) // Function returns 1 when total is 0
+	assert.Equal(t, 1, response.TotalPage)
 	assert.Len(t, response.Galleries, 0)
 }
 

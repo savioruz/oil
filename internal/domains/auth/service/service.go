@@ -15,7 +15,7 @@ import (
 	gDto "oil/shared/dto"
 	"oil/shared/failure"
 	"oil/shared/password"
-	"oil/shared/timezone"
+	"time"
 
 	"github.com/rs/zerolog/log"
 )
@@ -128,7 +128,7 @@ func (s *serviceImpl) Login(ctx context.Context, req dto.LoginRequest) (res dto.
 		return res, fmt.Errorf("failed to generate tokens: %w", err)
 	}
 
-	lastLogin := dto.UpdateLastLoginRequest{LastLogin: timezone.Now()}
+	lastLogin := dto.UpdateLastLoginRequest{LastLogin: time.Now()}
 	updatedFields := shared.TransformFields(lastLogin, user.ID)
 
 	if err := s.userRepo.Update(ctx, updatedFields, emailFilter); err != nil {

@@ -2,13 +2,13 @@ package dto_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	"oil/infras/jwt"
 	"oil/internal/domains/auth/model/dto"
 	"oil/shared/constant"
-	"oil/shared/timezone"
 )
 
 func TestRegisterRequest_ToUserModel(t *testing.T) {
@@ -81,7 +81,7 @@ func TestRefreshTokenResponse_FromTokenPair(t *testing.T) {
 }
 
 func TestUpdateLastLoginRequest(t *testing.T) {
-	now := timezone.Now()
+	now := time.Now()
 
 	req := dto.UpdateLastLoginRequest{
 		LastLogin: now,

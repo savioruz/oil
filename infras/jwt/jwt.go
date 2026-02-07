@@ -80,7 +80,7 @@ func New(cfg *config.Config, redisCache cache.RedisCache) JWT {
 
 // GenerateTokenPair generates both access and refresh tokens with Redis tracking
 func (s *Service) GenerateTokenPair(ctx context.Context, userID, email, role string) (*TokenPair, error) {
-	now := timezone.Now()
+	now := timezone.NowUTC()
 
 	// Generate access token
 	accessToken, accessTokenID, err := s.generateToken(userID, email, role, AccessToken, now, s.config.JWT.AccessExpireMin)
@@ -262,7 +262,7 @@ func (s *Service) RevokeToken(ctx context.Context, tokenString string, _ TokenTy
 
 	// Add to blacklist with TTL equal to remaining token lifetime using BuildCacheKey
 	blacklistKey := shared.BuildCacheKey(cacheJwtBlacklistPrefix, claims.TokenID)
-	remaining := time.Until(claims.ExpiresAt.Time)
+	remaining := timezone.TimeUntil(claims.ExpiresAt.Time)
 
 	if remaining > 0 {
 		if err := s.cache.Save(ctx, blacklistKey, cacheJwtRevokedValue, int(remaining.Seconds())); err != nil {
@@ -281,7 +281,6 @@ func (s *Service) RevokeToken(ctx context.Context, tokenString string, _ TokenTy
 
 // RevokeAllUserTokens revokes all tokens for a specific user
 func (s *Service) RevokeAllUserTokens(ctx context.Context, userID string) error {
-	// Clear all user tokens using BuildCacheKey pattern
 	userTokensPattern := shared.BuildCacheKey(cacheJwtUserPrefix, userID, "*")
 	if err := s.cache.Clear(ctx, userTokensPattern); err != nil {
 		return ErrCacheOperationFailed

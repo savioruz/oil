@@ -21,7 +21,6 @@ import (
 	"oil/shared/constant"
 	gDto "oil/shared/dto"
 	gModel "oil/shared/model"
-	"oil/shared/timezone"
 )
 
 func TestGalleryService_Create(t *testing.T) {
@@ -139,6 +138,8 @@ func TestGalleryService_GetAll(t *testing.T) {
 					Count(gomock.Any(), gomock.Any()).
 					Return(1, nil)
 
+				now := time.Now()
+
 				galleries := []model.Gallery{
 					{
 						ID:          "test-id",
@@ -146,8 +147,8 @@ func TestGalleryService_GetAll(t *testing.T) {
 						Description: "Test Description",
 						Images:      []string{"https://example.com/image1.jpg"},
 						Metadata: gModel.Metadata{
-							CreatedAt:  timezone.Now(),
-							ModifiedAt: timezone.Now(),
+							CreatedAt:  now,
+							ModifiedAt: now,
 							CreatedBy:  "test-user",
 							ModifiedBy: "test-user",
 						},
@@ -227,14 +228,16 @@ func TestGalleryService_Get(t *testing.T) {
 
 	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
 
+	now := time.Now()
+
 	gallery := model.Gallery{
 		ID:          "test-id",
 		Title:       "Test Gallery",
 		Description: "Test Description",
 		Images:      []string{"https://example.com/image1.jpg"},
 		Metadata: gModel.Metadata{
-			CreatedAt:  timezone.Now(),
-			ModifiedAt: timezone.Now(),
+			CreatedAt:  now,
+			ModifiedAt: now,
 			CreatedBy:  "test-user",
 			ModifiedBy: "test-user",
 		},

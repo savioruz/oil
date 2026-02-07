@@ -2,13 +2,16 @@ package validator
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	val "github.com/go-playground/validator/v10"
 	"io"
 	"mime/multipart"
+	"net/http"
 	"oil/config"
 	"oil/shared/base64"
 	"oil/shared/constant"
+	"oil/shared/errkey"
 	"oil/shared/failure"
 	"reflect"
 	"slices"
@@ -114,9 +117,7 @@ func ValidateStruct[T any](data *T) error {
 	err := validate.Struct(data)
 
 	if err != nil {
-		msg := message(err)
-
-		return failure.UnprocessableEntityFromString(msg) //nolint:wrapcheck
+		return buildValidationError(err)
 	}
 
 	return nil
@@ -126,10 +127,92 @@ func ValidateVar(field any, tag string) error {
 	err := validate.Var(field, tag)
 
 	if err != nil {
-		msg := message(err)
-
-		return failure.UnprocessableEntityFromString(msg) //nolint:wrapcheck
+		return buildValidationError(err)
 	}
 
 	return nil
+}
+
+// buildValidationError converts validator errors into structured ValidationError
+func buildValidationError(err error) error {
+	var valErrors val.ValidationErrors
+	if !errors.As(err, &valErrors) {
+		// Not a validation error, return as unprocessable entity
+		return failure.UnprocessableEntity(err) //nolint:wrapcheck
+	}
+
+	validationErr := &failure.ValidationError{
+		Code:   http.StatusUnprocessableEntity,
+		Fields: make([]failure.ValidationFieldError, 0, len(valErrors)),
+	}
+
+	for _, valErr := range valErrors {
+		fieldName := valErr.Field()
+		tag := valErr.Tag()
+		param := valErr.Param()
+
+		// Build field path (handle array indices)
+		fieldPath := buildFieldPath(valErr)
+
+		// Generate error key (e.g., "validation.required.title")
+		errorKey := errkey.FormatFieldError(tag, fieldName)
+
+		// Generate human-readable message
+		message := generateFieldMessage(fieldName, tag, param)
+
+		validationErr.Fields = append(validationErr.Fields, failure.ValidationFieldError{
+			Field:   fieldPath,
+			Message: message,
+			Key:     errorKey,
+			Param:   param,
+		})
+	}
+
+	return validationErr
+}
+
+// buildFieldPath constructs the full field path including array indices
+// e.g., "Images[0]" -> "images[0]", "Title" -> "title"
+func buildFieldPath(valErr val.FieldError) string {
+	namespace := valErr.Namespace()
+	structName := valErr.StructNamespace()
+
+	// Remove struct name prefix to get just the field path
+	fieldPath := strings.TrimPrefix(namespace, structName)
+	fieldPath = strings.TrimPrefix(fieldPath, ".")
+
+	// Convert to snake_case but preserve array indices
+	result := ""
+	inBracket := false
+	for i, r := range fieldPath {
+		if r == '[' {
+			inBracket = true
+			result += string(r)
+		} else if r == ']' {
+			inBracket = false
+			result += string(r)
+		} else if inBracket {
+			result += string(r)
+		} else if r >= 'A' && r <= 'Z' {
+			if i > 0 && !inBracket {
+				result += "_"
+			}
+			result += strings.ToLower(string(r))
+		} else {
+			result += string(r)
+		}
+	}
+
+	return strings.ToLower(result)
+}
+
+// generateFieldMessage generates a human-readable error message
+func generateFieldMessage(field, tag, param string) string {
+	msg := messages[tag]
+	if msg != "" {
+		msg = strings.ReplaceAll(msg, "{field}", field)
+		msg = strings.ReplaceAll(msg, "{param}", param)
+		return msg
+	}
+	return fmt.Sprintf("%s validation failed for tag '%s'", field, tag)
 }

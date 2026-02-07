@@ -13,6 +13,28 @@ type Failure struct {
 	Key     errkey.ErrorKey `json:"key,omitempty"` // Error key for frontend translation
 }
 
+// ValidationFieldError represents a single field validation error
+type ValidationFieldError struct {
+	Field   string          `json:"field"`           // Field name (e.g., "title", "images[0]")
+	Message string          `json:"message"`         // Human-readable message
+	Key     errkey.ErrorKey `json:"key"`             // Machine-readable error key (e.g., "validation.required.title")
+	Param   string          `json:"param,omitempty"` // Validation parameter if applicable (e.g., "3" for min=3)
+}
+
+// ValidationError represents a validation error with multiple field errors
+type ValidationError struct {
+	Code   int                    `json:"code"`
+	Fields []ValidationFieldError `json:"fields"`
+}
+
+// Error implements the error interface
+func (e *ValidationError) Error() string {
+	if len(e.Fields) > 0 {
+		return e.Fields[0].Message
+	}
+	return "validation failed"
+}
+
 var InvalidPageParam = &Failure{Code: http.StatusBadRequest, Message: "invalid page parameter", Key: errkey.ErrInvalidPageParam}
 var InvalidLimitParam = &Failure{Code: http.StatusBadRequest, Message: "invalid limit parameter", Key: errkey.ErrInvalidLimitParam}
 var ForbiddenError = &Failure{Code: http.StatusForbidden, Message: "You don't have the required permissions", Key: errkey.ErrForbidden}
@@ -116,6 +138,12 @@ func Forbidden(msg string) error {
 
 // GetCode returns the error code of an error interface.
 func GetCode(err error) int {
+	// Check for ValidationError first
+	var valErr *ValidationError
+	if errors.As(err, &valErr) {
+		return valErr.Code
+	}
+
 	var fail *Failure
 	if errors.As(err, &fail) {
 		return fail.Code
@@ -126,6 +154,14 @@ func GetCode(err error) int {
 
 // GetKey returns the error key of an error interface.
 func GetKey(err error) errkey.ErrorKey {
+	// Check for ValidationError first (has multiple field errors)
+	var valErr *ValidationError
+	if errors.As(err, &valErr) {
+		// For multi-field validation errors, return generic validation.failed
+		// The actual field-level keys are in the Fields array
+		return errkey.ErrValidationFailed
+	}
+
 	var fail *Failure
 	if errors.As(err, &fail) {
 		// If the key is empty, return a default based on the status code

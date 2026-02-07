@@ -1,5 +1,11 @@
 package errkey
 
+import (
+	"fmt"
+	"strings"
+	"unicode"
+)
+
 // ErrorKey represents a unique error identifier that can be translated by the frontend
 type ErrorKey string
 
@@ -9,16 +15,20 @@ const (
 	ErrValidationFailed   ErrorKey = "validation.failed"
 	ErrInvalidPageParam   ErrorKey = "validation.invalid_page"
 	ErrInvalidLimitParam  ErrorKey = "validation.invalid_limit"
-	ErrRequiredField      ErrorKey = "validation.required_field"
+	ErrRequiredField      ErrorKey = "validation.required"
 	ErrInvalidFormat      ErrorKey = "validation.invalid_format"
-	ErrMinLength          ErrorKey = "validation.min_length"
-	ErrMaxLength          ErrorKey = "validation.max_length"
-	ErrInvalidURL         ErrorKey = "validation.invalid_url"
-	ErrInvalidEmail       ErrorKey = "validation.invalid_email"
-	ErrInvalidImageFormat ErrorKey = "validation.invalid_image_format"
-	ErrFileTooLarge       ErrorKey = "validation.file_too_large"
-	ErrEmptyFile          ErrorKey = "validation.empty_file"
+	ErrMinLength          ErrorKey = "validation.min"
+	ErrMaxLength          ErrorKey = "validation.max"
+	ErrGreaterThanEqual   ErrorKey = "validation.gte"
+	ErrLessThanEqual      ErrorKey = "validation.lte"
+	ErrOneOf              ErrorKey = "validation.oneof"
+	ErrInvalidURL         ErrorKey = "validation.url"
+	ErrInvalidEmail       ErrorKey = "validation.email"
+	ErrInvalidImageFormat ErrorKey = "validation.mimetypes"
+	ErrFileTooLarge       ErrorKey = "validation.maxfilesize"
+	ErrEmptyFile          ErrorKey = "validation.empty"
 	ErrMissingFile        ErrorKey = "validation.missing_file"
+	ErrDive               ErrorKey = "validation.dive"
 
 	// Authentication & Authorization errors
 	ErrUnauthorized           ErrorKey = "auth.unauthorized"
@@ -73,6 +83,22 @@ const (
 	ErrTodoListFailed   ErrorKey = "todo.list_failed"
 )
 
+// ValidationTagToKey maps validation tags to error keys
+var ValidationTagToKey = map[string]ErrorKey{
+	"required":    ErrRequiredField,
+	"min":         ErrMinLength,
+	"max":         ErrMaxLength,
+	"gte":         ErrGreaterThanEqual,
+	"lte":         ErrLessThanEqual,
+	"oneof":       ErrOneOf,
+	"url":         ErrInvalidURL,
+	"email":       ErrInvalidEmail,
+	"mimetypes":   ErrInvalidImageFormat,
+	"maxfilesize": ErrFileTooLarge,
+	"empty":       ErrEmptyFile,
+	"dive":        ErrDive,
+}
+
 // String returns the string representation of the error key
 func (e ErrorKey) String() string {
 	return string(e)
@@ -100,4 +126,32 @@ func (e *ErrorWithDetails) WithDetail(key string, value interface{}) *ErrorWithD
 	e.Details[key] = value
 
 	return e
+}
+
+// ToSnakeCase converts a field name from PascalCase/camelCase to snake_case
+func ToSnakeCase(str string) string {
+	var result strings.Builder
+	for i, r := range str {
+		if unicode.IsUpper(r) {
+			if i > 0 {
+				result.WriteRune('_')
+			}
+			result.WriteRune(unicode.ToLower(r))
+		} else {
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
+}
+
+// FormatFieldError creates a field-specific validation error key
+// e.g., "Title" + "required" -> "validation.required.title"
+func FormatFieldError(tag string, fieldName string) ErrorKey {
+	baseKey, ok := ValidationTagToKey[tag]
+	if !ok {
+		baseKey = ErrValidationFailed
+	}
+
+	snakeField := ToSnakeCase(fieldName)
+	return ErrorKey(fmt.Sprintf("%s.%s", baseKey, snakeField))
 }

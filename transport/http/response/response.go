@@ -2,6 +2,7 @@ package response
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"oil/shared/constant"
 	"oil/shared/failure"
@@ -31,13 +32,23 @@ func WithJSON(writer http.ResponseWriter, code int, jsonPayload interface{}) {
 }
 
 // WithError sends a response with an error key
-// The error field always contains the machine-readable error key
+// For validation errors (422), it returns the first field-specific error key (e.g., "validation.required.title")
+// For other errors, it returns the general error key (e.g., "gallery.not_found")
 // See Error.md for complete error key documentation
 func WithError(writer http.ResponseWriter, err error) {
 	code := failure.GetCode(err)
-	key := failure.GetKey(err)
 
-	// Always return the error key for consistent, machine-readable errors
+	// Check if this is a validation error with field details
+	var valErr *failure.ValidationError
+	if errors.As(err, &valErr) && len(valErr.Fields) > 0 {
+		// Return the first field's error key (e.g., "validation.required.title")
+		errorValue := string(valErr.Fields[0].Key)
+		response(writer, code, Error{Error: &errorValue})
+		return
+	}
+
+	// For non-validation errors, return the general error key
+	key := failure.GetKey(err)
 	errorValue := string(key)
 	response(writer, code, Error{Error: &errorValue})
 }

@@ -149,3 +149,47 @@ func TestWithError_ErrorKeyFormat(t *testing.T) {
 	// Error keys should follow pattern: category.error_name
 	assert.Regexp(t, `^[a-z]+\.[a-z_]+$`, *errorResponse.Error, "Error key should follow pattern: category.error_name")
 }
+
+func TestWithError_ValidationErrorWithFields(t *testing.T) {
+	// Create a validation error with multiple field details
+	valErr := &failure.ValidationError{
+		Code: 422,
+		Fields: []failure.ValidationFieldError{
+			{
+				Field:   "title",
+				Message: "Title is required",
+				Key:     "validation.required.title",
+				Param:   "",
+			},
+			{
+				Field:   "images[0]",
+				Message: "Images[0] must be a valid URL",
+				Key:     "validation.url.images",
+				Param:   "",
+			},
+		},
+	}
+
+	recorder := httptest.NewRecorder()
+	response.WithError(recorder, valErr)
+
+	// Check status code
+	assert.Equal(t, 422, recorder.Code)
+
+	// Parse response
+	var errorResponse struct {
+		Error *string `json:"error,omitempty"`
+	}
+	err := json.Unmarshal(recorder.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
+
+	// Verify only the error key is present (no fields array)
+	assert.NotNil(t, errorResponse.Error)
+
+	// Should return the FIRST field's error key
+	assert.Equal(t, "validation.required.title", *errorResponse.Error)
+
+	// Verify the response format is simple - just error key
+	assert.Regexp(t, `^validation\.[a-z_]+\.[a-z_0-9\[\]]+$`, *errorResponse.Error,
+		"Validation error key should follow pattern: validation.tag.field_name")
+}

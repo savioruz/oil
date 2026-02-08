@@ -45,7 +45,7 @@ func (handler *Handler) Router(r chi.Router) {
 // @Success 201 {object} response.Message "User registered successfully"
 // @Failure 400 {object} response.Error
 // @Failure 500 {object} response.Error
-// @Router /v1/auth/register [post]
+// @Router /api/auth/register [post]
 func (handler *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".Register")
 	defer scope.End()
@@ -85,7 +85,7 @@ func (handler *Handler) Register(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} dto.LoginResponse "User logged in successfully. Response contains access_token. If remember=false, refresh_token is also included in response. If remember=true, refresh_token is only set as HTTP-only cookie."
 // @Failure 400 {object} response.Error
 // @Failure 500 {object} response.Error
-// @Router /v1/auth/login [post]
+// @Router /api/auth/login [post]
 func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".Login")
 	defer scope.End()
@@ -132,7 +132,7 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} response.Error
 // @Failure 422 {object} response.ValidationErrors
 // @Failure 500 {object} response.Error
-// @Router /v1/auth/refresh-token [post]
+// @Router /api/auth/refresh-token [post]
 func (handler *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".RefreshTokenCookieName")
 	defer scope.End()

@@ -19,7 +19,7 @@ type Router struct {
 }
 
 func (r *Router) SetupRoutes(router chi.Router) {
-	router.Route("/v1", func(routerGroup chi.Router) {
+	router.Route("/api", func(routerGroup chi.Router) {
 		r.DomainHandlers.Todo.Router(routerGroup)
 		r.DomainHandlers.Auth.Router(routerGroup)
 		r.DomainHandlers.Gallery.Router(routerGroup)

@@ -58,6 +58,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created complete test suite for error key functionality
 
 ### Changed
+- **Enhanced HTTP Logging and Observability**: Unified logging and improved request tracing
+  - **Unified logger**: Both development and production environments now use structured JSON logging
+  - **Enhanced HTTP access logs** with comprehensive request metadata:
+    - Added fields: `path`, `query`, `scheme`, `referer`, `content_type`, `content_length`
+    - Added proxy headers: `x_forwarded_for`, `x_real_ip` (when present)
+    - Improved field naming for clarity (`bytes_written`, `request_id`, `client_ip`)
+  - **Enhanced OpenTelemetry spans** with additional request/response attributes:
+    - Request attributes: `request_id`, `client_ip`, `scheme`, `proto`, `referer`
+    - Request metadata: `content_type`, `content_length`, `query_params`
+    - Response attributes: `response_size`
+    - Proxy tracking: `x_forwarded_for` header (when present)
+  - **Benefits**:
+    - Consistent structured logging across all environments
+    - Better request tracing and debugging capabilities
+    - Improved observability for performance monitoring and troubleshooting
+    - Easier correlation between access logs and distributed traces
+    - More context available for diagnosing production issues
+
 - **Breaking Change**: Cookie-based authentication now excludes refresh token from response body
   - When using cookie-based auth (`remember=true`), refresh token is NO LONGER returned in JSON response
   - Old behavior: `{"access_token": "...", "refresh_token": "..."}` + cookie set
@@ -110,6 +128,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified response logic by removing environment-dependent error formatting
 
 ### Fixed
+- **OpenTelemetry Span Hierarchy**: Fixed cache operations creating separate spans instead of nested under route spans
+  - Reordered middleware stack to ensure tracing runs before rate limiting
+  - Cache operations (Get/Save) in rate limiter now properly appear as child spans of the HTTP route span
+  - Old behavior: Separate sibling spans for route and cache operations
+  - New behavior: Hierarchical trace with cache spans nested under the route span
+  - **Benefits**:
+    - Better trace visualization showing operation relationships
+    - Easier debugging of rate limiter performance
+    - Improved understanding of request flow through distributed tracing
+    - Proper parent-child span relationships for all middleware operations
+
 - **Authentication HTTP Status Codes**: Fixed non-standard HTTP status codes in authentication endpoints
   - Invalid credentials (wrong email/password) now return **401 Unauthorized** instead of 400 Bad Request
   - Deactivated user accounts now return **403 Forbidden** instead of 400 Bad Request  

@@ -306,7 +306,7 @@ func (h *HTTP) logCORSConfigInfo() {
 }
 
 func (h *HTTP) setupNotFoundHandler() {
-	h.mux.NotFound(func(writer http.ResponseWriter, request *http.Request) {
+	h.mux.NotFound(func(writer http.ResponseWriter, _ *http.Request) {
 		response.WithMessage(writer, http.StatusNotFound, string(errkey.ErrNotFound))
 	})
 }

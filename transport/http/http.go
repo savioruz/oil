@@ -1,6 +1,6 @@
 // Package http provides HTTP server and routing utilities.
 //
-//nolint:revive
+// nolint:revive
 package http
 
 import (

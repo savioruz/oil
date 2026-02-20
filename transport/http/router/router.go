@@ -1,6 +1,4 @@
 // Package router provides HTTP routing utilities.
-//
-//nolint:revive
 package router
 
 import (

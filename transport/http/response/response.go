@@ -1,6 +1,4 @@
 // Package response provides HTTP response utilities.
-//
-//nolint:revive
 package response
 
 import (

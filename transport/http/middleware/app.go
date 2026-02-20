@@ -1,6 +1,4 @@
 // Package middleware provides HTTP middleware utilities.
-//
-//nolint:revive
 package middleware
 
 import (

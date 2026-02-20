@@ -1,3 +1,4 @@
+// Package permissions provides functionality to load and manage permissions from an embedded JSON file.
 package permissions
 
 import (
@@ -11,6 +12,7 @@ import (
 //go:embed permissions.json
 var permissionsData []byte
 
+// Permission represents the structure of a single permission entry in the permissions data.
 type Permission struct {
 	Permissions []string `json:"permissions"`
 	Path        string   `json:"path"`
@@ -18,11 +20,13 @@ type Permission struct {
 	Skip        bool     `json:"skip"`
 }
 
+// PermissionData represents the structure of the permissions data loaded from the embedded JSON file.
 type PermissionData struct {
 	Endpoints []Permission `json:"endpoints"`
 	Skip      bool         `json:"skip"`
 }
 
+// FindPermissions searches for a permission matching the given path and method.
 func (r *PermissionData) FindPermissions(path, method string) Permission {
 	idx := slices.IndexFunc(r.Endpoints, func(rp Permission) bool {
 		return rp.Path == path && rp.Method == method
@@ -35,6 +39,7 @@ func (r *PermissionData) FindPermissions(path, method string) Permission {
 	return r.Endpoints[idx]
 }
 
+// Get loads the embedded permissions data and returns a pointer to a PermissionData struct.
 func Get() *PermissionData {
 	var permissions PermissionData
 

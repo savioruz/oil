@@ -113,7 +113,7 @@ func (handler *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	if req.Remember {
 		cookie.SetRefreshToken(w, res.RefreshToken)
-		res.RefreshToken = constant.Empty
+		res.RefreshToken = constant.EmptyString
 	}
 
 	scope.AddEvent("User logged in successfully")
@@ -149,14 +149,14 @@ func (handler *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If no refresh token in body, try to get from cookie
-	if req.RefreshToken == constant.Empty {
+	if req.RefreshToken == constant.EmptyString {
 		if token, err := cookie.GetRefreshToken(r); err == nil {
 			req.RefreshToken = token
 		}
 	}
 
 	// Validate that we have a refresh token
-	if req.RefreshToken == constant.Empty {
+	if req.RefreshToken == constant.EmptyString {
 		err := &failure.ValidationError{
 			Code: http.StatusUnprocessableEntity,
 			Fields: []failure.ValidationFieldError{
@@ -188,7 +188,7 @@ func (handler *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	usingCookie := cookie.HasRefreshToken(r)
 	if usingCookie {
 		cookie.SetRefreshToken(w, res.RefreshToken)
-		res.RefreshToken = constant.Empty
+		res.RefreshToken = constant.EmptyString
 	}
 
 	scope.AddEvent("Token refreshed successfully")

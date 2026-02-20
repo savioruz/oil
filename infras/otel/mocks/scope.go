@@ -35,6 +35,7 @@ func (s *scopeImpl) TraceIfError(_ error) {
 
 }
 
+// NewScope creates a new mock Scope.
 func NewScope() otel.Scope {
 	return &scopeImpl{}
 }

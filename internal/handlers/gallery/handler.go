@@ -1,6 +1,7 @@
 package gallery
 
 import (
+	"mime/multipart"
 	"net/http"
 	"oil/infras/otel"
 	"oil/infras/s3"
@@ -290,7 +291,12 @@ func (handler *Handler) UploadImage(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-	defer file.Close()
+	defer func(file multipart.File) {
+		err := file.Close()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to close file")
+		}
+	}(file)
 
 	req := dto.UploadImageRequest{
 		Image:     fileHeader,

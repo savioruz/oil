@@ -1,3 +1,4 @@
+// Package config provides a centralized way to manage application configuration settings.
 package config
 
 import (
@@ -9,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Config holds all the configuration settings for the application.
 type Config struct {
 	Server struct {
 		Env      string `envconfig:"ENV"`
@@ -117,6 +119,7 @@ var (
 	initialized bool
 )
 
+// Init loads the configuration from environment variables and .env file (if present) and processes it into the Config struct.
 func Init() error {
 	var err error
 
@@ -145,6 +148,7 @@ func Init() error {
 	return nil
 }
 
+// Get returns a pointer to the Config struct. If the configuration has not been initialized yet, it will call Init() to load the configuration first.
 func Get() *Config {
 	if !initialized {
 		if err := Init(); err != nil {

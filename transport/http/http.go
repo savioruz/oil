@@ -1,3 +1,6 @@
+// Package http provides HTTP server and routing utilities.
+//
+// nolint:revive
 package http
 
 import (
@@ -28,19 +31,26 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+// ServerState represents the state of the HTTP server.
 type ServerState int
 
 const (
+	// ServerStateReady indicates the server is ready to accept connections.
 	ServerStateReady ServerState = iota + 1
+	// ServerStateInGracePeriod indicates the server is in grace period.
 	ServerStateInGracePeriod
+	// ServerStateInCleanupPeriod indicates the server is in cleanup period.
 	ServerStateInCleanupPeriod
 )
 
 const (
+	// RouteHealthCheck is the health check endpoint.
 	RouteHealthCheck = "/health"
+	// RouteSwaggerDocs is the swagger documentation endpoint.
 	RouteSwaggerDocs = "/docs/*"
 )
 
+// HTTP represents the HTTP server configuration and routing.
 type HTTP struct {
 	Config         *config.Config
 	Router         router.Router
@@ -51,6 +61,7 @@ type HTTP struct {
 	authMiddleware httpMiddleware.AuthRole
 }
 
+// New creates a new HTTP server instance.
 func New(cfg *config.Config, r router.Router, db *postgres.Connection, appMiddleware httpMiddleware.AppMiddleware, authMiddleware httpMiddleware.AuthRole) *HTTP {
 	return &HTTP{
 		Config:         cfg,
@@ -61,6 +72,7 @@ func New(cfg *config.Config, r router.Router, db *postgres.Connection, appMiddle
 	}
 }
 
+// Serve starts the HTTP server and listens for incoming requests.
 func (h *HTTP) Serve() {
 	h.setup()
 

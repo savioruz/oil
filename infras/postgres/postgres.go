@@ -1,3 +1,6 @@
+// Package postgres provides PostgreSQL database connection utilities.
+//
+//nolint:revive
 package postgres
 
 //nolint:revive
@@ -17,11 +20,13 @@ const (
 	postgresMaxOpenConnection = 10
 )
 
+// Connection holds read and write database connections.
 type Connection struct {
 	Read  *sqlx.DB
 	Write *sqlx.DB
 }
 
+// New creates a new Connection with read and write database connections.
 func New(config *config.Config) *Connection {
 	return &Connection{
 		Read:  CreatePostgresReadConn(*config),

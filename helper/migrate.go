@@ -1,6 +1,6 @@
+// Package helper provides functions to manage database migrations using the golang-migrate library.
 package helper
 
-//nolint:revive
 import (
 	"errors"
 	"fmt"
@@ -8,8 +8,8 @@ import (
 	"oil/config"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres" // nolint:revive
+	_ "github.com/golang-migrate/migrate/v4/source/file"       // nolint:revive
 	"github.com/rs/zerolog/log"
 )
 
@@ -35,7 +35,6 @@ func getConnection(config *config.Config) (*migrate.Migrate, error) {
 		"file://migrations/postgres",
 		connectionString,
 	)
-
 	if err != nil {
 		return nil, fmt.Errorf("error creating migrate instance: %w", err)
 	}
@@ -43,13 +42,19 @@ func getConnection(config *config.Config) (*migrate.Migrate, error) {
 	return mig, nil
 }
 
+// Runner executes the specified migration action (up, down, step-up, drop) using the provided configuration.
 func Runner(config *config.Config, action string) error {
 	mig, err := getConnection(config)
 	if err != nil {
 		return fmt.Errorf("error creating migrate instance: %w", err)
 	}
 
-	defer mig.Close()
+	defer func(mig *migrate.Migrate) {
+		err, _ := mig.Close()
+		if err != nil {
+			log.Error().Err(err).Msg("error closing migrate instance")
+		}
+	}(mig)
 
 	switch action {
 	case "up":
@@ -89,18 +94,22 @@ func Runner(config *config.Config, action string) error {
 	return nil
 }
 
+// Up applies all available migrations to the database using the provided configuration.
 func Up(config *config.Config) error {
 	return Runner(config, "up")
 }
 
+// StepUp applies the next available migration to the database using the provided configuration.
 func StepUp(config *config.Config) error {
 	return Runner(config, "step-up")
 }
 
+// Down rolls back the last applied migration from the database using the provided configuration.
 func Down(config *config.Config) error {
 	return Runner(config, "down")
 }
 
+// Drop rolls back all applied migrations from the database using the provided configuration.
 func Drop(config *config.Config) error {
 	return Runner(config, "drop")
 }

@@ -1,3 +1,4 @@
+// Package middleware provides HTTP middleware utilities.
 package middleware
 
 import (
@@ -18,7 +19,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// SkipAuthKey is the context key to skip authentication for a route.
 type SkipAuthKey string
+
+// PermissionsKey is the context key for storing user permissions.
 type PermissionsKey string
 
 // Auth defines the interface for authentication middleware

@@ -1,3 +1,6 @@
+// Package otel provides OpenTelemetry tracing utilities.
+//
+//nolint:revive
 package otel
 
 import (
@@ -13,6 +16,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// Otel defines the interface for OpenTelemetry tracing operations.
 type Otel interface {
 	NewScope(ctx context.Context, scopeName, spanName string) (context.Context, Scope)
 }
@@ -27,6 +31,7 @@ func (o *otelImpl) NewScope(ctx context.Context, scopeName, spanName string) (co
 	return ctx, NewScope(span)
 }
 
+// New creates a new Otel instance with the provided configuration.
 func New(config *config.Config) Otel {
 	ctx := context.Background()
 

@@ -166,7 +166,7 @@ func TestQueryParams_FromRequest(t *testing.T) {
 				Page:    3,
 				Limit:   constant.DefaultValueLimit, // Should use default
 				SortBy:  "email",
-				SortDir: "", // Empty when not provided
+				SortDir: "", // EmptyString when not provided
 			},
 		},
 	}

@@ -1,3 +1,6 @@
+// Package kafka provides Kafka client for message publishing and consuming.
+//
+//nolint:revive
 package kafka
 
 //go:generate go run go.uber.org/mock/mockgen -source=./kafka.go -destination=./mocks/kafka_mock.go -package=mocks
@@ -14,11 +17,13 @@ import (
 	"github.com/segmentio/kafka-go/sasl/plain"
 )
 
+// Message represents a Kafka message with key and value.
 type Message struct {
 	Key   string
 	Value any
 }
 
+// ToKafkaMessage converts the Message to a kafka-go Message.
 func (m *Message) ToKafkaMessage() (kafkaGo.Message, error) {
 	value := m.Value
 
@@ -37,6 +42,7 @@ func (m *Message) ToKafkaMessage() (kafkaGo.Message, error) {
 	return message, nil
 }
 
+// DecodeKafkaMessage decodes a Kafka message into a generic type.
 func DecodeKafkaMessage[T any](msg kafkaGo.Message) (Message, error) {
 	var zero T
 
@@ -53,6 +59,7 @@ func DecodeKafkaMessage[T any](msg kafkaGo.Message) (Message, error) {
 	}, nil
 }
 
+// Client defines the interface for Kafka operations.
 type Client interface {
 	SendMessages(ctx context.Context, topic string, messages ...Message) (err error)
 	Consume(ctx context.Context, consumerGroup, topic string, handler func(message kafkaGo.Message))

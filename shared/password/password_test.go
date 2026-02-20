@@ -205,7 +205,7 @@ func TestHashAndVerifyIntegration(t *testing.T) {
 	}
 
 	for _, pwd := range passwords {
-		t.Run("password_"+pwd[:min(len(pwd), 20)], func(t *testing.T) {
+		t.Run("password_"+pwd[:minInt(len(pwd), 20)], func(t *testing.T) {
 			// Hash the password
 			hash, err := password.Hash(pwd)
 			if err != nil {
@@ -285,8 +285,8 @@ func TestHashAndVerifyLongPasswordError(t *testing.T) {
 	}
 }
 
-// Helper function for min (since it's not available in older Go versions)
-func min(a, b int) int {
+// minInt returns the smaller of two integers.
+func minInt(a, b int) int {
 	if a < b {
 		return a
 	}

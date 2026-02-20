@@ -1,3 +1,6 @@
+// Package jwt provides JWT token generation, validation, and management services.
+//
+//nolint:revive
 package jwt
 
 //go:generate go run go.uber.org/mock/mockgen -source=./jwt.go -destination=./mocks/jwt_mock.go -package=mocks
@@ -172,7 +175,6 @@ func (s *Service) ValidateToken(ctx context.Context, tokenString string, tokenTy
 
 		return []byte(secret), nil
 	})
-
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, ErrExpiredToken

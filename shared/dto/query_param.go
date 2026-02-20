@@ -8,10 +8,13 @@ import (
 )
 
 const (
-	SortDirAsc  = "ASC"
+	// SortDirAsc and SortDirDesc are constants for sorting direction
+	SortDirAsc = "ASC"
+	// SortDirDesc is used to indicate descending sort order
 	SortDirDesc = "DESC"
 )
 
+// QueryParams represents common query parameters for pagination and sorting
 type QueryParams struct {
 	Page    int    `json:"page"     validate:"omitempty"`
 	Limit   int    `json:"limit"    validate:"omitempty"`

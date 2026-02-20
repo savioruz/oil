@@ -1,3 +1,4 @@
+// Package middleware provides HTTP middleware utilities.
 package middleware
 
 import (
@@ -14,6 +15,7 @@ const (
 	otelHTTPScopeName = "http"
 )
 
+// AppMiddleware defines the interface for application-level middleware.
 type AppMiddleware interface {
 	Tracing(http.Handler) http.Handler
 	RateLimit() func(http.Handler) http.Handler
@@ -25,6 +27,7 @@ type appMiddleware struct {
 	cache  cache.RedisCache
 }
 
+// NewAppMiddleware creates a new AppMiddleware instance.
 func NewAppMiddleware(otel otel.Otel, config *config.Config, cache cache.RedisCache) AppMiddleware {
 	return &appMiddleware{
 		otel:   otel,

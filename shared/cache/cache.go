@@ -1,3 +1,4 @@
+// Package cache provides caching utilities using Redis.
 package cache
 
 //go:generate go run go.uber.org/mock/mockgen -source=./cache.go -destination=./mocks/cache_mock.go -package=mocks
@@ -16,9 +17,11 @@ import (
 const (
 	otelScopeName         = "cache"
 	otelCacheKeyAttribute = "cache.key"
-	Nil                   = redis.Nil
+	// Nil is abstracted from redis.Nil to avoid direct dependency on the redis package in other parts of the codebase.
+	Nil = redis.Nil
 )
 
+// RedisCache defines the interface for caching operations using Redis.
 type RedisCache interface {
 	Save(ctx context.Context, key string, value any, duration int) (err error)
 	Get(ctx context.Context, key string, value any) (err error)
@@ -31,6 +34,7 @@ type redisCache struct {
 	otel   otel.Otel
 }
 
+// NewRedisCache creates a new instance of RedisCache with the provided Redis client and OpenTelemetry instance.
 func NewRedisCache(client *redis.Client, ot otel.Otel) RedisCache {
 	return &redisCache{
 		client: client,
@@ -89,14 +93,12 @@ func (cache *redisCache) Get(ctx context.Context, key string, value any) (err er
 	scope.SetAttribute(otelCacheKeyAttribute, key)
 
 	cacheValue, err := cache.client.Get(ctx, key).Result()
-
 	if err == nil {
 		switch v := value.(type) {
 		case *string:
 			*v = cacheValue
 		default:
 			err = json.Unmarshal([]byte(cacheValue), value)
-
 			if err != nil {
 				log.Error().Err(err).Str("RedisCache", "Get").Msg("failed to unmarshal cache")
 
@@ -119,12 +121,12 @@ func (cache *redisCache) Save(ctx context.Context, key string, value any, durati
 	scope.SetAttribute(otelCacheKeyAttribute, key)
 
 	var strValue []byte
+
 	switch v := value.(type) {
 	case string:
 		strValue = []byte(v)
 	default:
 		strValue, err = json.Marshal(v)
-
 		if err != nil {
 			scope.TraceError(err)
 			log.Error().Err(err).Str("key", key).Str("RedisCache", "Save").Msg("failed to marshal cache")
@@ -134,7 +136,6 @@ func (cache *redisCache) Save(ctx context.Context, key string, value any, durati
 	}
 
 	err = cache.client.Set(ctx, key, strValue, time.Second*time.Duration(duration)).Err()
-
 	if err != nil {
 		scope.TraceError(err)
 

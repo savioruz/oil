@@ -1,3 +1,6 @@
+// Package redis provides Redis client utilities.
+//
+//nolint:revive
 package redis
 
 import (
@@ -9,6 +12,7 @@ import (
 	"oil/config"
 )
 
+// New creates a new Redis client with the provided configuration.
 func New(config *config.Config) *goRedis.Client {
 	opts := &goRedis.Options{
 		Addr:     fmt.Sprintf("%s:%s", config.Cache.Redis.Primary.Host, config.Cache.Redis.Primary.Port),
@@ -27,7 +31,6 @@ func New(config *config.Config) *goRedis.Client {
 	client := goRedis.NewClient(opts)
 
 	_, err := client.Ping(ctx).Result()
-
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to connect to Redis")
 		panic(err)

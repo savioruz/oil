@@ -1,3 +1,4 @@
+// Package errkey provides a standardized way to define and manage error keys for API responses.
 package errkey
 
 import (
@@ -106,7 +107,7 @@ func (e ErrorKey) String() string {
 	return string(e)
 }
 
-// WithDetails creates an error key with additional details for debugging (optional)
+// ErrorWithDetails creates an error key with additional details for debugging (optional)
 type ErrorWithDetails struct {
 	Key     ErrorKey               `json:"key"`
 	Details map[string]interface{} `json:"details,omitempty"`

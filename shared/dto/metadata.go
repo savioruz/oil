@@ -5,6 +5,7 @@ import (
 	"oil/shared/timezone"
 )
 
+// Metadata represents the common metadata fields for all entities in the DTO layer.
 type Metadata struct {
 	CreatedAt  string `json:"created_at"`
 	ModifiedAt string `json:"modified_at"`
@@ -12,6 +13,7 @@ type Metadata struct {
 	ModifiedBy string `json:"modified_by"`
 }
 
+// FromModel populates the Metadata DTO from the given model.Metadata.
 func (m *Metadata) FromModel(model model.Metadata) {
 	// Ensure times are converted to UTC before formatting
 	m.CreatedAt = timezone.FormatRFC3339(model.CreatedAt)

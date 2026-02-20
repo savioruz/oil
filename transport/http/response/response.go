@@ -1,3 +1,6 @@
+// Package response provides HTTP response utilities.
+//
+//nolint:revive
 package response
 
 import (
@@ -9,10 +12,12 @@ import (
 	"oil/shared/logger"
 )
 
+// Data represents a generic response structure for successful responses containing data
 type Data[T any] struct {
 	Data *T `json:"data,omitempty"`
 }
 
+// Error represents a simple error response with an error key
 type Error struct {
 	Error *string `json:"error,omitempty"`
 }
@@ -28,6 +33,7 @@ type ValidationErrors struct {
 	Errors []FieldError `json:"errors"`
 }
 
+// Message represents a simple text message response
 type Message struct {
 	Message *string `json:"message,omitempty"`
 }
@@ -104,8 +110,8 @@ func response(writer http.ResponseWriter, code int, payload interface{}) {
 
 	writer.Header().Set(constant.RequestHeaderContentType, constant.ContentTypeJSON)
 	writer.WriteHeader(code)
-	_, err = writer.Write(response)
 
+	_, err = writer.Write(response)
 	if err != nil {
 		logger.ErrorWithStack(err)
 	}

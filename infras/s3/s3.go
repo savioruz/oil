@@ -1,3 +1,6 @@
+// Package s3 provides S3 client utilities for file storage operations.
+//
+//nolint:revive
 package s3
 
 //go:generate go run go.uber.org/mock/mockgen -source=./s3.go -destination=./mocks/s3_mock.go -package=mocks
@@ -25,6 +28,7 @@ const (
 	otelAttrBucket   = "bucket"
 )
 
+// S3 defines the interface for S3 operations.
 type S3 interface {
 	UploadFile(ctx context.Context, bucketName, directory string, file multipart.File, fileHeader *multipart.FileHeader, fileName string) (url string, err error)
 	UploadFileBytes(ctx context.Context, bucketName, directory, fileName, contentType string, fileData []byte) (url string, err error)
@@ -55,7 +59,7 @@ func (svc *s3Impl) UploadFile(ctx context.Context, bucketName, directory string,
 	buf := bytes.NewBuffer(nil)
 
 	if _, err = buf.ReadFrom(file); err != nil {
-		return constant.Empty, fmt.Errorf("failed to read file: %w", err)
+		return constant.EmptyString, fmt.Errorf("failed to read file: %w", err)
 	}
 
 	contentType := fileHeader.Header.Get(constant.RequestHeaderContentType)
@@ -122,7 +126,7 @@ func (svc *s3Impl) GetObjectNameFromURL(bucketName, url string) (objectName stri
 		return url[len(bucketURL):]
 	}
 
-	return constant.Empty
+	return constant.EmptyString
 }
 
 func (svc *s3Impl) upload(ctx context.Context, bucket, directory, fileName, contentType string, buf *bytes.Buffer) (url string, err error) {
@@ -141,7 +145,7 @@ func (svc *s3Impl) upload(ctx context.Context, bucket, directory, fileName, cont
 		ContentLength: aws.Int64(fileReader.Size()),
 	})
 	if err != nil {
-		return constant.Empty, fmt.Errorf("failed to upload file to S3: %w", err)
+		return constant.EmptyString, fmt.Errorf("failed to upload file to S3: %w", err)
 	}
 
 	publicDomain := svc.Config.External.S3.PublicDomain
@@ -164,7 +168,6 @@ func New(config *config.Config, otel otel.Otel) S3 {
 		context.TODO(),
 		awsConfig.WithCredentialsProvider(staticProvider),
 	)
-
 	if err != nil {
 		log.Err(err).Msg("Error loading AWS configuration")
 	}

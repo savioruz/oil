@@ -1,3 +1,4 @@
+// Package validator provides validation utilities and error message mappings.
 package validator
 
 var (

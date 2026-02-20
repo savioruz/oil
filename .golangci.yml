@@ -1,10 +1,10 @@
 # .golangci.yml
+version: "2"
 
 # Enable linters
 linters:
   enable:
     - errcheck
-    - gofmt
     - staticcheck
     - containedctx
     - revive
@@ -25,9 +25,24 @@ linters:
     - nosprintfhostport
     - perfsprint
     - prealloc
-    - stylecheck
     - tagalign
-    - wsl
+    - wsl_v5
+
+  exclusions:
+    rules:
+      - path: internal/...
+        linters:
+          - revive
+      - path: generate.go
+        linters:
+          - revive
+      - path: cmd/...
+        linters:
+          - revive
+
+formatters:
+  enable:
+    - gofmt
 
 run:
   tests: false

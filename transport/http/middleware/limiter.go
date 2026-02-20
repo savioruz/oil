@@ -32,8 +32,8 @@ func (a *appMiddleware) RateLimit() func(http.Handler) http.Handler {
 			cacheKey := shared.BuildCacheKey(cacheKeyRateLimit, clientIP, userAgent)
 
 			var count int
-			err := a.cache.Get(r.Context(), cacheKey, &count)
 
+			err := a.cache.Get(r.Context(), cacheKey, &count)
 			if err != nil {
 				if errors.Is(err, cache.Nil) {
 					count = 1

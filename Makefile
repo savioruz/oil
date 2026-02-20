@@ -58,7 +58,7 @@ docker.stop: ## Stop the docker container
 
 lint.prepare: ## Prepare the environment for linting
 	@echo "Installing golangci-lint"
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.64.8
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin latest
 .PHONY: lint.prepare
 
 lint: ## Run linters

@@ -1,3 +1,4 @@
+// Package password provides password hashing and verification utilities using bcrypt.
 package password
 
 import (
@@ -13,9 +14,13 @@ const (
 )
 
 var (
-	ErrInvalidPassword   = errors.New("invalid password")
-	ErrEmptyPassword     = errors.New("password cannot be empty")
-	ErrHashingPassword   = errors.New("error hashing password")
+	// ErrInvalidPassword is returned when the password is invalid
+	ErrInvalidPassword = errors.New("invalid password")
+	// ErrEmptyPassword is returned when the password is empty
+	ErrEmptyPassword = errors.New("password cannot be empty")
+	// ErrHashingPassword is returned when there is an error hashing the password
+	ErrHashingPassword = errors.New("error hashing password")
+	// ErrVerifyingPassword is returned when there is an error verifying the password
 	ErrVerifyingPassword = errors.New("error verifying password")
 )
 

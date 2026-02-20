@@ -1,3 +1,4 @@
+// Package failure provides error types and helper functions for handling HTTP errors.
 package failure
 
 import (
@@ -36,9 +37,16 @@ func (e *ValidationError) Error() string {
 	return "validation failed"
 }
 
+// InvalidPageParam is a predefined error for invalid page parameter in pagination.
 var InvalidPageParam = &Failure{Code: http.StatusBadRequest, Message: "invalid page parameter", Key: errkey.ErrInvalidPageParam}
+
+// InvalidLimitParam is a predefined error for invalid limit parameter in pagination.
 var InvalidLimitParam = &Failure{Code: http.StatusBadRequest, Message: "invalid limit parameter", Key: errkey.ErrInvalidLimitParam}
+
+// ForbiddenError is a predefined error for forbidden access due to insufficient permissions.
 var ForbiddenError = &Failure{Code: http.StatusForbidden, Message: "You don't have the required permissions", Key: errkey.ErrForbidden}
+
+// ResourceRestrictedError is a predefined error for forbidden access to a specific resource due to insufficient permissions.
 var ResourceRestrictedError = &Failure{Code: http.StatusForbidden, Message: "You don't have permission to access this resource", Key: errkey.ErrResourceRestricted}
 
 // Error returns the error code and message in a formatted string.
@@ -130,6 +138,7 @@ func Conflict(message string) error {
 	}
 }
 
+// Forbidden returns a new Failure with code for forbidden access and message derived from an error interface.
 func Forbidden(msg string) error {
 	return &Failure{
 		Code:    http.StatusForbidden,

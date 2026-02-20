@@ -1,3 +1,4 @@
+// Package cookie provides cookie utilities for handling HTTP cookies.
 package cookie
 
 import (
@@ -8,15 +9,18 @@ import (
 )
 
 const (
+	// RefreshTokenCookieName is the name of the cookie used to store the refresh token
 	RefreshTokenCookieName = "refresh_token"
 )
 
+// GetMaxAge calculates the MaxAge for the refresh token cookie based on the configuration
 func GetMaxAge() int {
 	cfg := config.Get()
 
 	return cfg.JWT.RefreshExpireMin * constant.MinutesToSeconds
 }
 
+// Options represents the configuration for a cookie
 type Options struct {
 	Name     string
 	Value    string

@@ -1,3 +1,6 @@
+// Package shared provides common utility functions used across the application.
+//
+//nolint:revive
 package shared
 
 import (
@@ -19,6 +22,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// ConvertStringToBool converts a string value to a boolean pointer.
 func ConvertStringToBool(value string) *bool {
 	if value == "" {
 		return nil
@@ -34,6 +38,7 @@ func ConvertStringToBool(value string) *bool {
 	return &boolValue
 }
 
+// CalculateTotalPage calculates the total number of pages based on total items and limit per page.
 func CalculateTotalPage(total, limit int) (res int) {
 	if total == 0 || limit <= 0 {
 		res = 1
@@ -71,6 +76,7 @@ func TransformFields(data interface{}, user string) map[string]any {
 	return updatedFields
 }
 
+// FilterByID creates a FilterGroup to filter by ID.
 func FilterByID(id, fieldID, table string) dto.FilterGroup {
 	return dto.FilterGroup{
 		Filters: []any{
@@ -84,6 +90,7 @@ func FilterByID(id, fieldID, table string) dto.FilterGroup {
 	}
 }
 
+// BuildCacheKey builds a cache key with optional postfix parts.
 func BuildCacheKey(key string, postfix ...string) string {
 	cfg := config.Get()
 	parent := cfg.App.Name
@@ -97,6 +104,7 @@ func BuildCacheKey(key string, postfix ...string) string {
 	return fmt.Sprintf("%s:cache:%s", parent, key)
 }
 
+// BuildCacheKeyWithQuery builds a cache key including query parameters and filters.
 func BuildCacheKeyWithQuery(key string, queryParams dto.QueryParams, filter dto.FilterGroup) string {
 	cfg := config.Get()
 	parent := cfg.App.Name
@@ -128,6 +136,7 @@ func generateQueryHash(queryParams dto.QueryParams, filter dto.FilterGroup) stri
 	return hex.EncodeToString(hash[:])
 }
 
+// InvalidateCaches clears all cache entries matching the given key pattern.
 func InvalidateCaches(ctx context.Context, cache cache.RedisCache, key string) {
 	if err := cache.Clear(ctx, BuildCacheKey(key, constant.Asterix)); err != nil {
 		log.Error().Err(err).Msgf("failed to clear cache for key: %s", key)

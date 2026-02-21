@@ -2,49 +2,49 @@
   "skip": false,
   "endpoints": [
     {
-      "path": "/v1/auth/register",
+      "path": "/api/auth/register",
       "method": "POST",
       "permissions": [],
       "skip": true
     },
     {
-      "path": "/v1/auth/login",
+      "path": "/api/auth/login",
       "method": "POST",
       "permissions": [],
       "skip": true
     },
     {
-      "path": "/v1/auth/refresh-token",
+      "path": "/api/auth/refresh-token",
       "method": "POST",
       "permissions": [],
       "skip": true
     },
     {
-      "path": "/v1/todos",
+      "path": "/api/todos",
       "method": "GET",
       "permissions": ["user", "admin", "superadmin"],
       "skip": true
     },
     {
-      "path": "/v1/todos/{id}",
+      "path": "/api/todos/{id}",
       "method": "GET",
       "permissions": ["user", "admin", "superadmin"],
       "skip": true
     },
     {
-      "path": "/v1/todos",
+      "path": "/api/todos",
       "method": "POST",
       "permissions": ["admin", "superadmin"],
       "skip": false
     },
     {
-      "path": "/v1/todos/{id}",
+      "path": "/api/todos/{id}",
       "method": "PATCH",
       "permissions": ["user", "admin", "superadmin"],
       "skip": false
     },
     {
-      "path": "/v1/todos/{id}",
+      "path": "/api/todos/{id}",
       "method": "DELETE",
       "permissions": ["admin", "superadmin"],
       "skip": false

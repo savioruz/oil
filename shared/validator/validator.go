@@ -87,7 +87,6 @@ func init() {
 
 		return false
 	})
-
 	if err != nil {
 		panic(err)
 	}
@@ -97,7 +96,6 @@ func init() {
 
 		return empty
 	})
-
 	if err != nil {
 		panic(err)
 	}
@@ -119,8 +117,8 @@ func init() {
 // https://github.com/go-playground/validator
 func Validate[T any](r io.Reader, data *T) error {
 	decoder := json.NewDecoder(r)
-	err := decoder.Decode(data)
 
+	err := decoder.Decode(data)
 	if err != nil {
 		return failure.UnprocessableEntity(fmt.Errorf("failed to decode request body: %w", err)) //nolint:wrapcheck
 	}
@@ -128,9 +126,9 @@ func Validate[T any](r io.Reader, data *T) error {
 	return ValidateStruct(data)
 }
 
+// ValidateStruct validates the given struct against the provided tag rules. It can be used for validating
 func ValidateStruct[T any](data *T) error {
 	err := validate.Struct(data)
-
 	if err != nil {
 		return buildValidationError(err)
 	}
@@ -138,9 +136,9 @@ func ValidateStruct[T any](data *T) error {
 	return nil
 }
 
+// ValidateVar validates a single variable against the provided tag rules. It can be used for validating
 func ValidateVar(field any, tag string) error {
 	err := validate.Var(field, tag)
-
 	if err != nil {
 		return buildValidationError(err)
 	}

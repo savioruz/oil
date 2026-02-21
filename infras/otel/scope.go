@@ -8,6 +8,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
+// Scope defines the interface for OpenTelemetry span operations.
 type Scope interface {
 	End()
 	TraceError(err error)
@@ -61,6 +62,7 @@ func (s *scopeImpl) SetAttributes(attributes map[string]any) {
 	}
 }
 
+// NewScope creates a new Scope from an OpenTelemetry span.
 func NewScope(span oteltrace.Span) Scope {
 	return &scopeImpl{
 		span: span,

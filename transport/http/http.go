@@ -1,3 +1,6 @@
+// Package http provides HTTP server and routing utilities.
+//
+// nolint:revive
 package http
 
 import (
@@ -8,6 +11,7 @@ import (
 	"oil/docs"
 	"oil/infras/postgres"
 	"oil/shared/constant"
+	"oil/shared/errkey"
 	"oil/shared/logger"
 	httpMiddleware "oil/transport/http/middleware"
 	"oil/transport/http/response"
@@ -27,19 +31,26 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+// ServerState represents the state of the HTTP server.
 type ServerState int
 
 const (
+	// ServerStateReady indicates the server is ready to accept connections.
 	ServerStateReady ServerState = iota + 1
+	// ServerStateInGracePeriod indicates the server is in grace period.
 	ServerStateInGracePeriod
+	// ServerStateInCleanupPeriod indicates the server is in cleanup period.
 	ServerStateInCleanupPeriod
 )
 
 const (
+	// RouteHealthCheck is the health check endpoint.
 	RouteHealthCheck = "/health"
-	RouteSwaggerDocs = "/swagger/*"
+	// RouteSwaggerDocs is the swagger documentation endpoint.
+	RouteSwaggerDocs = "/docs/*"
 )
 
+// HTTP represents the HTTP server configuration and routing.
 type HTTP struct {
 	Config         *config.Config
 	Router         router.Router
@@ -50,6 +61,7 @@ type HTTP struct {
 	authMiddleware httpMiddleware.AuthRole
 }
 
+// New creates a new HTTP server instance.
 func New(cfg *config.Config, r router.Router, db *postgres.Connection, appMiddleware httpMiddleware.AppMiddleware, authMiddleware httpMiddleware.AuthRole) *HTTP {
 	return &HTTP{
 		Config:         cfg,
@@ -60,6 +72,7 @@ func New(cfg *config.Config, r router.Router, db *postgres.Connection, appMiddle
 	}
 }
 
+// Serve starts the HTTP server and listens for incoming requests.
 func (h *HTTP) Serve() {
 	h.setup()
 
@@ -78,6 +91,7 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *HTTP) setup() {
 	h.setupChi()
 	h.setupMiddlewares()
+	h.setupNotFoundHandler()
 	h.setupRoutes()
 	h.setupSwaggerDocs()
 	h.setupGracefulShutdown()
@@ -106,12 +120,17 @@ func (h *HTTP) setupMiddlewares() {
 	h.setupLogger()
 	h.setupCORS()
 	h.setupServerState()
+	h.setupCleanPaths()
 	h.setupIdentity()
 	h.setupRecover()
-	h.setupRateLimit()
 	h.setupTracing()
+	h.setupRateLimit()
 
 	h.logCORSConfigInfo()
+}
+
+func (h *HTTP) setupCleanPaths() {
+	h.mux.Use(middleware.CleanPath)
 }
 
 func (h *HTTP) setupIdentity() {
@@ -128,11 +147,7 @@ func (h *HTTP) setupServerState() {
 }
 
 func (h *HTTP) setupLogger() {
-	if h.Config.Server.Env == constant.ServerEnvDevelopment {
-		h.mux.Use(middleware.Logger)
-	} else {
-		h.mux.Use(h.customJSONLogger())
-	}
+	h.mux.Use(h.customJSONLogger())
 }
 
 func (h *HTTP) customJSONLogger() func(next http.Handler) http.Handler {
@@ -140,22 +155,43 @@ func (h *HTTP) customJSONLogger() func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 
-			// Create a wrapped response writer to capture status code
+			// Create a wrapped response writer to capture status code and bytes
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
 			defer func() {
-				// Log the request in JSON format
-				log.Info().
+				duration := time.Since(start)
+
+				// Build log event with comprehensive request/response metadata
+				event := log.Info().
 					Str("method", r.Method).
-					Str("url", r.URL.RequestURI()).
+					Str("path", r.URL.Path).
+					Str("query", r.URL.RawQuery).
 					Str("proto", r.Proto).
+					Str("scheme", r.URL.Scheme).
 					Str("remote_addr", r.RemoteAddr).
 					Str("user_agent", r.UserAgent()).
-					Int("status", ww.Status()).
-					Int("bytes", ww.BytesWritten()).
-					Dur("duration", time.Since(start)).
+					Str("referer", r.Referer()).
 					Str("request_id", middleware.GetReqID(r.Context())).
-					Msg("HTTP Request")
+					Int("status", ww.Status()).
+					Int("bytes_written", ww.BytesWritten()).
+					Dur("duration", duration).
+					Str("content_type", r.Header.Get("Content-Type"))
+
+				// Add content length if present
+				if r.ContentLength > 0 {
+					event = event.Int64("content_length", r.ContentLength)
+				}
+
+				// Add custom headers if present
+				if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+					event = event.Str("x_forwarded_for", xff)
+				}
+
+				if xri := r.Header.Get("X-Real-IP"); xri != "" {
+					event = event.Str("x_real_ip", xri)
+				}
+
+				event.Msg("HTTP Request")
 			}()
 
 			next.ServeHTTP(ww, r)
@@ -190,7 +226,7 @@ func (h *HTTP) setupSwaggerDocs() {
 		docs.SwaggerInfo.Title = h.Config.App.Name
 		h.mux.Get(RouteSwaggerDocs, httpSwagger.Handler())
 
-		log.Info().Str("url", fmt.Sprintf("http://localhost:%s/swagger/index.html", h.Config.Server.Port)).Msg("Swagger docs available at")
+		log.Info().Str("url", fmt.Sprintf("http://localhost:%s/docs/index.html", h.Config.Server.Port)).Msg("Swagger docs available at")
 
 		return
 	}
@@ -279,6 +315,12 @@ func (h *HTTP) logCORSConfigInfo() {
 	} else {
 		log.Info().Msg("CORS Headers are disabled.")
 	}
+}
+
+func (h *HTTP) setupNotFoundHandler() {
+	h.mux.NotFound(func(writer http.ResponseWriter, _ *http.Request) {
+		response.WithMessage(writer, http.StatusNotFound, string(errkey.ErrNotFound))
+	})
 }
 
 // HealthCheck performs a health check on the server.

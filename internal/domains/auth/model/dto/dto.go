@@ -39,6 +39,7 @@ func (r *RegisterRequest) ToUserModel(username string, hashedPassword string) us
 type LoginRequest struct {
 	Email    string `json:"email"    validate:"required,email"`
 	Password string `json:"password" validate:"required"`
+	Remember bool   `json:"remember"`
 }
 
 type UpdateLastLoginRequest struct {
@@ -47,7 +48,7 @@ type UpdateLastLoginRequest struct {
 
 type LoginResponse struct {
 	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	RefreshToken string `json:"refresh_token,omitempty"`
 }
 
 func (l *LoginResponse) FromTokenPair(tokenPair *jwt.TokenPair) {
@@ -56,12 +57,12 @@ func (l *LoginResponse) FromTokenPair(tokenPair *jwt.TokenPair) {
 }
 
 type RefreshTokenRequest struct {
-	RefreshToken string `json:"refresh_token" validate:"required"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 type RefreshTokenResponse struct {
 	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	RefreshToken string `json:"refresh_token,omitempty"`
 }
 
 func (r *RefreshTokenResponse) FromTokenPair(tokenPair *jwt.TokenPair) {

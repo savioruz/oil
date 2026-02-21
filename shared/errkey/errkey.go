@@ -1,3 +1,4 @@
+// Package errkey provides a standardized way to define and manage error keys for API responses.
 package errkey
 
 import (
@@ -38,6 +39,8 @@ const (
 	ErrTokenInvalid           ErrorKey = "auth.token_invalid"
 	ErrResourceRestricted     ErrorKey = "auth.resource_restricted"
 	ErrInsufficientPermission ErrorKey = "auth.insufficient_permission"
+	ErrEmailAlreadyExists     ErrorKey = "auth.email_already_exists"
+	ErrAccountDeactivated     ErrorKey = "auth.account_deactivated"
 
 	// Resource errors
 	ErrNotFound       ErrorKey = "resource.not_found"
@@ -104,7 +107,7 @@ func (e ErrorKey) String() string {
 	return string(e)
 }
 
-// WithDetails creates an error key with additional details for debugging (optional)
+// ErrorWithDetails creates an error key with additional details for debugging (optional)
 type ErrorWithDetails struct {
 	Key     ErrorKey               `json:"key"`
 	Details map[string]interface{} `json:"details,omitempty"`

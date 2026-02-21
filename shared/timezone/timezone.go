@@ -1,3 +1,4 @@
+// Package timezone provides utility functions for handling time in UTC timezone.
 package timezone
 
 import (

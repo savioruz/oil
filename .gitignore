@@ -12,7 +12,7 @@
 **/mock*
 
 # Disable Ignore generated files
-#**gen.go
+**gen.go
 
 # Ignore build artifacts
 node_modules/
@@ -21,7 +21,9 @@ tmp/
 bin/
 .vercel
 
-# Ignore swagger files
+# Ignore generated files
+**/*gen.go
+**/wire_gen.go
 docs/docs.go
 docs/swagger.json
 docs/swagger.yaml

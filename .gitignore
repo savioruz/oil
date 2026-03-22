@@ -19,11 +19,11 @@ bin/
 .vercel
 
 # Ignore generated files
-#**/*gen.go
-#**/wire_gen.go
-#docs/docs.go
-#docs/swagger.json
-#docs/swagger.yaml
+**/*gen.go
+**/wire_gen.go
+docs/docs.go
+docs/swagger.json
+docs/swagger.yaml
 
 # Ignore permission file
 permissions/permissions.json
@@ -41,4 +41,7 @@ engine
 
 # Ignore OS files
 .DS_Store
+
+# Ignore worktrees
+.worktrees/
 Thumbs.db

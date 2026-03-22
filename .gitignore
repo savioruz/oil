@@ -41,4 +41,7 @@ engine
 
 # Ignore OS files
 .DS_Store
+
+# Ignore worktrees
+.worktrees/
 Thumbs.db

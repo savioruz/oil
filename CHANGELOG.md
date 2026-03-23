@@ -61,19 +61,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Both development and production use structured JSON logging
   - Enhanced OpenTelemetry spans with additional request/response attributes
 
-## [1.0.0] - 2024-01-01
+## [Unreleased] - 2025-07-31
 
 ### Added
 
-- Initial release
+- Initial project setup
 - Todo management with CRUD operations
 - Gallery management with image uploads
 - JWT-based authentication
 - Role-based access control (RBAC)
 - Rate limiting
 - OpenAPI/Swagger documentation
-
-### Security
-
-- Enhanced refresh token security with HTTP-only cookies
-- Standardized error keys without exposing internal details

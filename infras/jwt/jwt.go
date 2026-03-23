@@ -226,6 +226,7 @@ func (k *JWK) toECPublicKey() (crypto.PublicKey, error) {
 		}
 
 		publicKey := ed25519.PublicKey(xBytes)
+
 		return publicKey, nil
 	}
 

@@ -30,6 +30,107 @@ func TestCreateTodoRequest_ToModel(t *testing.T) {
 	assert.False(t, model.ModifiedAt.IsZero(), "expected ModifiedAt to be set")
 }
 
+func TestCreateTodoRequest_ToModelWithFullFields(t *testing.T) {
+	completed := true
+	req := dto.CreateTodoRequest{
+		Title:       "Test Todo",
+		Description: "Test Description",
+		Completed:   &completed,
+	}
+
+	userID := "test-user-id"
+	model := req.ToModelWithFullFields(userID)
+
+	assert.NotEmpty(t, model.ID, "expected ID to be generated")
+	assert.Equal(t, req.Title, model.Title)
+	assert.Equal(t, req.Description, model.Description)
+	assert.True(t, model.Completed)
+	assert.Equal(t, userID, model.CreatedBy)
+	assert.Equal(t, userID, model.ModifiedBy)
+}
+
+func TestCreateTodoRequest_ToModelWithFullFields_NilCompleted(t *testing.T) {
+	req := dto.CreateTodoRequest{
+		Title:       "Test Todo",
+		Description: "Test Description",
+		Completed:   nil,
+	}
+
+	userID := "test-user-id"
+	model := req.ToModelWithFullFields(userID)
+
+	assert.NotEmpty(t, model.ID, "expected ID to be generated")
+	assert.False(t, model.Completed, "expected Completed to be false when nil")
+}
+
+func TestCreateTodoRequest_ToModelWithFullFields_CompletedFalse(t *testing.T) {
+	completed := false
+	req := dto.CreateTodoRequest{
+		Title:       "Test Todo",
+		Description: "Test Description",
+		Completed:   &completed,
+	}
+
+	userID := "test-user-id"
+	model := req.ToModelWithFullFields(userID)
+
+	assert.NotEmpty(t, model.ID, "expected ID to be generated")
+	assert.False(t, model.Completed)
+}
+
+func TestCreateTodoRequest_ToModelWithFullFields_CompletedTrue(t *testing.T) {
+	completed := true
+	req := dto.CreateTodoRequest{
+		Title:       "Test Todo",
+		Description: "Test Description",
+		Completed:   &completed,
+	}
+
+	userID := "test-user-id"
+	model := req.ToModelWithFullFields(userID)
+
+	assert.NotEmpty(t, model.ID, "expected ID to be generated")
+	assert.True(t, model.Completed)
+}
+
+func TestCreateTodoRequest_ToModel_EmptyTitle(t *testing.T) {
+	req := dto.CreateTodoRequest{
+		Title:       "",
+		Description: "Test Description",
+	}
+
+	userID := "test-user-id"
+	model := req.ToModel(userID)
+
+	assert.NotEmpty(t, model.ID, "expected ID to be generated")
+	assert.Equal(t, req.Title, model.Title)
+	assert.Equal(t, req.Description, model.Description)
+	assert.False(t, model.Completed)
+	assert.Equal(t, userID, model.CreatedBy)
+	assert.Equal(t, userID, model.ModifiedBy)
+	assert.False(t, model.CreatedAt.IsZero(), "expected CreatedAt to be set")
+	assert.False(t, model.ModifiedAt.IsZero(), "expected ModifiedAt to be set")
+}
+
+func TestCreateTodoRequest_ToModel_EmptyDescription(t *testing.T) {
+	req := dto.CreateTodoRequest{
+		Title:       "Test Todo",
+		Description: "",
+	}
+
+	userID := "test-user-id"
+	model := req.ToModel(userID)
+
+	assert.NotEmpty(t, model.ID, "expected ID to be generated")
+	assert.Equal(t, req.Title, model.Title)
+	assert.Equal(t, req.Description, model.Description)
+	assert.False(t, model.Completed)
+	assert.Equal(t, userID, model.CreatedBy)
+	assert.Equal(t, userID, model.ModifiedBy)
+	assert.False(t, model.CreatedAt.IsZero(), "expected CreatedAt to be set")
+	assert.False(t, model.ModifiedAt.IsZero(), "expected ModifiedAt to be set")
+}
+
 func TestTodoResponse_FromModel(t *testing.T) {
 	now := time.Now()
 	todoModel := model.Todo{

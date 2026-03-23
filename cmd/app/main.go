@@ -27,6 +27,12 @@ func main() {
 		}
 	}
 
-	http := di.InitializeService()
+	http, err := di.InitializeService()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to initialize service")
+
+		return
+	}
+
 	http.Serve()
 }

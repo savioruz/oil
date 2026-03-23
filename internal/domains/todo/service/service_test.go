@@ -11,6 +11,7 @@ import (
 
 	"oil/config"
 	"oil/infras/otel/mocks"
+	"oil/infras/unleash"
 	todoMocks "oil/internal/domains/todo/mocks"
 	"oil/internal/domains/todo/model"
 	"oil/internal/domains/todo/model/dto"
@@ -32,7 +33,8 @@ func TestTodoService_Create(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Cache.TTL = 3600
 
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel)
+	ff, _ := unleash.New(cfg)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff)
 
 	tests := []struct {
 		name      string
@@ -103,7 +105,8 @@ func TestTodoService_GetAll(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Cache.TTL = 3600
 
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel)
+	ff, _ := unleash.New(cfg)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff)
 
 	tests := []struct {
 		name       string
@@ -252,7 +255,8 @@ func TestTodoService_Count(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Cache.TTL = 3600
 
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel)
+	ff, _ := unleash.New(cfg)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff)
 
 	tests := []struct {
 		name       string
@@ -347,7 +351,8 @@ func TestTodoService_Get(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Cache.TTL = 3600
 
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel)
+	ff, _ := unleash.New(cfg)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff)
 
 	now := time.Now()
 
@@ -465,7 +470,8 @@ func TestTodoService_Update(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Cache.TTL = 3600
 
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel)
+	ff, _ := unleash.New(cfg)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff)
 
 	tests := []struct {
 		name      string
@@ -585,7 +591,8 @@ func TestTodoService_Delete(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Cache.TTL = 3600
 
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel)
+	ff, _ := unleash.New(cfg)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff)
 
 	tests := []struct {
 		name      string

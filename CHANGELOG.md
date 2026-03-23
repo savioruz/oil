@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **External Auth Service Integration**: Split authentication to external Better Auth service
+  - Removed local auth domain: `internal/domains/auth/` (service, model, dto)
+  - Removed auth handler: `internal/handlers/auth/handler.go`
+  - Added JWT validation via JWKS from external auth service (`AUTH_SERVICE_URL`)
+  - JWT signing: EdDSA/Ed25519 with OKP key type
+  - Issuer validation: accepts `AUTH_SERVICE_URL` or `https://auth.svrz.xyz`
+  - Audience validation: accepts `APP_NAME` or `oil-local`
+  - One-time JWKS fetch at startup using `sync.Once`
+  - Config: `AUTH_SERVICE_URL` (replaces JWT secrets in config)
+  - Removed: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_EXPIRE_MIN`, `JWT_REFRESH_EXPIRE_MIN`
+
+- **User Profile Domain**: Added user profile management with lazy sync
+  - New domain: `internal/domains/userprofile/` (replaces `internal/domains/user/`)
+  - New table: `user_profiles` with fields: `id`, `auth_user_id`, `email`, `role`, `name`, `image`, `active`, `created_at`, `modified_at`, `created_by`, `modified_by`
+  - Lazy sync: First API call creates/links profile from JWT claims (`sub` → `auth_user_id`)
+  - Endpoints: `GET /api/users`, `PATCH /api/users`, `POST /api/users/presigned-url`
+  - Presigned URL: S3 upload for avatar (max 1MB)
+
+- **S3 Presigned URL Support**: Added presigned URL generation for direct uploads
+  - New method: `GetPresignedUploadURL` in `infras/s3/s3.go`
+  - Used for avatar uploads in user profile endpoint
+
 - **Feature Flags with Unleash**: Implemented feature flag system using self-hosted Unleash
   - Added `infras/unleash` package with `FeatureFlag` interface
   - Wraps official `unleash-go-sdk/v6` for real-time flag sync
@@ -18,24 +40,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Config via `UNLEASH_URL`, `UNLEASH_APP_NAME`, `UNLEASH_INSTANCE_ID`, `UNLEASH_SECRET`, `UNLEASH_ENVIRONMENT`
   - Example: `todo-create-v2` flag enables user-controlled `completed` field
 
-- **Enhanced Authentication Security**: Refresh tokens now support HTTP-only cookie storage
-  - **Cookie-based authentication** (when `remember=true`):
-    - Login returns only `access_token` in response body
-    - Refresh token is set as HTTP-only cookie (not in response body)
-    - RefreshToken endpoint returns only `access_token` in response body
-    - New refresh token is automatically updated in cookie
-    - JavaScript cannot access refresh token (XSS protection)
-  - **Traditional authentication** (when `remember=false`):
-    - Login returns both `access_token` and `refresh_token` in response body
-    - RefreshToken endpoint returns both tokens in response body
-    - Client manages token storage
-  - Cookie-based refresh tokens are automatically rotated on refresh
-  - Cookies expiration matches JWT refresh token lifetime (configurable via `JWT_REFRESH_EXPIRE_MIN`, defaults to 7 days)
-  - Cookies use `SameSite=Strict` for CSRF protection
-  - **Frontend Impact**:
-    - When `remember=true`: Store only `access_token` in memory, browser auto-sends refresh token via cookie
-    - When `remember=false`: Store both tokens in memory/localStorage (traditional approach)
-    - Refresh token endpoint accepts empty body when using cookies
+### Removed
+
+- **Local Authentication**: Removed local auth service (migrated to external Better Auth)
+  - Removed `internal/domains/auth/` directory (service, model, dto)
+  - Removed auth handler: `internal/handlers/auth/handler.go`
+  - Removed JWT token generation (now handled by external auth service)
+  - Removed cookie-based token storage (now uses Bearer token only)
+  - Removed: `email_verifications` table, `password_resets` table
+  - Removed config: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_EXPIRE_MIN`, `JWT_REFRESH_EXPIRE_MIN`
+
+- **Users Table**: Replaced with `user_profiles` table
+  - Removed columns: `password`, `google_id`
+  - New columns: `auth_user_id` (links to external auth service)
+  - Renamed domain: `internal/domains/user/` → `internal/domains/userprofile/`
+
+### Changed
+
+- **JWT-based Authentication**: Now uses Bearer token from external auth service
+  - JWT validation via JWKS from external auth service
+  - Bearer token in Authorization header only
+  - Lazy sync: user profile created/linked on first API call
+  - Token validation: EdDSA/Ed25519, validates issuer and audience
 
 - **Array-Based Validation Error Response**: Validation errors now return ALL field errors at once
   - Validation errors (422) return an `errors` array containing all validation failures
@@ -103,9 +129,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Easily adjustable via `JWT_REFRESH_EXPIRE_MIN` environment variable
 
 - **Breaking Change**: `remember` field in LoginRequest is now optional (defaults to `false`)
-  - Old: `remember` was required in login requests
-  - New: `remember` is optional, if omitted defaults to `false` (no cookie set)
-  
+
 - **Breaking Change**: Validation error message field now returns error keys instead of human-readable text
   - Old format: `{"errors": [{"field": "title", "message": "Title is required"}]}`
   - New format: `{"errors": [{"field": "title", "message": "validation.required"}]}`
@@ -195,12 +219,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 If you're upgrading from a previous version, please note:
 
-1. **Validation Error Format Changed**: Validation errors now return field-specific keys
+1. **Authentication Migration**: Local auth replaced with external Better Auth service
+   - Remove local auth endpoints: `/api/auth/sign-up`, `/api/auth/sign-in`, `/api/auth/refresh`, `/api/auth/change-password`
+   - Configure `AUTH_SERVICE_URL` in environment
+   - Client must authenticate with external auth service and send Bearer token to this API
+   - User profiles are now lazily synced on first API call
+   - Endpoint changed: `GET /api/user` → `GET /api/users`
+2. **Validation Error Format Changed**: Validation errors now return field-specific keys
    - Update frontend to handle keys like `validation.required.title` instead of `validation.failed`
    - Extract field name from error key to highlight the problematic form field
    - Use pattern matching for generic fallback messages
-2. **API Response Format Changed**: Error responses now contain keys instead of messages
-3. **Frontend Updates Required**: Update error handling to map keys to messages
-4. **No Server Configuration Needed**: System works consistently across all environments
+3. **API Response Format Changed**: Error responses now contain keys instead of messages
+4. **Frontend Updates Required**: Update error handling to map keys to messages
+5. **No Server Configuration Needed**: System works consistently across all environments
 
 See `docs/Error.md` for detailed migration instructions and integration examples.

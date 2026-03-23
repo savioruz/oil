@@ -41,6 +41,11 @@ const (
 	ErrInsufficientPermission ErrorKey = "auth.insufficient_permission"
 	ErrEmailAlreadyExists     ErrorKey = "auth.email_already_exists"
 	ErrAccountDeactivated     ErrorKey = "auth.account_deactivated"
+	ErrJWKSFetchFailed        ErrorKey = "auth.jwks_fetch_failed"
+	ErrInvalidToken           ErrorKey = "auth.invalid_token"
+	ErrInvalidClaim           ErrorKey = "auth.invalid_claim"
+	ErrAuthHeaderMissing      ErrorKey = "auth.header_missing"
+	ErrInvalidAuthHeader      ErrorKey = "auth.invalid_header"
 
 	// Resource errors
 	ErrNotFound       ErrorKey = "resource.not_found"
@@ -84,6 +89,11 @@ const (
 	ErrTodoUpdateFailed ErrorKey = "todo.update_failed"
 	ErrTodoDeleteFailed ErrorKey = "todo.delete_failed"
 	ErrTodoListFailed   ErrorKey = "todo.list_failed"
+
+	// Userprofile-specific errors
+	ErrUserprofileNotFound     ErrorKey = "userprofile.not_found"
+	ErrUserprofileCreateFailed ErrorKey = "userprofile.create_failed"
+	ErrUserprofileUpdateFailed ErrorKey = "userprofile.update_failed"
 )
 
 // ValidationTagToKey maps validation tags to error keys

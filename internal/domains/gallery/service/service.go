@@ -167,7 +167,7 @@ func (s *serviceImpl) Get(ctx context.Context, id string) (res dto.GalleryRespon
 		return res, nil
 	}
 
-	gallery, err := s.repo.Get(ctx, shared.FilterByID(id, model.FieldID, model.TableName))
+	gallery, err := s.repo.Get(ctx, shared.SingleFilter(id, model.FieldID, model.TableName))
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get gallery")
 
@@ -197,7 +197,7 @@ func (s *serviceImpl) Update(ctx context.Context, req dto.UpdateGalleryRequest, 
 	defer scope.TraceIfError(err)
 
 	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
-	filter := shared.FilterByID(id, model.FieldID, model.TableName)
+	filter := shared.SingleFilter(id, model.FieldID, model.TableName)
 
 	exist, err := s.repo.Exist(ctx, filter)
 	if err != nil {
@@ -238,7 +238,7 @@ func (s *serviceImpl) Delete(ctx context.Context, id string) (err error) {
 	defer scope.End()
 	defer scope.TraceIfError(err)
 
-	filter := shared.FilterByID(id, model.FieldID, model.TableName)
+	filter := shared.SingleFilter(id, model.FieldID, model.TableName)
 
 	gallery, err := s.repo.Get(ctx, filter)
 	if err != nil {

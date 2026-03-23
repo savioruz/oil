@@ -6,15 +6,15 @@ import (
 	"context"
 	"oil/infras/otel"
 	"oil/infras/postgres"
-	"oil/internal/domains/user/model"
+	"oil/internal/domains/userprofile/model"
 	gDto "oil/shared/dto"
 	gRepo "oil/shared/repository"
 )
 
-type User interface {
-	Insert(ctx context.Context, model model.User) error
-	Get(ctx context.Context, filter gDto.FilterGroup, columns ...string) (model.User, error)
-	GetAll(ctx context.Context, params gDto.QueryParams, filter gDto.FilterGroup, columns ...string) ([]model.User, error)
+type Userprofile interface {
+	Insert(ctx context.Context, model model.Userprofile) error
+	Get(ctx context.Context, filter gDto.FilterGroup, columns ...string) (model.Userprofile, error)
+	GetAll(ctx context.Context, params gDto.QueryParams, filter gDto.FilterGroup, columns ...string) ([]model.Userprofile, error)
 	Exist(ctx context.Context, filter gDto.FilterGroup) (bool, error)
 	Count(ctx context.Context, filter gDto.FilterGroup) (int, error)
 	Update(ctx context.Context, req map[string]any, filter gDto.FilterGroup) error
@@ -22,14 +22,14 @@ type User interface {
 }
 
 type repositoryImpl struct {
-	gRepo.Repository[model.User]
+	gRepo.Repository[model.Userprofile]
 	db   *postgres.Connection
 	otel otel.Otel
 }
 
-func New(db *postgres.Connection, otel otel.Otel) User {
+func New(db *postgres.Connection, otel otel.Otel) Userprofile {
 	return &repositoryImpl{
-		Repository: gRepo.NewRepository[model.User](model.EntityName, model.TableName, model.FieldID, db, otel),
+		Repository: gRepo.NewRepository[model.Userprofile](model.EntityName, model.TableName, model.FieldID, db, otel),
 		db:         db,
 		otel:       otel,
 	}

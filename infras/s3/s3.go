@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
@@ -34,6 +35,7 @@ type S3 interface {
 	UploadFileBytes(ctx context.Context, bucketName, directory, fileName, contentType string, fileData []byte) (url string, err error)
 	DeleteFile(ctx context.Context, bucketName, directory, objectName string) error
 	GetObjectNameFromURL(bucketName, url string) (objectName string)
+	GetPresignedUploadURL(ctx context.Context, bucketName, directory, fileName, contentType string, expiryMinutes int) (string, error)
 }
 
 type s3Impl struct {
@@ -127,6 +129,34 @@ func (svc *s3Impl) GetObjectNameFromURL(bucketName, url string) (objectName stri
 	}
 
 	return constant.EmptyString
+}
+
+func (svc *s3Impl) GetPresignedUploadURL(ctx context.Context, bucketName, directory, fileName, contentType string, expiryMinutes int) (string, error) {
+	ctx, scope := svc.otel.NewScope(ctx, constant.OtelS3ScopeName, constant.OtelS3ScopeName+".GetPresignedUploadURL")
+	defer scope.End()
+
+	if bucketName == "" {
+		bucketName = svc.Config.External.S3.BucketName
+	}
+
+	objectKey := path.Join(directory, fileName)
+
+	presignClient := s3.NewPresignClient(svc.Client)
+
+	presignedURL, err := presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(bucketName),
+		Key:         aws.String(objectKey),
+		ContentType: aws.String(contentType),
+	}, func(opts *s3.PresignOptions) {
+		opts.Expires = time.Duration(expiryMinutes) * time.Minute
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to generate presigned URL")
+
+		return constant.EmptyString, fmt.Errorf("failed to generate presigned URL: %w", err)
+	}
+
+	return presignedURL.URL, nil
 }
 
 func (svc *s3Impl) upload(ctx context.Context, bucket, directory, fileName, contentType string, buf *bytes.Buffer) (url string, err error) {

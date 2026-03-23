@@ -76,13 +76,13 @@ func TransformFields(data interface{}, user string) map[string]any {
 	return updatedFields
 }
 
-// FilterByID creates a FilterGroup to filter by ID.
-func FilterByID(id, fieldID, table string) dto.FilterGroup {
+// SingleFilter creates a FilterGroup to filter by a single field.
+func SingleFilter(value, field, table string) dto.FilterGroup {
 	return dto.FilterGroup{
 		Filters: []any{
 			dto.Filter{
-				Field:    fieldID,
-				Value:    id,
+				Field:    field,
+				Value:    value,
 				Operator: dto.FilterOperatorEq,
 				Table:    table,
 			},

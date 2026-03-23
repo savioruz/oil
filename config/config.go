@@ -111,6 +111,14 @@ type Config struct {
 			Endpoint string `envconfig:"ENDPOINT"`
 		} `envconfig:"OTEL"`
 	} `envconfig:"EXTERNAL"`
+
+	Unleash struct {
+		URL         string `envconfig:"URL"`
+		AppName     string `envconfig:"APP_NAME"`
+		InstanceID  string `envconfig:"INSTANCE_ID"`
+		Secret      string `envconfig:"SECRET"`
+		Environment string `envconfig:"ENVIRONMENT"`
+	} `envconfig:"UNLEASH"`
 }
 
 var (

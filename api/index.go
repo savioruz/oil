@@ -6,6 +6,8 @@ import (
 	"oil/config"
 	"oil/di"
 	"oil/shared/logger"
+
+	"github.com/rs/zerolog/log"
 )
 
 // Handler is the entry point for handling incoming HTTP requests in a serverless environment.
@@ -18,6 +20,12 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	logger.SetLogLevel(cfg)
 
-	handler := di.InitializeService()
+	handler, err := di.InitializeService()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to initialize service")
+
+		return
+	}
+
 	handler.ServeHTTP(w, r)
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"oil/config"
 	"oil/infras/otel"
+	"oil/infras/unleash"
 	"oil/internal/domains/todo/model"
 	"oil/internal/domains/todo/model/dto"
 	"oil/internal/domains/todo/repository"
@@ -38,14 +39,16 @@ type serviceImpl struct {
 	cfg   *config.Config
 	cache cache.RedisCache
 	otel  otel.Otel
+	ff    unleash.FeatureFlag
 }
 
-func New(repo repository.Todo, cfg *config.Config, cache cache.RedisCache, otel otel.Otel) Todo {
+func New(repo repository.Todo, cfg *config.Config, cache cache.RedisCache, otel otel.Otel, ff unleash.FeatureFlag) Todo {
 	return &serviceImpl{
 		repo:  repo,
 		cfg:   cfg,
 		cache: cache,
 		otel:  otel,
+		ff:    ff,
 	}
 }
 
@@ -56,7 +59,32 @@ func (s *serviceImpl) Create(ctx context.Context, req dto.CreateTodoRequest) (er
 
 	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
 
-	if err = s.repo.Insert(ctx, req.ToModel(user)); err != nil {
+	if s.ff.IsEnabled(ctx, "todo-create-v2") {
+		return s.createV2(ctx, req, user)
+	}
+
+	return s.createV1(ctx, req, user)
+}
+
+func (s *serviceImpl) createV1(ctx context.Context, req dto.CreateTodoRequest, user string) error {
+	if err := s.repo.Insert(ctx, req.ToModel(user)); err != nil {
+		log.Error().Err(err).Msg("failed to create todo")
+
+		return failure.InternalErrorWithKey(errkey.ErrTodoCreateFailed, fmt.Sprintf("failed to create todo: %v", err))
+	}
+
+	go func() {
+		c := context.WithoutCancel(ctx)
+
+		shared.InvalidateCaches(c, s.cache, cacheGetAllTodo)
+		shared.InvalidateCaches(c, s.cache, cacheCountTodo)
+	}()
+
+	return nil
+}
+
+func (s *serviceImpl) createV2(ctx context.Context, req dto.CreateTodoRequest, user string) error {
+	if err := s.repo.Insert(ctx, req.ToModelWithFullFields(user)); err != nil {
 		log.Error().Err(err).Msg("failed to create todo")
 
 		return failure.InternalErrorWithKey(errkey.ErrTodoCreateFailed, fmt.Sprintf("failed to create todo: %v", err))

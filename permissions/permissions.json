@@ -30,24 +30,6 @@
       "method": "GET",
       "permissions": ["user", "admin", "superadmin"],
       "skip": true
-    },
-    {
-      "path": "/api/todos",
-      "method": "POST",
-      "permissions": ["admin", "superadmin"],
-      "skip": false
-    },
-    {
-      "path": "/api/todos/{id}",
-      "method": "PATCH",
-      "permissions": ["user", "admin", "superadmin"],
-      "skip": false
-    },
-    {
-      "path": "/api/todos/{id}",
-      "method": "DELETE",
-      "permissions": ["admin", "superadmin"],
-      "skip": false
     }
   ]
 }

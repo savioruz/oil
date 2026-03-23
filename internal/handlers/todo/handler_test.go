@@ -18,6 +18,7 @@ import (
 	"oil/config"
 	"oil/infras/otel/mocks"
 	postgresMocks "oil/infras/postgres/mocks"
+	"oil/infras/unleash"
 	"oil/internal/domains/todo/model/dto"
 	"oil/internal/domains/todo/repository"
 	"oil/internal/domains/todo/service"
@@ -37,7 +38,8 @@ func setup(t *testing.T, ctrl *gomock.Controller) (*httptest.Server, sqlmock.Sql
 	mockCache := cacheMocks.NewMockRedisCache(ctrl)
 
 	repo := repository.New(sqlConn, otel)
-	svc := service.New(repo, cfg, mockCache, otel)
+	ff, _ := unleash.New(cfg)
+	svc := service.New(repo, cfg, mockCache, otel, ff)
 	handler := todo.New(svc, otel)
 
 	mux.Route("/api", func(r chi.Router) {

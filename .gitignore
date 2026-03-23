@@ -44,4 +44,7 @@ engine
 
 # Ignore worktrees
 .worktrees/
+
+# Ignore plans
+docs/plans/
 Thumbs.db

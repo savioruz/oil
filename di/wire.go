@@ -10,6 +10,7 @@ import (
 	"oil/infras/postgres"
 	"oil/infras/redis"
 	"oil/infras/s3"
+	"oil/infras/unleash"
 	todoHandler "oil/internal/handlers/todo"
 	"oil/permissions"
 	"oil/shared/cache"
@@ -42,6 +43,7 @@ var infrastructures = wire.NewSet(
 	redis.New,
 	s3.New,
 	jwt.New,
+	unleash.New,
 	// kafka.New,
 )
 
@@ -83,7 +85,7 @@ var routing = wire.NewSet(
 	router.New,
 )
 
-func InitializeService() *http.HTTP {
+func InitializeService() (*http.HTTP, error) {
 	wire.Build(
 		configurations,
 		infrastructures,
@@ -94,5 +96,5 @@ func InitializeService() *http.HTTP {
 		http.New,
 	)
 
-	return &http.HTTP{}
+	return &http.HTTP{}, nil
 }

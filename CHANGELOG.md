@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+- **Feature Flags with Unleash**: Implemented feature flag system using self-hosted Unleash
+  - Added `infras/unleash` package with `FeatureFlag` interface
+  - Wraps official `unleash-go-sdk/v6` for real-time flag sync
+  - Fail-open behavior: returns `false` when Unleash is unreachable
+  - `FeatureFlag` injected via Wire into services and handlers
+  - Flag names managed via Unleash admin UI (not in code)
+  - Config via `UNLEASH_URL`, `UNLEASH_APP_NAME`, `UNLEASH_INSTANCE_ID`, `UNLEASH_SECRET`, `UNLEASH_ENVIRONMENT`
+  - Example: `todo-create-v2` flag enables user-controlled `completed` field
+
 - **Enhanced Authentication Security**: Refresh tokens now support HTTP-only cookie storage
   - **Cookie-based authentication** (when `remember=true`):
     - Login returns only `access_token` in response body

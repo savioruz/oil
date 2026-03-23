@@ -5,6 +5,7 @@ import (
 	"oil/shared"
 	gDto "oil/shared/dto"
 	gModel "oil/shared/model"
+	"oil/shared/timezone"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,7 +18,7 @@ type CreateTodoRequest struct {
 }
 
 func (c *CreateTodoRequest) ToModel(user string) model.Todo {
-	now := time.Now()
+	now := timezone.NowUTC()
 
 	return model.Todo{
 		ID:          uuid.NewString(),

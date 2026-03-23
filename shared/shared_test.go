@@ -311,19 +311,19 @@ func TestTransformFieldsWithPointers(t *testing.T) {
 	}
 }
 
-func TestFilterByID(t *testing.T) {
+func TestSingleFilter(t *testing.T) {
 	tests := []struct {
 		name     string
-		id       string
-		fieldID  string
+		value    string
+		field    string
 		table    string
 		expected dto.FilterGroup
 	}{
 		{
-			name:    "basic filter by id",
-			id:      "123",
-			fieldID: "user_id",
-			table:   "users",
+			name:  "basic filter by id",
+			value: "123",
+			field: "user_id",
+			table: "users",
 			expected: dto.FilterGroup{
 				Filters: []any{
 					dto.Filter{
@@ -336,10 +336,10 @@ func TestFilterByID(t *testing.T) {
 			},
 		},
 		{
-			name:    "filter with empty table",
-			id:      "456",
-			fieldID: "id",
-			table:   "",
+			name:  "filter with empty table",
+			value: "456",
+			field: "id",
+			table: "",
 			expected: dto.FilterGroup{
 				Filters: []any{
 					dto.Filter{
@@ -352,10 +352,10 @@ func TestFilterByID(t *testing.T) {
 			},
 		},
 		{
-			name:    "filter with uuid",
-			id:      "550e8400-e29b-41d4-a716-446655440000",
-			fieldID: "uuid",
-			table:   "products",
+			name:  "filter with uuid",
+			value: "550e8400-e29b-41d4-a716-446655440000",
+			field: "uuid",
+			table: "products",
 			expected: dto.FilterGroup{
 				Filters: []any{
 					dto.Filter{
@@ -371,7 +371,7 @@ func TestFilterByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := shared.FilterByID(tt.id, tt.fieldID, tt.table)
+			result := shared.SingleFilter(tt.value, tt.field, tt.table)
 
 			if !reflect.DeepEqual(result, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, result)
@@ -387,12 +387,12 @@ func TestFilterByID(t *testing.T) {
 				t.Error("expected filter to be of type dto.Filter")
 			}
 
-			if filter.Field != tt.fieldID {
-				t.Errorf("expected field to be %s, got %s", tt.fieldID, filter.Field)
+			if filter.Field != tt.field {
+				t.Errorf("expected field to be %s, got %s", tt.field, filter.Field)
 			}
 
-			if filter.Value != tt.id {
-				t.Errorf("expected value to be %s, got %v", tt.id, filter.Value)
+			if filter.Value != tt.value {
+				t.Errorf("expected value to be %s, got %v", tt.value, filter.Value)
 			}
 
 			if filter.Operator != dto.FilterOperatorEq {

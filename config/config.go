@@ -54,12 +54,9 @@ type Config struct {
 		TTL int `envconfig:"TTL"`
 	} `envconfig:"CACHE"`
 
-	JWT struct {
-		AccessSecret     string `envconfig:"ACCESS_SECRET"`
-		RefreshSecret    string `envconfig:"REFRESH_SECRET"`
-		AccessExpireMin  int    `envconfig:"ACCESS_EXPIRE_MIN"`
-		RefreshExpireMin int    `envconfig:"REFRESH_EXPIRE_MIN"`
-	} `envconfig:"JWT"`
+	AuthService struct {
+		URL string `envconfig:"URL"`
+	} `envconfig:"AUTH_SERVICE"`
 
 	DB struct {
 		Postgres struct {

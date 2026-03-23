@@ -1,18 +1,19 @@
-// Package middleware provides HTTP middleware utilities.
 package middleware
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"oil/config"
 	"oil/infras/jwt"
 	"oil/infras/otel"
+	"oil/internal/domains/userprofile/service"
 	"oil/permissions"
 	"oil/shared/constant"
+	"oil/shared/errkey"
 	"oil/shared/failure"
 	"oil/transport/http/response"
 	"slices"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -44,19 +45,21 @@ type AuthRole interface {
 
 // authRoleImpl implements the AuthRole interface
 type authRoleImpl struct {
-	jwtService jwt.JWT
-	otel       otel.Otel
-	permission *permissions.PermissionData
-	cfg        *config.Config
+	jwtService         jwt.JWT
+	userprofileService service.Userprofile
+	otel               otel.Otel
+	permission         *permissions.PermissionData
+	cfg                *config.Config
 }
 
 // NewAuthRoleMiddleware creates a new middleware instance
-func NewAuthRoleMiddleware(jwtService jwt.JWT, otel otel.Otel, permissions *permissions.PermissionData, cfg *config.Config) AuthRole {
+func NewAuthRoleMiddleware(jwtService jwt.JWT, userprofileService service.Userprofile, otel otel.Otel, permissions *permissions.PermissionData, cfg *config.Config) AuthRole {
 	return &authRoleImpl{
-		jwtService: jwtService,
-		otel:       otel,
-		permission: permissions,
-		cfg:        cfg,
+		jwtService:         jwtService,
+		userprofileService: userprofileService,
+		otel:               otel,
+		permission:         permissions,
+		cfg:                cfg,
 	}
 }
 
@@ -123,22 +126,34 @@ func (m *authRoleImpl) Auth(next http.Handler) http.Handler {
 			return
 		}
 
-		claims, err := m.jwtService.ValidateToken(ctx, tokenString, jwt.AccessToken)
+		claims, err := m.jwtService.ValidateToken(ctx, tokenString)
 		if err != nil {
-			var message string
+			errKey := errkey.ErrTokenInvalid
+			message := "Token validation failed"
 
+			errStr := err.Error()
 			switch {
-			case errors.Is(err, jwt.ErrExpiredToken):
+			case strings.Contains(errStr, "token_expired"):
+				errKey = errkey.ErrTokenExpired
 				message = "Token has expired"
-			case errors.Is(err, jwt.ErrInvalidToken):
+			case strings.Contains(errStr, "invalid_token"):
+				errKey = errkey.ErrTokenInvalid
 				message = "Invalid token"
-			case errors.Is(err, jwt.ErrInvalidClaim):
+			case strings.Contains(errStr, "invalid_claim"):
+				errKey = errkey.ErrInvalidClaim
 				message = "Invalid token claims"
-			default:
-				message = "Token validation failed"
+			case strings.Contains(errStr, "token_parse_failed"):
+				errKey = errkey.ErrTokenInvalid
+				message = "Token parse failed"
+			case strings.Contains(errStr, "token_missing_kid"):
+				errKey = errkey.ErrTokenInvalid
+				message = "Token missing key ID"
+			case strings.Contains(errStr, "token_invalid_claims"):
+				errKey = errkey.ErrInvalidClaim
+				message = "Token invalid claims"
 			}
 
-			err := failure.Unauthorized(message)
+			err := failure.UnauthorizedWithKey(errKey, message)
 			response.WithError(writer, err)
 
 			scope.TraceError(err)
@@ -148,8 +163,8 @@ func (m *authRoleImpl) Auth(next http.Handler) http.Handler {
 		}
 
 		// Validate that required claims are not empty
-		if claims.UserID == "" {
-			log.Error().Msg("JWT claims: UserID is empty")
+		if claims.Subject == "" {
+			log.Error().Msg("JWT claims: Subject is empty")
 
 			response.WithError(writer, failure.Unauthorized("Invalid token claims"))
 		}
@@ -160,10 +175,16 @@ func (m *authRoleImpl) Auth(next http.Handler) http.Handler {
 			response.WithError(writer, failure.Unauthorized("Invalid token claims"))
 		}
 
-		ctx = context.WithValue(ctx, constant.ContextKeyUserID, claims.UserID)
+		profile, err := m.userprofileService.GetOrCreateByAuthUserID(ctx, claims.Subject, claims.Email, claims.Role)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get or create userprofile")
+
+			response.WithError(writer, failure.InternalError(err))
+		}
+
+		ctx = context.WithValue(ctx, constant.ContextKeyUserID, profile.ID)
 		ctx = context.WithValue(ctx, constant.ContextKeyUserEmail, claims.Email)
-		ctx = context.WithValue(ctx, constant.ContextKeyUserRole, claims.Role)
-		ctx = context.WithValue(ctx, constant.ContextKeyTokenID, claims.TokenID)
+		ctx = context.WithValue(ctx, constant.ContextKeyUserRole, profile.Role)
 
 		scope.End()
 

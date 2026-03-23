@@ -187,7 +187,7 @@ func (s *serviceImpl) Get(ctx context.Context, id string) (res dto.TodoResponse,
 		return res, nil
 	}
 
-	todo, err := s.repo.Get(ctx, shared.FilterByID(id, model.FieldID, model.TableName))
+	todo, err := s.repo.Get(ctx, shared.SingleFilter(id, model.FieldID, model.TableName))
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get todo")
 
@@ -221,7 +221,7 @@ func (s *serviceImpl) Update(ctx context.Context, req dto.UpdateTodoRequest, id 
 	}
 
 	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
-	filter := shared.FilterByID(id, model.FieldID, model.TableName)
+	filter := shared.SingleFilter(id, model.FieldID, model.TableName)
 
 	exist, err := s.repo.Exist(ctx, filter)
 	if err != nil {
@@ -262,7 +262,7 @@ func (s *serviceImpl) Delete(ctx context.Context, id string) error {
 	defer scope.End()
 	defer scope.TraceIfError(nil)
 
-	exist, err := s.repo.Exist(ctx, shared.FilterByID(id, model.FieldID, model.TableName))
+	exist, err := s.repo.Exist(ctx, shared.SingleFilter(id, model.FieldID, model.TableName))
 	if err != nil {
 		log.Error().Err(err).Msg("failed to check if todo exists")
 
@@ -275,7 +275,7 @@ func (s *serviceImpl) Delete(ctx context.Context, id string) error {
 		return failure.NotFoundWithKey(errkey.ErrTodoNotFound, "todo not found")
 	}
 
-	if err := s.repo.Delete(ctx, shared.FilterByID(id, model.FieldID, model.TableName)); err != nil {
+	if err := s.repo.Delete(ctx, shared.SingleFilter(id, model.FieldID, model.TableName)); err != nil {
 		log.Error().Err(err).Msg("failed to delete todo")
 
 		return failure.InternalErrorWithKey(errkey.ErrTodoDeleteFailed, fmt.Sprintf("failed to delete todo: %v", err))

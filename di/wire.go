@@ -4,6 +4,7 @@
 package di
 
 import (
+	"github.com/google/wire"
 	"oil/config"
 	"oil/infras/jwt"
 	"oil/infras/otel"
@@ -12,6 +13,7 @@ import (
 	"oil/infras/s3"
 	"oil/infras/unleash"
 	todoHandler "oil/internal/handlers/todo"
+	userprofileHandler "oil/internal/handlers/userprofile"
 	"oil/permissions"
 	"oil/shared/cache"
 	"oil/transport/http"
@@ -21,11 +23,8 @@ import (
 	todoRepository "oil/internal/domains/todo/repository"
 	todoService "oil/internal/domains/todo/service"
 
-	"github.com/google/wire"
-
-	authService "oil/internal/domains/auth/service"
-	userRepository "oil/internal/domains/user/repository"
-	authHandler "oil/internal/handlers/auth"
+	userprofileRepository "oil/internal/domains/userprofile/repository"
+	userprofileService "oil/internal/domains/userprofile/service"
 
 	galleryRepository "oil/internal/domains/gallery/repository"
 	galleryService "oil/internal/domains/gallery/service"
@@ -44,7 +43,6 @@ var infrastructures = wire.NewSet(
 	s3.New,
 	jwt.New,
 	unleash.New,
-	// kafka.New,
 )
 
 var middlewares = wire.NewSet(
@@ -61,9 +59,9 @@ var todoDomain = wire.NewSet(
 	todoService.New,
 )
 
-var authDomain = wire.NewSet(
-	userRepository.New,
-	authService.New,
+var userprofileDomain = wire.NewSet(
+	userprofileRepository.New,
+	userprofileService.New,
 )
 
 var galleryDomain = wire.NewSet(
@@ -73,15 +71,15 @@ var galleryDomain = wire.NewSet(
 
 var domains = wire.NewSet(
 	todoDomain,
-	authDomain,
+	userprofileDomain,
 	galleryDomain,
 )
 
 var routing = wire.NewSet(
 	wire.Struct(new(router.DomainHandlers), "*"),
 	todoHandler.New,
-	authHandler.New,
 	galleryHandler.New,
+	userprofileHandler.New,
 	router.New,
 )
 

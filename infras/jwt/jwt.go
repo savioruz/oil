@@ -143,11 +143,6 @@ func (s *Service) ValidateToken(ctx context.Context, tokenString string) (*Claim
 		return nil, ErrTokenMissingKid
 	}
 
-	claims, ok := token.Claims.(*Claims)
-	if !ok {
-		return nil, ErrTokenInvalidClaims
-	}
-
 	var publicKey crypto.PublicKey
 
 	for _, key := range jwks.Keys {
@@ -192,7 +187,7 @@ func (s *Service) ValidateToken(ctx context.Context, tokenString string) (*Claim
 		return nil, ErrInvalidToken
 	}
 
-	claims, ok = token.Claims.(*Claims)
+	claims, ok := token.Claims.(*Claims)
 	if !ok || !token.Valid {
 		return nil, ErrInvalidToken
 	}

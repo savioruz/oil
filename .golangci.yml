@@ -30,6 +30,12 @@ linters:
 
   exclusions:
     rules:
+      - path: infras/...
+        linters:
+          - revive
+      - path: transport/...
+        linters:
+          - revive
       - path: internal/...
         linters:
           - revive

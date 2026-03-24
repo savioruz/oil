@@ -43,7 +43,6 @@ func setup(t *testing.T, ctrl *gomock.Controller) (*httptest.Server, sqlmock.Sql
 	handler := todo.New(svc, otel)
 
 	mux.Route("/api", func(r chi.Router) {
-		// Add middleware to set user context
 		r.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				ctx := context.WithValue(r.Context(), constant.ContextKeyUserID, "test-user-id")
@@ -135,9 +134,9 @@ func TestCreateTodo(t *testing.T) {
 	t.Run("Error: invalid request - title too long", func(t *testing.T) {
 		defer resetResponse()
 
-		longTitle := string(make([]byte, 256)) // exceeds max 255
-		for i := range longTitle {
-			longTitle = string(append([]byte(longTitle[:i]), 'a'))
+		longTitle := ""
+		for i := 0; i < 256; i++ {
+			longTitle += "a"
 		}
 
 		invalidBody := map[string]interface{}{
@@ -159,7 +158,6 @@ func TestCreateTodo(t *testing.T) {
 	t.Run("Error: failed to insert todo", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock insert failure (uses NamedExec directly, no Prepare)
 		sqlMock.ExpectExec(regexp.QuoteMeta("INSERT INTO todos (id, title, description, completed, created_at, modified_at, created_by, modified_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")).
 			WillReturnError(fmt.Errorf("insert error"))
 
@@ -177,11 +175,9 @@ func TestCreateTodo(t *testing.T) {
 	t.Run("Success: create todo", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock successful insert (uses NamedExec directly, no Prepare)
 		sqlMock.ExpectExec(regexp.QuoteMeta("INSERT INTO todos (id, title, description, completed, created_at, modified_at, created_by, modified_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
-		// Mock cache invalidation (can happen in goroutines)
 		mockCache.EXPECT().Clear(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 		resp, err := getClient().
@@ -224,11 +220,9 @@ func TestGetTodos(t *testing.T) {
 	t.Run("Error: failed to count todos", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock cache miss
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		// Mock count query failure (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
 			ExpectQuery().
 			WillReturnError(fmt.Errorf("count error"))
@@ -245,19 +239,15 @@ func TestGetTodos(t *testing.T) {
 	t.Run("Error: failed to get todos", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock cache miss
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		// Mock successful count (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
-		// Mock cache save for count
 		mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-		// Mock get all failure (uses PrepareNamed)
 		sqlMock.ExpectPrepare("SELECT .* FROM todos").
 			ExpectQuery().
 			WillReturnError(fmt.Errorf("query error"))
@@ -274,16 +264,13 @@ func TestGetTodos(t *testing.T) {
 	t.Run("Success: get all todos", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock cache miss
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		// Mock successful count (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
-		// Mock successful get all (uses PrepareNamed with LIMIT/OFFSET for pagination)
 		now := time.Now()
 		sqlMock.ExpectPrepare("SELECT .* FROM todos").
 			ExpectQuery().
@@ -291,7 +278,6 @@ func TestGetTodos(t *testing.T) {
 				AddRow("id1", "Todo 1", "Description 1", false, now, now, "user1", "user1").
 				AddRow("id2", "Todo 2", "Description 2", true, now, now, "user1", "user1"))
 
-		// Mock cache saves
 		mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 		resp, err := getClient().Get("/todos")
@@ -312,23 +298,19 @@ func TestGetTodos(t *testing.T) {
 	t.Run("Success: get todos with pagination", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock cache miss
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		// Mock successful count (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(25))
 
-		// Mock successful get all with limit (uses PrepareNamed)
 		now := time.Now()
 		sqlMock.ExpectPrepare("SELECT .* FROM todos").
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "completed", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow("id1", "Todo 1", "Description 1", false, now, now, "user1", "user1"))
 
-		// Mock cache saves
 		mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 		resp, err := getClient().
@@ -343,29 +325,25 @@ func TestGetTodos(t *testing.T) {
 		assert.Empty(t, responseErr.Error)
 		assert.NotNil(t, responseData.Data)
 		assert.Equal(t, 25, responseData.Data.TotalData)
-		assert.Equal(t, 3, responseData.Data.TotalPage) // 25 items / 10 per page = 3 pages
+		assert.Equal(t, 3, responseData.Data.TotalPage)
 	})
 
 	t.Run("Success: filter by title", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock cache miss
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		// Mock successful count with filter (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
-		// Mock successful get all with filter (uses PrepareNamed)
 		now := time.Now()
 		sqlMock.ExpectPrepare("SELECT .* FROM todos").
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "completed", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow("id1", "Shopping", "Buy groceries", false, now, now, "user1", "user1"))
 
-		// Mock cache saves
 		mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 		resp, err := getClient().
@@ -385,23 +363,19 @@ func TestGetTodos(t *testing.T) {
 	t.Run("Success: filter by completed status", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock cache miss
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		// Mock successful count with filter (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
-		// Mock successful get all with filter (uses PrepareNamed)
 		now := time.Now()
 		sqlMock.ExpectPrepare("SELECT .* FROM todos").
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "completed", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow("id1", "Completed Todo", "This is done", true, now, now, "user1", "user1"))
 
-		// Mock cache saves
 		mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 		resp, err := getClient().

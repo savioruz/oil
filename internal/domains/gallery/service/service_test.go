@@ -5,35 +5,39 @@ import (
 	"errors"
 	"mime/multipart"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
 	"oil/config"
-	"oil/infras/otel/mocks"
-	s3Mocks "oil/infras/s3/mocks"
+	"oil/infras/otel"
+	otelMocks "oil/infras/otel/mocks"
+	s3mocks "oil/infras/s3/mocks"
 	galleryMocks "oil/internal/domains/gallery/mocks"
 	"oil/internal/domains/gallery/model"
 	"oil/internal/domains/gallery/model/dto"
 	"oil/internal/domains/gallery/service"
+	"oil/shared"
 	cacheMocks "oil/shared/cache/mocks"
-	"oil/shared/constant"
 	gDto "oil/shared/dto"
-	gModel "oil/shared/model"
+	"oil/shared/errkey"
+	"oil/shared/failure"
 )
 
-func TestGalleryService_Create(t *testing.T) {
+func setup(t *testing.T) (*gomock.Controller, *galleryMocks.MockGallery, *cacheMocks.MockRedisCache, *config.Config, *s3mocks.MockS3, otel.Otel) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
 	mockRepo := galleryMocks.NewMockGallery(ctrl)
 	mockCache := cacheMocks.NewMockRedisCache(ctrl)
-	mockOtel := mocks.NewOtel()
-	mockS3 := s3Mocks.NewMockS3(ctrl)
-
+	mockOtel := otelMocks.NewOtel()
+	mockS3 := s3mocks.NewMockS3(ctrl)
 	cfg := &config.Config{}
 	cfg.Cache.TTL = 3600
+	return ctrl, mockRepo, mockCache, cfg, mockS3, mockOtel
+}
+
+func TestCreate(t *testing.T) {
+	ctrl, mockRepo, mockCache, cfg, mockS3, mockOtel := setup(t)
+	defer ctrl.Finish()
 
 	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
 
@@ -42,39 +46,33 @@ func TestGalleryService_Create(t *testing.T) {
 		req       dto.CreateGalleryRequest
 		setupMock func()
 		wantErr   bool
+		errKey    errkey.ErrorKey
 	}{
 		{
-			name: "successful creation",
+			name: "success",
 			req: dto.CreateGalleryRequest{
 				Title:       "Test Gallery",
 				Description: "Test Description",
 				Images:      []string{"https://example.com/image1.jpg"},
 			},
 			setupMock: func() {
-				mockRepo.EXPECT().
-					Insert(gomock.Any(), gomock.Any()).
-					Return(nil)
-
-				mockCache.EXPECT().
-					Clear(gomock.Any(), gomock.Any()).
-					Return(nil).
-					AnyTimes()
+				mockRepo.EXPECT().Insert(gomock.Any(), gomock.Any()).Return(nil)
+				mockCache.EXPECT().Clear(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			wantErr: false,
 		},
 		{
-			name: "repository error",
+			name: "error - insert failed",
 			req: dto.CreateGalleryRequest{
 				Title:       "Test Gallery",
 				Description: "Test Description",
 				Images:      []string{"https://example.com/image1.jpg"},
 			},
 			setupMock: func() {
-				mockRepo.EXPECT().
-					Insert(gomock.Any(), gomock.Any()).
-					Return(errors.New("database error"))
+				mockRepo.EXPECT().Insert(gomock.Any(), gomock.Any()).Return(errors.New("db error"))
 			},
 			wantErr: true,
+			errKey:  errkey.ErrGalleryCreateFailed,
 		},
 	}
 
@@ -82,13 +80,13 @@ func TestGalleryService_Create(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupMock()
 
-			ctx := context.WithValue(context.Background(), constant.ContextKeyUserID, "test-user-id")
-			err := svc.Create(ctx, tt.req)
-
-			time.Sleep(10 * time.Millisecond)
+			err := svc.Create(context.Background(), tt.req)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				f, ok := err.(*failure.Failure)
+				assert.True(t, ok)
+				assert.Equal(t, tt.errKey, f.Key)
 			} else {
 				assert.NoError(t, err)
 			}
@@ -96,19 +94,14 @@ func TestGalleryService_Create(t *testing.T) {
 	}
 }
 
-func TestGalleryService_GetAll(t *testing.T) {
-	ctrl := gomock.NewController(t)
+func TestGetAll(t *testing.T) {
+	ctrl, mockRepo, mockCache, cfg, mockS3, mockOtel := setup(t)
 	defer ctrl.Finish()
 
-	mockRepo := galleryMocks.NewMockGallery(ctrl)
-	mockCache := cacheMocks.NewMockRedisCache(ctrl)
-	mockOtel := mocks.NewOtel()
-	mockS3 := s3Mocks.NewMockS3(ctrl)
-
-	cfg := &config.Config{}
-	cfg.Cache.TTL = 3600
-
 	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
+
+	mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("cache miss")).AnyTimes()
+	mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 	tests := []struct {
 		name       string
@@ -116,53 +109,18 @@ func TestGalleryService_GetAll(t *testing.T) {
 		filter     gDto.FilterGroup
 		setupMock  func()
 		wantErr    bool
+		errKey     errkey.ErrorKey
 		wantResult dto.GetGalleriesResponse
 	}{
 		{
-			name: "successful get all",
-			params: gDto.QueryParams{
-				Limit: 10,
-				Page:  1,
-			},
+			name:   "success",
+			params: gDto.QueryParams{Limit: 10, Page: 1},
 			filter: gDto.FilterGroup{},
 			setupMock: func() {
-				mockCache.EXPECT().
-					Get(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(errors.New("cache miss"))
-
-				mockCache.EXPECT().
-					Get(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(errors.New("cache miss"))
-
-				mockRepo.EXPECT().
-					Count(gomock.Any(), gomock.Any()).
-					Return(1, nil)
-
-				now := time.Now()
-
-				galleries := []model.Gallery{
-					{
-						ID:          "test-id",
-						Title:       "Test Gallery",
-						Description: "Test Description",
-						Images:      []string{"https://example.com/image1.jpg"},
-						Metadata: gModel.Metadata{
-							CreatedAt:  now,
-							ModifiedAt: now,
-							CreatedBy:  "test-user",
-							ModifiedBy: "test-user",
-						},
-					},
-				}
-
-				mockRepo.EXPECT().
-					GetAll(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(galleries, nil)
-
-				mockCache.EXPECT().
-					Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(nil).
-					AnyTimes()
+				mockRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
+				mockRepo.EXPECT().GetAll(gomock.Any(), gomock.Any(), gomock.Any()).Return([]model.Gallery{
+					{ID: "gallery-1", Title: "Test Gallery"},
+				}, nil)
 			},
 			wantErr: false,
 			wantResult: dto.GetGalleriesResponse{
@@ -171,26 +129,25 @@ func TestGalleryService_GetAll(t *testing.T) {
 			},
 		},
 		{
-			name: "count error",
-			params: gDto.QueryParams{
-				Limit: 10,
-				Page:  1,
-			},
+			name:   "error - count failed",
+			params: gDto.QueryParams{Limit: 10, Page: 1},
 			filter: gDto.FilterGroup{},
 			setupMock: func() {
-				mockCache.EXPECT().
-					Get(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(errors.New("cache miss"))
-
-				mockCache.EXPECT().
-					Get(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(errors.New("cache miss"))
-
-				mockRepo.EXPECT().
-					Count(gomock.Any(), gomock.Any()).
-					Return(0, errors.New("count error"))
+				mockRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(0, errors.New("db error"))
 			},
 			wantErr: true,
+			errKey:  errkey.ErrDatabaseQuery,
+		},
+		{
+			name:   "error - get all failed",
+			params: gDto.QueryParams{Limit: 10, Page: 1},
+			filter: gDto.FilterGroup{},
+			setupMock: func() {
+				mockRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
+				mockRepo.EXPECT().GetAll(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("db error"))
+			},
+			wantErr: true,
+			errKey:  errkey.ErrDatabaseQuery,
 		},
 	}
 
@@ -198,13 +155,13 @@ func TestGalleryService_GetAll(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupMock()
 
-			ctx := context.Background()
-			result, err := svc.GetAll(ctx, tt.params, tt.filter)
-
-			time.Sleep(10 * time.Millisecond)
+			result, err := svc.GetAll(context.Background(), tt.params, tt.filter)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				f, ok := err.(*failure.Failure)
+				assert.True(t, ok)
+				assert.Equal(t, tt.errKey, f.Key)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.wantResult.TotalData, result.TotalData)
@@ -214,86 +171,55 @@ func TestGalleryService_GetAll(t *testing.T) {
 	}
 }
 
-func TestGalleryService_Get(t *testing.T) {
-	ctrl := gomock.NewController(t)
+func TestGet(t *testing.T) {
+	ctrl, mockRepo, mockCache, cfg, mockS3, mockOtel := setup(t)
 	defer ctrl.Finish()
-
-	mockRepo := galleryMocks.NewMockGallery(ctrl)
-	mockCache := cacheMocks.NewMockRedisCache(ctrl)
-	mockOtel := mocks.NewOtel()
-	mockS3 := s3Mocks.NewMockS3(ctrl)
-
-	cfg := &config.Config{}
-	cfg.Cache.TTL = 3600
 
 	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
 
-	now := time.Now()
-
-	gallery := model.Gallery{
-		ID:          "test-id",
-		Title:       "Test Gallery",
-		Description: "Test Description",
-		Images:      []string{"https://example.com/image1.jpg"},
-		Metadata: gModel.Metadata{
-			CreatedAt:  now,
-			ModifiedAt: now,
-			CreatedBy:  "test-user",
-			ModifiedBy: "test-user",
-		},
-	}
+	mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("cache miss")).AnyTimes()
+	mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 	tests := []struct {
 		name      string
 		id        string
 		setupMock func()
 		wantErr   bool
+		errKey    errkey.ErrorKey
 		wantID    string
 	}{
 		{
-			name: "cache hit",
-			id:   "test-id",
+			name: "success",
+			id:   "gallery-1",
 			setupMock: func() {
-				mockCache.EXPECT().
-					Get(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(nil)
+				filter := shared.SingleFilter("gallery-1", model.FieldID, model.TableName)
+				mockRepo.EXPECT().Get(gomock.Any(), filter).Return(model.Gallery{
+					ID:    "gallery-1",
+					Title: "Test Gallery",
+				}, nil)
 			},
 			wantErr: false,
-			wantID:  "",
+			wantID:  "gallery-1",
 		},
 		{
-			name: "cache miss, successful get from db",
-			id:   "test-id",
+			name: "error - not found",
+			id:   "nonexistent",
 			setupMock: func() {
-				mockCache.EXPECT().
-					Get(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(errors.New("cache miss"))
-
-				mockRepo.EXPECT().
-					Get(gomock.Any(), gomock.Any()).
-					Return(gallery, nil)
-
-				mockCache.EXPECT().
-					Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(nil).
-					AnyTimes()
-			},
-			wantErr: false,
-			wantID:  "test-id",
-		},
-		{
-			name: "gallery not found",
-			id:   "nonexistent-id",
-			setupMock: func() {
-				mockCache.EXPECT().
-					Get(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(errors.New("cache miss"))
-
-				mockRepo.EXPECT().
-					Get(gomock.Any(), gomock.Any()).
-					Return(model.Gallery{}, nil)
+				filter := shared.SingleFilter("nonexistent", model.FieldID, model.TableName)
+				mockRepo.EXPECT().Get(gomock.Any(), filter).Return(model.Gallery{}, nil)
 			},
 			wantErr: true,
+			errKey:  errkey.ErrGalleryNotFound,
+		},
+		{
+			name: "error - database query failed",
+			id:   "gallery-1",
+			setupMock: func() {
+				filter := shared.SingleFilter("gallery-1", model.FieldID, model.TableName)
+				mockRepo.EXPECT().Get(gomock.Any(), filter).Return(model.Gallery{}, errors.New("db error"))
+			},
+			wantErr: true,
+			errKey:  errkey.ErrDatabaseQuery,
 		},
 	}
 
@@ -301,83 +227,91 @@ func TestGalleryService_Get(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupMock()
 
-			ctx := context.Background()
-			result, err := svc.Get(ctx, tt.id)
-
-			time.Sleep(10 * time.Millisecond)
+			result, err := svc.Get(context.Background(), tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				f, ok := err.(*failure.Failure)
+				assert.True(t, ok)
+				assert.Equal(t, tt.errKey, f.Key)
 			} else {
 				assert.NoError(t, err)
-				if tt.wantID != "" {
-					assert.Equal(t, tt.wantID, result.ID)
-				}
+				assert.Equal(t, tt.wantID, result.ID)
 			}
 		})
 	}
 }
 
-func TestGalleryService_Update(t *testing.T) {
-	ctrl := gomock.NewController(t)
+func TestUpdate(t *testing.T) {
+	ctrl, mockRepo, mockCache, cfg, mockS3, mockOtel := setup(t)
 	defer ctrl.Finish()
-
-	mockRepo := galleryMocks.NewMockGallery(ctrl)
-	mockCache := cacheMocks.NewMockRedisCache(ctrl)
-	mockOtel := mocks.NewOtel()
-	mockS3 := s3Mocks.NewMockS3(ctrl)
-
-	cfg := &config.Config{}
-	cfg.Cache.TTL = 3600
 
 	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
 
+	mockCache.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockCache.EXPECT().Clear(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
 	tests := []struct {
 		name      string
-		req       dto.UpdateGalleryRequest
 		id        string
+		req       dto.UpdateGalleryRequest
 		setupMock func()
 		wantErr   bool
+		errKey    errkey.ErrorKey
 	}{
 		{
-			name: "successful update",
+			name: "success",
+			id:   "gallery-1",
 			req: dto.UpdateGalleryRequest{
 				Title:       "Updated Title",
 				Description: "Updated Description",
 			},
-			id: "test-id",
 			setupMock: func() {
-				mockRepo.EXPECT().
-					Exist(gomock.Any(), gomock.Any()).
-					Return(true, nil)
-
-				mockRepo.EXPECT().
-					Update(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(nil)
-
-				mockCache.EXPECT().
-					Delete(gomock.Any(), gomock.Any()).
-					Return(nil)
-
-				mockCache.EXPECT().
-					Clear(gomock.Any(), gomock.Any()).
-					Return(nil).
-					AnyTimes()
+				filter := shared.SingleFilter("gallery-1", model.FieldID, model.TableName)
+				mockRepo.EXPECT().Exist(gomock.Any(), filter).Return(true, nil)
+				mockRepo.EXPECT().Update(gomock.Any(), gomock.Any(), filter).Return(nil)
 			},
 			wantErr: false,
 		},
 		{
-			name: "gallery not found",
+			name: "error - not found",
+			id:   "nonexistent",
 			req: dto.UpdateGalleryRequest{
 				Title: "Updated Title",
 			},
-			id: "nonexistent-id",
 			setupMock: func() {
-				mockRepo.EXPECT().
-					Exist(gomock.Any(), gomock.Any()).
-					Return(false, nil)
+				filter := shared.SingleFilter("nonexistent", model.FieldID, model.TableName)
+				mockRepo.EXPECT().Exist(gomock.Any(), filter).Return(false, nil)
 			},
 			wantErr: true,
+			errKey:  errkey.ErrGalleryNotFound,
+		},
+		{
+			name: "error - exist check failed",
+			id:   "gallery-1",
+			req: dto.UpdateGalleryRequest{
+				Title: "Updated Title",
+			},
+			setupMock: func() {
+				filter := shared.SingleFilter("gallery-1", model.FieldID, model.TableName)
+				mockRepo.EXPECT().Exist(gomock.Any(), filter).Return(false, errors.New("db error"))
+			},
+			wantErr: true,
+			errKey:  errkey.ErrDatabaseQuery,
+		},
+		{
+			name: "error - update failed",
+			id:   "gallery-1",
+			req: dto.UpdateGalleryRequest{
+				Title: "Updated Title",
+			},
+			setupMock: func() {
+				filter := shared.SingleFilter("gallery-1", model.FieldID, model.TableName)
+				mockRepo.EXPECT().Exist(gomock.Any(), filter).Return(true, nil)
+				mockRepo.EXPECT().Update(gomock.Any(), gomock.Any(), filter).Return(errors.New("db error"))
+			},
+			wantErr: true,
+			errKey:  errkey.ErrGalleryUpdateFailed,
 		},
 	}
 
@@ -385,13 +319,13 @@ func TestGalleryService_Update(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupMock()
 
-			ctx := context.WithValue(context.Background(), constant.ContextKeyUserID, "test-user-id")
-			err := svc.Update(ctx, tt.req, tt.id)
-
-			time.Sleep(10 * time.Millisecond)
+			err := svc.Update(context.Background(), tt.req, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				f, ok := err.(*failure.Failure)
+				assert.True(t, ok)
+				assert.Equal(t, tt.errKey, f.Key)
 			} else {
 				assert.NoError(t, err)
 			}
@@ -399,17 +333,10 @@ func TestGalleryService_Update(t *testing.T) {
 	}
 }
 
-func TestGalleryService_Delete(t *testing.T) {
-	ctrl := gomock.NewController(t)
+func TestDelete(t *testing.T) {
+	ctrl, mockRepo, mockCache, cfg, mockS3, mockOtel := setup(t)
 	defer ctrl.Finish()
 
-	mockRepo := galleryMocks.NewMockGallery(ctrl)
-	mockCache := cacheMocks.NewMockRedisCache(ctrl)
-	mockOtel := mocks.NewOtel()
-	mockS3 := s3Mocks.NewMockS3(ctrl)
-
-	cfg := &config.Config{}
-	cfg.Cache.TTL = 3600
 	cfg.External.S3.BucketName = "test-bucket"
 
 	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
@@ -419,52 +346,60 @@ func TestGalleryService_Delete(t *testing.T) {
 		id        string
 		setupMock func()
 		wantErr   bool
+		errKey    errkey.ErrorKey
 	}{
 		{
-			name: "successful deletion with images",
-			id:   "test-id",
+			name: "success",
+			id:   "gallery-1",
 			setupMock: func() {
-				gallery := model.Gallery{
-					ID:     "test-id",
+				filter := shared.SingleFilter("gallery-1", model.FieldID, model.TableName)
+				mockRepo.EXPECT().Get(gomock.Any(), filter).Return(model.Gallery{
+					ID:     "gallery-1",
 					Images: []string{"https://example.com/bucket/image1.jpg"},
-				}
-
-				mockRepo.EXPECT().
-					Get(gomock.Any(), gomock.Any()).
-					Return(gallery, nil)
-
-				mockRepo.EXPECT().
-					Delete(gomock.Any(), gomock.Any()).
-					Return(nil)
-
-				mockCache.EXPECT().
-					Delete(gomock.Any(), gomock.Any()).
-					Return(nil)
-
-				mockCache.EXPECT().
-					Clear(gomock.Any(), gomock.Any()).
-					Return(nil).
-					AnyTimes()
-
-				mockS3.EXPECT().
-					GetObjectNameFromURL(gomock.Any(), gomock.Any()).
-					Return("image1.jpg")
-
-				mockS3.EXPECT().
-					DeleteFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(nil)
+				}, nil)
+				mockRepo.EXPECT().Delete(gomock.Any(), filter).Return(nil)
+				mockCache.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockCache.EXPECT().Clear(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockS3.EXPECT().GetObjectNameFromURL(gomock.Any(), gomock.Any()).Return("image1.jpg").AnyTimes()
+				mockS3.EXPECT().DeleteFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			wantErr: false,
 		},
 		{
-			name: "gallery not found",
-			id:   "nonexistent-id",
+			name: "error - not found",
+			id:   "nonexistent",
 			setupMock: func() {
-				mockRepo.EXPECT().
-					Get(gomock.Any(), gomock.Any()).
-					Return(model.Gallery{}, nil)
+				filter := shared.SingleFilter("nonexistent", model.FieldID, model.TableName)
+				mockRepo.EXPECT().Get(gomock.Any(), filter).Return(model.Gallery{}, nil)
 			},
 			wantErr: true,
+			errKey:  errkey.ErrGalleryNotFound,
+		},
+		{
+			name: "error - get failed",
+			id:   "gallery-1",
+			setupMock: func() {
+				filter := shared.SingleFilter("gallery-1", model.FieldID, model.TableName)
+				mockRepo.EXPECT().Get(gomock.Any(), filter).Return(model.Gallery{}, errors.New("db error"))
+			},
+			wantErr: true,
+			errKey:  errkey.ErrDatabaseQuery,
+		},
+		{
+			name: "error - delete failed",
+			id:   "gallery-1",
+			setupMock: func() {
+				filter := shared.SingleFilter("gallery-1", model.FieldID, model.TableName)
+				mockRepo.EXPECT().Get(gomock.Any(), filter).Return(model.Gallery{
+					ID:     "gallery-1",
+					Images: []string{},
+				}, nil)
+				mockRepo.EXPECT().Delete(gomock.Any(), filter).Return(errors.New("db error"))
+				mockCache.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockCache.EXPECT().Clear(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+			},
+			wantErr: true,
+			errKey:  errkey.ErrGalleryDeleteFailed,
 		},
 	}
 
@@ -472,13 +407,13 @@ func TestGalleryService_Delete(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupMock()
 
-			ctx := context.Background()
-			err := svc.Delete(ctx, tt.id)
-
-			time.Sleep(50 * time.Millisecond)
+			err := svc.Delete(context.Background(), tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				f, ok := err.(*failure.Failure)
+				assert.True(t, ok)
+				assert.Equal(t, tt.errKey, f.Key)
 			} else {
 				assert.NoError(t, err)
 			}
@@ -486,17 +421,10 @@ func TestGalleryService_Delete(t *testing.T) {
 	}
 }
 
-func TestGalleryService_UploadImage(t *testing.T) {
-	ctrl := gomock.NewController(t)
+func TestUploadImage(t *testing.T) {
+	ctrl, mockRepo, mockCache, cfg, mockS3, mockOtel := setup(t)
 	defer ctrl.Finish()
 
-	mockRepo := galleryMocks.NewMockGallery(ctrl)
-	mockCache := cacheMocks.NewMockRedisCache(ctrl)
-	mockOtel := mocks.NewOtel()
-	mockS3 := s3Mocks.NewMockS3(ctrl)
-
-	cfg := &config.Config{}
-	cfg.Cache.TTL = 3600
 	cfg.External.S3.BucketName = "test-bucket"
 
 	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
@@ -506,36 +434,30 @@ func TestGalleryService_UploadImage(t *testing.T) {
 		req       dto.UploadImageRequest
 		setupMock func()
 		wantErr   bool
+		errKey    errkey.ErrorKey
 	}{
 		{
-			name: "successful upload",
+			name: "success",
 			req: dto.UploadImageRequest{
-				Image: &multipart.FileHeader{
-					Filename: "test-image.jpg",
-				},
+				Image:     &multipart.FileHeader{Filename: "test-image.jpg"},
 				ImageFile: nil,
 			},
 			setupMock: func() {
-				mockS3.EXPECT().
-					UploadFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-					Return("https://example.com/bucket/test-image.jpg", nil)
+				mockS3.EXPECT().UploadFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("https://example.com/bucket/test-image.jpg", nil)
 			},
 			wantErr: false,
 		},
 		{
-			name: "upload error",
+			name: "error - upload failed",
 			req: dto.UploadImageRequest{
-				Image: &multipart.FileHeader{
-					Filename: "test-image.jpg",
-				},
+				Image:     &multipart.FileHeader{Filename: "test-image.jpg"},
 				ImageFile: nil,
 			},
 			setupMock: func() {
-				mockS3.EXPECT().
-					UploadFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-					Return("", errors.New("s3 upload error"))
+				mockS3.EXPECT().UploadFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", errors.New("s3 error"))
 			},
 			wantErr: true,
+			errKey:  errkey.ErrS3Upload,
 		},
 	}
 
@@ -543,11 +465,13 @@ func TestGalleryService_UploadImage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupMock()
 
-			ctx := context.Background()
-			result, err := svc.UploadImage(ctx, tt.req)
+			result, err := svc.UploadImage(context.Background(), tt.req)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				f, ok := err.(*failure.Failure)
+				assert.True(t, ok)
+				assert.Equal(t, tt.errKey, f.Key)
 			} else {
 				assert.NoError(t, err)
 				assert.NotEmpty(t, result.URL)
@@ -556,17 +480,10 @@ func TestGalleryService_UploadImage(t *testing.T) {
 	}
 }
 
-func TestGalleryService_DeleteImagesFromS3(t *testing.T) {
-	ctrl := gomock.NewController(t)
+func TestDeleteImagesFromS3(t *testing.T) {
+	ctrl, mockRepo, mockCache, cfg, mockS3, mockOtel := setup(t)
 	defer ctrl.Finish()
 
-	mockRepo := galleryMocks.NewMockGallery(ctrl)
-	mockCache := cacheMocks.NewMockRedisCache(ctrl)
-	mockOtel := mocks.NewOtel()
-	mockS3 := s3Mocks.NewMockS3(ctrl)
-
-	cfg := &config.Config{}
-	cfg.Cache.TTL = 3600
 	cfg.External.S3.BucketName = "test-bucket"
 
 	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
@@ -576,48 +493,38 @@ func TestGalleryService_DeleteImagesFromS3(t *testing.T) {
 		req       dto.DeleteImagesRequest
 		setupMock func()
 		wantErr   bool
+		errKey    errkey.ErrorKey
 	}{
 		{
-			name: "successful deletion",
+			name: "success",
 			req: dto.DeleteImagesRequest{
 				ImageURLs: []string{"https://example.com/bucket/image1.jpg"},
 			},
 			setupMock: func() {
-				mockS3.EXPECT().
-					GetObjectNameFromURL(gomock.Any(), gomock.Any()).
-					Return("image1.jpg")
-
-				mockS3.EXPECT().
-					DeleteFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(nil)
+				mockS3.EXPECT().GetObjectNameFromURL(gomock.Any(), "https://example.com/bucket/image1.jpg").Return("image1.jpg")
+				mockS3.EXPECT().DeleteFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 			},
 			wantErr: false,
 		},
 		{
-			name: "delete error",
+			name: "error - delete failed",
 			req: dto.DeleteImagesRequest{
 				ImageURLs: []string{"https://example.com/bucket/image1.jpg"},
 			},
 			setupMock: func() {
-				mockS3.EXPECT().
-					GetObjectNameFromURL(gomock.Any(), gomock.Any()).
-					Return("image1.jpg")
-
-				mockS3.EXPECT().
-					DeleteFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(errors.New("s3 delete error"))
+				mockS3.EXPECT().GetObjectNameFromURL(gomock.Any(), "https://example.com/bucket/image1.jpg").Return("image1.jpg")
+				mockS3.EXPECT().DeleteFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("s3 error"))
 			},
 			wantErr: true,
+			errKey:  errkey.ErrS3Delete,
 		},
 		{
-			name: "invalid URL - empty object name",
+			name: "success - invalid URL (empty object name)",
 			req: dto.DeleteImagesRequest{
 				ImageURLs: []string{"https://invalid.com/image.jpg"},
 			},
 			setupMock: func() {
-				mockS3.EXPECT().
-					GetObjectNameFromURL(gomock.Any(), gomock.Any()).
-					Return("")
+				mockS3.EXPECT().GetObjectNameFromURL(gomock.Any(), "https://invalid.com/image.jpg").Return("")
 			},
 			wantErr: false,
 		},
@@ -627,11 +534,13 @@ func TestGalleryService_DeleteImagesFromS3(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupMock()
 
-			ctx := context.Background()
-			err := svc.DeleteImagesFromS3(ctx, tt.req)
+			err := svc.DeleteImagesFromS3(context.Background(), tt.req)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				f, ok := err.(*failure.Failure)
+				assert.True(t, ok)
+				assert.Equal(t, tt.errKey, f.Key)
 			} else {
 				assert.NoError(t, err)
 			}

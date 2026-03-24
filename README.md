@@ -12,7 +12,7 @@ A production-grade Go REST API boilerplate with chi router, PostgreSQL, Redis, K
 | Cache | Redis / DragonflyDB |
 | Message Queue | Kafka |
 | Object Storage | AWS S3 (S3-compatible) |
-| Authentication | JWT (access + refresh tokens, Redis-backed revocation) |
+| Authentication | External JWT validation (Better Auth) with lazy user profile sync |
 | Authorization | Embedded RBAC via JSON permissions |
 | Dependency Injection | Google Wire (compile-time) |
 | Observability | OpenTelemetry + Jaeger (OTLP/gRPC) |
@@ -103,7 +103,6 @@ Swagger UI is available at `http://localhost:8080/swagger/index.html` (developme
 
 ```
 oil/
-├── api/                        # Vercel serverless entry point
 ├── cmd/
 │   ├── app/                    # Main server binary
 │   └── migrate/                # Standalone migration CLI
@@ -121,7 +120,6 @@ oil/
 │   └── s3/                     # S3 upload, presign, delete
 ├── internal/
 │   ├── domains/                # Business logic by domain
-│   │   ├── auth/               # Register, login, refresh, change-password
 │   │   ├── gallery/            # Image albums backed by S3
 │   │   ├── todo/               # Todo CRUD (example domain)
 │   │   └── user/               # User model + repository
@@ -131,7 +129,6 @@ oil/
 ├── shared/                     # Reusable packages
 │   ├── cache/                  # Redis cache abstraction
 │   ├── constant/               # App-wide constants and context keys
-│   ├── cookie/                 # Refresh token cookie helpers
 │   ├── dto/                    # QueryParams and filter builders
 │   ├── errkey/                 # Typed error keys
 │   ├── failure/                # Typed HTTP error types
@@ -172,20 +169,17 @@ This scaffolds `internal/domains/product/` with the model, repository, and servi
 
 ## Authentication
 
-The API uses JWT access + refresh token pairs with Redis-backed token lifecycle management:
+The API validates JWTs from an external auth service (Better Auth) via JWKS. No local token management.
 
-- **Access token**: 15 minutes (configurable)
-- **Refresh token**: 7 days (configurable)
-- **Revocation**: tokens are blacklisted in Redis on logout; all sessions can be revoked at once
-- **Rotation**: refresh tokens are single-use; a new pair is issued on every refresh
+- **Algorithm**: EdDSA/Ed25519 with OKP key type
+- **JWKS endpoint**: fetched once at startup from `AUTH_SERVICE_URL`
+- **Lazy sync**: user profile is created/linked on first API call
 
-Send the access token in the `Authorization` header:
+Send the JWT in the `Authorization` header:
 
 ```
-Authorization: Bearer <access_token>
+Authorization: Bearer <jwt_token>
 ```
-
-The refresh token is delivered and accepted via an `HttpOnly` cookie.
 
 ## Authorization
 
@@ -215,10 +209,6 @@ Production compose (app only, references external services):
 ```bash
 docker-compose -f deployments/app.yml up -d
 ```
-
-### Vercel (serverless)
-
-The same codebase deploys to Vercel without changes. `api/index.go` exposes the standard `Handler(w, r)` function and `vercel.json` routes all traffic through it.
 
 ## License
 

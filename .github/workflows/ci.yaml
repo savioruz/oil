@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, next ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, next ]
+    branches: [ main ]
 
 jobs:
   test:
@@ -32,22 +32,23 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
+      - name: Create tmp directory
+        run: mkdir -p tmp
+
       - name: Generate code
-        run: |
-          go generate -skip="mockgen" ./...
-          go generate -run="mockgen" ./...
+        run: go generate -skip="mockgen" ./...
+
+      - name: Generate mocks
+        run: go generate -run="mockgen" ./...
 
       - name: Initialize permissions.json
         run: |
-            cat <<EOF > permissions/permissions.json
-            {
-              "skip": true,
-              "endpoints": []
-            }
-            EOF 
-
-      - name: Create tmp directory
-        run: mkdir -p tmp
+          cat <<EOF > permissions/permissions.json
+          {
+            "skip": true,
+            "endpoints": []
+          }
+          EOF
 
       - name: Run linter
         uses: golangci/golangci-lint-action@v9
@@ -97,6 +98,9 @@ jobs:
       - name: Generate code
         run: go generate -skip="mockgen" ./...
 
+      - name: Generate mocks
+        run: go generate -run="mockgen" ./...
+
       - name: Initialize permissions.json
         run: |
           cat <<EOF > permissions/permissions.json
@@ -104,7 +108,7 @@ jobs:
             "skip": true,
             "endpoints": []
           }
-          EOF 
+          EOF
 
       - name: Build binary
         run: make build

@@ -8,8 +8,10 @@
 .env
 
 # Ignore mock files
+**mocks
+**/*mock.go
 **/mock.go
-**/mock*
+**/mock_*.go
 
 # Ignore build artifacts
 node_modules/

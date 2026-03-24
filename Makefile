@@ -61,12 +61,15 @@ lint.prepare: ## Prepare the environment for linting
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin latest
 .PHONY: lint.prepare
 
-lint: ## Run linters
+lint: generate generate.mock ## Run linters
 	golangci-lint run ./... --fix
 .PHONY: lint
 
 generate: ## Generate code
 	go generate -skip="mockgen" ./...
+	@if [ ! -f permissions/permissions.json ]; then \
+		echo '{"skip": true, "endpoints": []}' > permissions/permissions.json; \
+	fi
 .PHONY: generate
 
 generate.mock: ## Generate mock code

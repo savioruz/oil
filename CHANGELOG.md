@@ -5,7 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-03-23
+## [Unreleased] - 2026-03-24
+
+### Removed
+
+- **Vercel Serverless Support**
+  - Archived: `api/`, `vercel.json`
+  - Tag created: `archive/legacy-vercel` for reference
+  - Now uses trunk-based deployment (main branch only)
+
+### Changed
+
+- **CI/CD**
+  - Removed `next` branch from CI triggers (trunk-based)
+  - Removed auto-generate workflow (generate.yaml)
+  - Developers must run `go generate` locally; generated files are not committed
+
+- **Pre-commit Hook**
+  - Now blocks committing: `*_gen.go`, `wire_gen.go`, `*mock.go`, `docs.go`, `swagger.json`, `swagger.yaml`, `permissions.json`
 
 ### Added
 

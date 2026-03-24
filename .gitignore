@@ -20,11 +20,16 @@ tmp/
 bin/
 .vercel
 
+# Ignore plans
+plans/
+docs/plans/
+
 # Ignore generated files
 **/*gen.go
 **/wire_gen.go
 docs/docs.go
 docs/swagger.json
+docs/openapi.json
 docs/swagger.yaml
 
 # Ignore permission file

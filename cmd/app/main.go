@@ -1,14 +1,16 @@
 package main
 
 import (
-	"github.com/rs/zerolog/log"
 	"oil/config"
 	"oil/di"
 	"oil/shared/logger"
 
+	"github.com/rs/zerolog/log"
+
 	migration "oil/helper"
 )
 
+// @title Oil API
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization

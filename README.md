@@ -24,6 +24,7 @@ A production-grade Go REST API boilerplate with chi router, PostgreSQL, Redis, K
 ## Prerequisites
 
 - Go 1.26+
+- Node 22+ (for upgrading OpenAPI v2 to v3.1)
 - Make
 - Docker & Docker Compose
 
@@ -44,7 +45,14 @@ cp .env.example .env
 
 Edit `.env` with your settings. All variables are documented with defaults in `.env.example`.
 
-### 3. Start infrastructure
+### 3. Setup RBAC
+```bash
+cp permissions/permissions.example.json permissions/permissions.json
+```
+
+Edit `permissions/permissions.json` with your handler spec.
+
+### 4. Start infrastructure
 
 ```bash
 docker-compose up -d
@@ -73,7 +81,7 @@ make dev   # development mode with hot reload
 ```
 
 The API is available at `http://localhost:8080`.  
-Swagger UI is available at `http://localhost:8080/swagger/index.html` (development only).
+Scalar Documentation is available at `http://localhost:8080/docs` (development only).
 
 ## Make Commands
 
@@ -192,6 +200,33 @@ The rate limiter uses Redis as a sliding-window counter keyed by client IP + use
 ## Observability
 
 Every handler, service, and repository creates an OpenTelemetry span via the `otel.Scope` abstraction. Traces are exported to Jaeger over OTLP/gRPC. The Jaeger UI is available at `http://localhost:16686` when running the dev stack.
+
+## API Documentation
+
+The project uses [Scalar](https://scalar.com/) for API documentation, generated from OpenAPI specs.
+
+### Requirements
+
+Install the Scalar CLI for OpenAPI 3.1 generation:
+
+```bash
+npm install -g @scalar/cli
+```
+
+### Generation
+
+```bash
+make generate
+```
+
+This generates:
+- `docs/swagger.json` - Swagger 2.0 (OpenAPI v2)
+- `docs/openapi.json` - OpenAPI 3.1
+- `permissions/permissions.json` - RBAC permissions (initialize if not exists)
+
+### Viewing Docs
+
+In development, visit `http://localhost:8080/docs` to view the interactive API documentation.
 
 ## Deployment
 

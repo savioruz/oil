@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"oil/config"
 	"oil/infras/otel"
+	"oil/infras/unleash"
 	"oil/internal/domains/todo/model"
 	"oil/internal/domains/todo/model/dto"
 	"oil/internal/domains/todo/repository"
@@ -38,14 +39,16 @@ type serviceImpl struct {
 	cfg   *config.Config
 	cache cache.RedisCache
 	otel  otel.Otel
+	ff    unleash.FeatureFlag
 }
 
-func New(repo repository.Todo, cfg *config.Config, cache cache.RedisCache, otel otel.Otel) Todo {
+func New(repo repository.Todo, cfg *config.Config, cache cache.RedisCache, otel otel.Otel, ff unleash.FeatureFlag) Todo {
 	return &serviceImpl{
 		repo:  repo,
 		cfg:   cfg,
 		cache: cache,
 		otel:  otel,
+		ff:    ff,
 	}
 }
 
@@ -56,7 +59,32 @@ func (s *serviceImpl) Create(ctx context.Context, req dto.CreateTodoRequest) (er
 
 	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
 
-	if err = s.repo.Insert(ctx, req.ToModel(user)); err != nil {
+	if s.ff.IsEnabled(ctx, "todo-create-v2") {
+		return s.createV2(ctx, req, user)
+	}
+
+	return s.createV1(ctx, req, user)
+}
+
+func (s *serviceImpl) createV1(ctx context.Context, req dto.CreateTodoRequest, user string) error {
+	if err := s.repo.Insert(ctx, req.ToModel(user)); err != nil {
+		log.Error().Err(err).Msg("failed to create todo")
+
+		return failure.InternalErrorWithKey(errkey.ErrTodoCreateFailed, fmt.Sprintf("failed to create todo: %v", err))
+	}
+
+	go func() {
+		c := context.WithoutCancel(ctx)
+
+		shared.InvalidateCaches(c, s.cache, cacheGetAllTodo)
+		shared.InvalidateCaches(c, s.cache, cacheCountTodo)
+	}()
+
+	return nil
+}
+
+func (s *serviceImpl) createV2(ctx context.Context, req dto.CreateTodoRequest, user string) error {
+	if err := s.repo.Insert(ctx, req.ToModelWithFullFields(user)); err != nil {
 		log.Error().Err(err).Msg("failed to create todo")
 
 		return failure.InternalErrorWithKey(errkey.ErrTodoCreateFailed, fmt.Sprintf("failed to create todo: %v", err))
@@ -159,7 +187,7 @@ func (s *serviceImpl) Get(ctx context.Context, id string) (res dto.TodoResponse,
 		return res, nil
 	}
 
-	todo, err := s.repo.Get(ctx, shared.FilterByID(id, model.FieldID, model.TableName))
+	todo, err := s.repo.Get(ctx, shared.SingleFilter(id, model.FieldID, model.TableName))
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get todo")
 
@@ -193,7 +221,7 @@ func (s *serviceImpl) Update(ctx context.Context, req dto.UpdateTodoRequest, id 
 	}
 
 	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
-	filter := shared.FilterByID(id, model.FieldID, model.TableName)
+	filter := shared.SingleFilter(id, model.FieldID, model.TableName)
 
 	exist, err := s.repo.Exist(ctx, filter)
 	if err != nil {
@@ -234,7 +262,7 @@ func (s *serviceImpl) Delete(ctx context.Context, id string) error {
 	defer scope.End()
 	defer scope.TraceIfError(nil)
 
-	exist, err := s.repo.Exist(ctx, shared.FilterByID(id, model.FieldID, model.TableName))
+	exist, err := s.repo.Exist(ctx, shared.SingleFilter(id, model.FieldID, model.TableName))
 	if err != nil {
 		log.Error().Err(err).Msg("failed to check if todo exists")
 
@@ -247,7 +275,7 @@ func (s *serviceImpl) Delete(ctx context.Context, id string) error {
 		return failure.NotFoundWithKey(errkey.ErrTodoNotFound, "todo not found")
 	}
 
-	if err := s.repo.Delete(ctx, shared.FilterByID(id, model.FieldID, model.TableName)); err != nil {
+	if err := s.repo.Delete(ctx, shared.SingleFilter(id, model.FieldID, model.TableName)); err != nil {
 		log.Error().Err(err).Msg("failed to delete todo")
 
 		return failure.InternalErrorWithKey(errkey.ErrTodoDeleteFailed, fmt.Sprintf("failed to delete todo: %v", err))

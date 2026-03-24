@@ -18,10 +18,7 @@ services:
       - APP_RATE_LIMITER_ENABLE=true
       - APP_RATE_LIMITER_MAX_REQUESTS=100
       - APP_RATE_LIMITER_WINDOW_SECONDS=60
-      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
-      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
-      - JWT_ACCESS_EXPIRE_MIN=15
-      - JWT_REFRESH_EXPIRE_MIN=10080
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
       - DB_POSTGRES_WRITE_HOST=${DB_POSTGRES_WRITE_HOST:-postgres}
       - DB_POSTGRES_WRITE_PORT=${DB_POSTGRES_WRITE_PORT:-5432}
       - DB_POSTGRES_WRITE_USER=${DB_POSTGRES_WRITE_USER:-postgres}
@@ -46,6 +43,11 @@ services:
       - EXTERNAL_S3_SECRET_ACCESS_KEY=${EXTERNAL_S3_SECRET_ACCESS_KEY}
       - EXTERNAL_S3_BUCKET_NAME=${EXTERNAL_S3_BUCKET_NAME}
       - EXTERNAL_S3_PUBLIC_DOMAIN=${EXTERNAL_S3_PUBLIC_DOMAIN}
+      - UNLEASH_URL=${UNLEASH_URL:-http://unleash:4242}
+      - UNLEASH_INSTANCE_ID=${UNLEASH_INSTANCE_ID:-oil-instance-1}
+      - UNLEASH_APP_NAME=${UNLEASH_APP_NAME:-oil}
+      - UNLEASH_SECRET=${UNLEASH_SECRET:-change-me}
+      - UNLEASH_ENVIRONMENT=${UNLEASH_ENVIRONMENT:-development}
     ports:
       - "8080:8080"
 
@@ -140,3 +142,22 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
       KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: PLAINTEXT
       DYNAMIC_CONFIG_ENABLED: true # optional for testing
+
+  unleash:
+    image: unleashorg/unleash-server:latest
+    container_name: oil-unleash
+    ports:
+      - "4242:4242"
+    environment:
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=${DB_POSTGRES_WRITE_NAME:-oil}
+      - DATABASE_USERNAME=${DB_POSTGRES_WRITE_USER:-postgres}
+      - DATABASE_PASSWORD=${DB_POSTGRES_WRITE_PASSWORD:-password}
+      - DATABASE_SSL=false
+      - UNLEASH_URL=http://localhost:4242
+      - UNLEASH_DEFAULT_ADMIN_USERNAME=admin
+      - UNLEASH_DEFAULT_ADMIN_PASSWORD=unleash4all
+    depends_on:
+      postgres:
+        condition: service_healthy

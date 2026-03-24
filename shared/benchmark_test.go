@@ -39,10 +39,10 @@ func BenchmarkCalculateTotalPage(b *testing.B) {
 	}
 }
 
-func BenchmarkFilterByID(b *testing.B) {
+func BenchmarkSingleFilter(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = shared.FilterByID("123", "id", "users")
+		_ = shared.SingleFilter("123", "id", "users")
 	}
 }
 

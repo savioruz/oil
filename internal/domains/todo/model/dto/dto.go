@@ -1,27 +1,52 @@
 package dto
 
 import (
-	"github.com/google/uuid"
 	"oil/internal/domains/todo/model"
 	"oil/shared"
 	gDto "oil/shared/dto"
 	gModel "oil/shared/model"
+	"oil/shared/timezone"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type CreateTodoRequest struct {
 	Title       string `json:"title"       validate:"required,max=255"`
 	Description string `json:"description" validate:"required,max=255"`
+	Completed   *bool  `json:"completed"   swaggerignore:"true"        validate:"omitempty"`
 }
 
 func (c *CreateTodoRequest) ToModel(user string) model.Todo {
-	now := time.Now()
+	now := timezone.NowUTC()
 
 	return model.Todo{
 		ID:          uuid.NewString(),
 		Title:       c.Title,
 		Description: c.Description,
 		Completed:   false,
+		Metadata: gModel.Metadata{
+			CreatedAt:  now,
+			ModifiedAt: now,
+			CreatedBy:  user,
+			ModifiedBy: user,
+		},
+	}
+}
+
+func (c *CreateTodoRequest) ToModelWithFullFields(user string) model.Todo {
+	now := time.Now()
+
+	completed := false
+	if c.Completed != nil {
+		completed = *c.Completed
+	}
+
+	return model.Todo{
+		ID:          uuid.NewString(),
+		Title:       c.Title,
+		Description: c.Description,
+		Completed:   completed,
 		Metadata: gModel.Metadata{
 			CreatedAt:  now,
 			ModifiedAt: now,

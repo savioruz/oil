@@ -15,7 +15,6 @@ type Metadata struct {
 
 // FromModel populates the Metadata DTO from the given model.Metadata.
 func (m *Metadata) FromModel(model model.Metadata) {
-	// Ensure times are converted to UTC before formatting
 	m.CreatedAt = timezone.FormatRFC3339(model.CreatedAt)
 	m.ModifiedAt = timezone.FormatRFC3339(model.ModifiedAt)
 	m.CreatedBy = model.CreatedBy

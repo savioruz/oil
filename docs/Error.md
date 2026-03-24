@@ -204,6 +204,13 @@ These are returned for non-field-specific validation errors:
 | `auth.token_invalid` | 401 | Token signature/format invalid | JWT token tampered or malformed |
 | `auth.resource_restricted` | 403 | Resource access restricted | User not owner of resource |
 | `auth.insufficient_permission` | 403 | User role lacks permission | User is viewer, needs editor role |
+| `auth.jwks_fetch_failed` | 401 | Failed to fetch JWKS | Auth service JWKS endpoint unreachable |
+| `auth.invalid_claim` | 401 | Token claims invalid | Missing required claims in JWT |
+| `auth.header_missing` | 401 | Authorization header missing | No Bearer token in request |
+| `auth.invalid_header` | 401 | Authorization header invalid | Malformed Bearer token |
+| `auth.token_parse_failed` | 401 | Token parse failed | Failed to parse JWT token |
+| `auth.token_missing_kid` | 401 | Token missing key ID | JWT header missing kid |
+| `auth.token_invalid_claims` | 401 | Token invalid claims | JWT claims malformed |
 
 ### Resource Errors (404, 409)
 

@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
+	github.com/Unleash/unleash-go-sdk/v6 v6.4.0
 	github.com/air-verse/air v1.64.5
 	github.com/aws/aws-sdk-go-v2 v1.41.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.9
@@ -40,6 +41,7 @@ require (
 require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
+	github.com/Masterminds/semver/v3 v3.3.1 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.4 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.17 // indirect
@@ -86,7 +88,9 @@ require (
 	github.com/gohugoio/hugo v0.156.0 // indirect
 	github.com/google/subcommands v1.2.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
+	github.com/launchdarkly/eventsource v1.10.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mailru/easyjson v0.9.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
@@ -98,8 +102,10 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/swaggo/files v1.0.1 // indirect
 	github.com/tdewolff/parse/v2 v2.8.6 // indirect
+	github.com/twmb/murmur3 v1.1.8 // indirect
 	github.com/urfave/cli/v2 v2.27.7 // indirect
 	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect

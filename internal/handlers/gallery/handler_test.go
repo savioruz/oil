@@ -46,7 +46,6 @@ func setup(t *testing.T, ctrl *gomock.Controller) (*httptest.Server, sqlmock.Sql
 	handler := gallery.New(svc, mockS3, otel)
 
 	mux.Route("/api", func(r chi.Router) {
-		// Add middleware to set user context
 		r.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				ctx := context.WithValue(r.Context(), constant.ContextKeyUserID, "test-user-id")
@@ -181,8 +180,6 @@ func TestCreateGallery(t *testing.T) {
 	t.Run("Error: failed to insert gallery", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock insert failure (uses NamedExec directly, no Prepare)
-		// The images field is a pq.StringArray type in PostgreSQL
 		sqlMock.ExpectExec(regexp.QuoteMeta("INSERT INTO galleries")).
 			WillReturnError(fmt.Errorf("insert error"))
 
@@ -200,12 +197,9 @@ func TestCreateGallery(t *testing.T) {
 	t.Run("Success: create gallery", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock successful insert (uses NamedExec directly, no Prepare)
-		// The images field is a pq.StringArray type in PostgreSQL
 		sqlMock.ExpectExec(regexp.QuoteMeta("INSERT INTO galleries")).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
-		// Mock cache invalidation (can happen in goroutines)
 		mockCache.EXPECT().Clear(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 		resp, err := getClient().
@@ -248,11 +242,9 @@ func TestGetGalleries(t *testing.T) {
 	t.Run("Error: failed to count galleries", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock cache miss
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		// Mock count query failure (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
 			ExpectQuery().
 			WillReturnError(fmt.Errorf("count error"))
@@ -269,19 +261,15 @@ func TestGetGalleries(t *testing.T) {
 	t.Run("Error: failed to get galleries", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock cache miss
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		// Mock successful count (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
-		// Mock cache save for count
 		mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-		// Mock get all failure (uses PrepareNamed)
 		sqlMock.ExpectPrepare("SELECT .* FROM galleries").
 			ExpectQuery().
 			WillReturnError(fmt.Errorf("query error"))
@@ -298,16 +286,13 @@ func TestGetGalleries(t *testing.T) {
 	t.Run("Success: get all galleries", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock cache miss
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		// Mock successful count (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
-		// Mock successful get all (uses PrepareNamed with LIMIT/OFFSET for pagination)
 		now := time.Now()
 		images1 := pq.StringArray{"https://example.com/image1.jpg", "https://example.com/image2.jpg"}
 		images2 := pq.StringArray{"https://example.com/image3.jpg"}
@@ -317,7 +302,6 @@ func TestGetGalleries(t *testing.T) {
 				AddRow("id1", "Gallery 1", "Description 1", images1, now, now, "user1", "user1").
 				AddRow("id2", "Gallery 2", "Description 2", images2, now, now, "user1", "user1"))
 
-		// Mock cache saves
 		mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 		resp, err := getClient().Get("/galleries")
@@ -336,16 +320,13 @@ func TestGetGalleries(t *testing.T) {
 	t.Run("Success: get galleries with pagination", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock cache miss
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		// Mock successful count (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(25))
 
-		// Mock successful get all with limit (uses PrepareNamed)
 		now := time.Now()
 		images := pq.StringArray{"https://example.com/image1.jpg"}
 		sqlMock.ExpectPrepare("SELECT .* FROM galleries").
@@ -353,7 +334,6 @@ func TestGetGalleries(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow("id1", "Gallery 1", "Description 1", images, now, now, "user1", "user1"))
 
-		// Mock cache saves
 		mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 		resp, err := getClient().
@@ -368,22 +348,19 @@ func TestGetGalleries(t *testing.T) {
 		assert.Empty(t, responseErr.Error)
 		assert.NotNil(t, responseData.Data)
 		assert.Equal(t, 25, responseData.Data.TotalData)
-		assert.Equal(t, 3, responseData.Data.TotalPage) // 25 items / 10 per page = 3 pages
+		assert.Equal(t, 3, responseData.Data.TotalPage)
 	})
 
 	t.Run("Success: filter by title", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock cache miss
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		// Mock successful count with filter (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
-		// Mock successful get all with filter (uses PrepareNamed)
 		now := time.Now()
 		images := pq.StringArray{"https://example.com/vacation.jpg"}
 		sqlMock.ExpectPrepare("SELECT .* FROM galleries").
@@ -391,7 +368,6 @@ func TestGetGalleries(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow("id1", "Vacation Photos", "Summer vacation", images, now, now, "user1", "user1"))
 
-		// Mock cache saves
 		mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 		resp, err := getClient().
@@ -424,7 +400,6 @@ func TestGetGalleries(t *testing.T) {
 			TotalData: 1,
 		}
 
-		// Mock cache hit
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).
 			DoAndReturn(func(ctx context.Context, key string, dest interface{}) error {
 				*dest.(*dto.GetGalleriesResponse) = cachedResponse
@@ -471,10 +446,8 @@ func TestGetGalleryByID(t *testing.T) {
 
 		galleryID := "non-existent-id"
 
-		// Mock cache miss
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		// Mock get query - no rows returned (uses PrepareNamed)
 		sqlMock.ExpectPrepare("SELECT .* FROM galleries WHERE \\(galleries\\.id = \\?\\)").
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}))
@@ -493,10 +466,8 @@ func TestGetGalleryByID(t *testing.T) {
 
 		galleryID := "test-id"
 
-		// Mock cache miss
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		// Mock get query failure (uses PrepareNamed)
 		sqlMock.ExpectPrepare("SELECT .* FROM galleries WHERE \\(galleries\\.id = \\?\\)").
 			ExpectQuery().
 			WillReturnError(fmt.Errorf("database error"))
@@ -515,10 +486,8 @@ func TestGetGalleryByID(t *testing.T) {
 
 		galleryID := "test-gallery-id"
 
-		// Mock cache miss
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		// Mock successful get (uses PrepareNamed)
 		now := time.Now()
 		images := pq.StringArray{"https://example.com/test1.jpg", "https://example.com/test2.jpg"}
 		sqlMock.ExpectPrepare("SELECT .* FROM galleries WHERE \\(galleries\\.id = \\?\\)").
@@ -526,7 +495,6 @@ func TestGetGalleryByID(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow(galleryID, "Test Gallery", "Test Description", images, now, now, "user1", "user1"))
 
-		// Mock cache save
 		mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 		resp, err := getClient().Get("/galleries/" + galleryID)
@@ -557,7 +525,6 @@ func TestGetGalleryByID(t *testing.T) {
 			Images:      []string{"https://example.com/cached.jpg"},
 		}
 
-		// Mock cache hit
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).
 			DoAndReturn(func(ctx context.Context, key string, dest interface{}) error {
 				*dest.(*dto.GalleryResponse) = cachedGallery
@@ -640,7 +607,6 @@ func TestUpdateGallery(t *testing.T) {
 
 		galleryID := "non-existent-id"
 
-		// Mock exists check - doesn't exist (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
@@ -661,7 +627,6 @@ func TestUpdateGallery(t *testing.T) {
 
 		galleryID := "test-id"
 
-		// Mock exists check failure (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
 			ExpectQuery().
 			WillReturnError(fmt.Errorf("db error"))
@@ -682,12 +647,10 @@ func TestUpdateGallery(t *testing.T) {
 
 		galleryID := "test-id"
 
-		// Mock exists check - exists (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
-		// Mock update failure (uses NamedExec directly, no Prepare)
 		sqlMock.ExpectExec(regexp.QuoteMeta("UPDATE galleries SET")).
 			WillReturnError(fmt.Errorf("update error"))
 
@@ -707,16 +670,13 @@ func TestUpdateGallery(t *testing.T) {
 
 		galleryID := "test-id"
 
-		// Mock exists check - exists (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
-		// Mock successful update (uses NamedExec directly, no Prepare)
 		sqlMock.ExpectExec(regexp.QuoteMeta("UPDATE galleries SET")).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
-		// Mock cache invalidation (Delete specific key + Clear patterns)
 		mockCache.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 		mockCache.EXPECT().Clear(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
@@ -742,16 +702,13 @@ func TestUpdateGallery(t *testing.T) {
 			Title: "Only Title Updated",
 		}
 
-		// Mock exists check - exists (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
-		// Mock successful update (uses NamedExec directly, no Prepare)
 		sqlMock.ExpectExec(regexp.QuoteMeta("UPDATE galleries SET")).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
-		// Mock cache invalidation (Delete specific key + Clear patterns)
 		mockCache.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 		mockCache.EXPECT().Clear(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
@@ -795,7 +752,6 @@ func TestDeleteGallery(t *testing.T) {
 
 		galleryID := "non-existent-id"
 
-		// Mock Get query - returns empty gallery (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT ")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}))
@@ -814,7 +770,6 @@ func TestDeleteGallery(t *testing.T) {
 
 		galleryID := "test-id"
 
-		// Mock Get query failure (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT ")).
 			ExpectQuery().
 			WillReturnError(fmt.Errorf("db error"))
@@ -833,13 +788,11 @@ func TestDeleteGallery(t *testing.T) {
 
 		galleryID := "test-id"
 
-		// Mock Get query - returns gallery (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT ")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow(galleryID, "Test Gallery", "Test Description", pq.StringArray{"https://example.com/image1.jpg"}, time.Now(), time.Now(), "user-id", "user-id"))
 
-		// Mock delete failure (uses NamedExec directly, no Prepare)
 		sqlMock.ExpectExec(regexp.QuoteMeta("DELETE FROM galleries WHERE (galleries.id = ?)")).
 			WillReturnError(fmt.Errorf("delete error"))
 
@@ -857,21 +810,17 @@ func TestDeleteGallery(t *testing.T) {
 
 		galleryID := "test-id"
 
-		// Mock Get query - returns gallery (uses PrepareNamed)
 		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT ")).
 			ExpectQuery().
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow(galleryID, "Test Gallery", "Test Description", pq.StringArray{"https://example.com/image1.jpg"}, time.Now(), time.Now(), "user-id", "user-id"))
 
-		// Mock successful delete (uses NamedExec directly, no Prepare)
 		sqlMock.ExpectExec(regexp.QuoteMeta("DELETE FROM galleries WHERE (galleries.id = ?)")).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
-		// Mock cache invalidation (Delete specific key + Clear patterns)
 		mockCache.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 		mockCache.EXPECT().Clear(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-		// Mock S3 deletion for images (runs in goroutine)
 		mockS3.EXPECT().GetObjectNameFromURL(gomock.Any(), gomock.Any()).Return("image1.jpg").AnyTimes()
 		mockS3.EXPECT().DeleteFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
@@ -903,7 +852,6 @@ func TestUploadImage(t *testing.T) {
 		responseErr = response.Error{}
 	}
 
-	// Helper to create multipart form data
 	createMultipartForm := func(filename, content, contentType string) (*bytes.Buffer, string) {
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
@@ -916,7 +864,6 @@ func TestUploadImage(t *testing.T) {
 	t.Run("Error: missing file", func(t *testing.T) {
 		defer resetResponse()
 
-		// Create empty multipart form without file
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
 		writer.Close()
@@ -931,14 +878,12 @@ func TestUploadImage(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
-		// Note: returns 500 because FormFile error is not explicitly handled as BadRequest
 		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 	})
 
 	t.Run("Error: failed to upload to S3", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock S3 upload failure - UploadFile has 6 parameters: ctx, bucketName, directory, file, fileHeader, fileName
 		mockS3.EXPECT().UploadFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Return("", fmt.Errorf("s3 upload error"))
 
@@ -960,7 +905,6 @@ func TestUploadImage(t *testing.T) {
 	t.Run("Success: upload image", func(t *testing.T) {
 		defer resetResponse()
 
-		// Mock successful S3 upload - UploadFile has 6 parameters: ctx, bucketName, directory, file, fileHeader, fileName
 		mockS3.EXPECT().UploadFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Return("https://s3.amazonaws.com/bucket/test-image.jpg", nil)
 
@@ -1080,7 +1024,6 @@ func TestDeleteImages(t *testing.T) {
 			ImageURLs: []string{"https://s3.amazonaws.com/bucket/test1.jpg"},
 		}
 
-		// Mock S3 GetObjectNameFromURL and delete failure
 		mockS3.EXPECT().GetObjectNameFromURL(gomock.Any(), gomock.Any()).
 			Return("test1.jpg")
 		mockS3.EXPECT().DeleteFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
@@ -1107,7 +1050,6 @@ func TestDeleteImages(t *testing.T) {
 			},
 		}
 
-		// Mock successful S3 GetObjectNameFromURL and delete for each image
 		mockS3.EXPECT().GetObjectNameFromURL(gomock.Any(), gomock.Any()).
 			Return("test1.jpg")
 		mockS3.EXPECT().DeleteFile(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).

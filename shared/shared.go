@@ -41,7 +41,7 @@ func ConvertStringToBool(value string) *bool {
 // CalculateTotalPage calculates the total number of pages based on total items and limit per page.
 func CalculateTotalPage(total, limit int) (res int) {
 	if total == 0 || limit <= 0 {
-		res = 1
+		res = 0
 	} else {
 		res = int(math.Ceil(float64(total) / float64(limit)))
 	}

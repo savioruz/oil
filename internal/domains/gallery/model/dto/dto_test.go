@@ -13,118 +13,252 @@ import (
 )
 
 func TestCreateGalleryRequest_ToModel(t *testing.T) {
-	req := dto.CreateGalleryRequest{
-		Title:       "Test Gallery",
-		Description: "Test Description",
-		Images:      []string{"https://example.com/image1.jpg", "https://example.com/image2.jpg"},
+	tests := []struct {
+		name     string
+		req      dto.CreateGalleryRequest
+		userID   string
+		expected model.Gallery
+	}{
+		{
+			name: "with all fields",
+			req: dto.CreateGalleryRequest{
+				Title:       "Test Gallery",
+				Description: "Test Description",
+				Images:      []string{"https://example.com/image1.jpg", "https://example.com/image2.jpg"},
+			},
+			userID: "test-user-id",
+			expected: model.Gallery{
+				Title:       "Test Gallery",
+				Description: "Test Description",
+				Images:      []string{"https://example.com/image1.jpg", "https://example.com/image2.jpg"},
+			},
+		},
+		{
+			name: "with empty description",
+			req: dto.CreateGalleryRequest{
+				Title:  "Test Gallery",
+				Images: []string{"https://example.com/image1.jpg"},
+			},
+			userID: "test-user-id",
+			expected: model.Gallery{
+				Title:  "Test Gallery",
+				Images: []string{"https://example.com/image1.jpg"},
+			},
+		},
+		{
+			name: "with empty title",
+			req: dto.CreateGalleryRequest{
+				Description: "Test Description",
+				Images:      []string{"https://example.com/image1.jpg"},
+			},
+			userID: "test-user-id",
+			expected: model.Gallery{
+				Description: "Test Description",
+				Images:      []string{"https://example.com/image1.jpg"},
+			},
+		},
+		{
+			name: "with multiple images",
+			req: dto.CreateGalleryRequest{
+				Title:       "Photo Gallery",
+				Description: "Vacation photos",
+				Images:      []string{"img1.jpg", "img2.jpg", "img3.jpg", "img4.jpg"},
+			},
+			userID: "user-123",
+			expected: model.Gallery{
+				Title:       "Photo Gallery",
+				Description: "Vacation photos",
+				Images:      []string{"img1.jpg", "img2.jpg", "img3.jpg", "img4.jpg"},
+			},
+		},
 	}
 
-	userID := "test-user-id"
-	model := req.ToModel(userID)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.req.ToModel(tt.userID)
 
-	assert.NotEmpty(t, model.ID, "expected ID to be generated")
-	assert.Equal(t, req.Title, model.Title)
-	assert.Equal(t, req.Description, model.Description)
-	assert.Equal(t, pq.StringArray(req.Images), model.Images) // Compare as pq.StringArray
-	assert.Equal(t, userID, model.CreatedBy)
-	assert.Equal(t, userID, model.ModifiedBy)
-	assert.False(t, model.CreatedAt.IsZero(), "expected CreatedAt to be set")
-	assert.False(t, model.ModifiedAt.IsZero(), "expected ModifiedAt to be set")
+			assert.NotEmpty(t, result.ID)
+			assert.Equal(t, tt.expected.Title, result.Title)
+			assert.Equal(t, tt.expected.Description, result.Description)
+			assert.Equal(t, tt.expected.Images, result.Images)
+			assert.Equal(t, tt.userID, result.Metadata.CreatedBy)
+			assert.Equal(t, tt.userID, result.Metadata.ModifiedBy)
+			assert.False(t, result.Metadata.CreatedAt.IsZero())
+			assert.False(t, result.Metadata.ModifiedAt.IsZero())
+		})
+	}
 }
 
 func TestGalleryResponse_FromModel(t *testing.T) {
-	now := time.Now()
-	galleryModel := model.Gallery{
-		ID:          "test-id",
-		Title:       "Test Gallery",
-		Description: "Test Description",
-		Images:      pq.StringArray{"https://example.com/image1.jpg"}, // Use pq.StringArray
-		Metadata: gModel.Metadata{
-			CreatedAt:  now,
-			ModifiedAt: now,
-			CreatedBy:  "test-user",
-			ModifiedBy: "test-user",
+	tests := []struct {
+		name     string
+		model    model.Gallery
+		expected dto.GalleryResponse
+	}{
+		{
+			name: "with all fields",
+			model: model.Gallery{
+				ID:          "gallery-123",
+				Title:       "Test Gallery",
+				Description: "Test Description",
+				Images:      pq.StringArray{"https://example.com/image1.jpg"},
+				Metadata: gModel.Metadata{
+					CreatedAt:  testTime(2024, 1, 1),
+					ModifiedAt: testTime(2024, 1, 2),
+					CreatedBy:  "user-123",
+					ModifiedBy: "user-123",
+				},
+			},
+			expected: dto.GalleryResponse{
+				ID:          "gallery-123",
+				Title:       "Test Gallery",
+				Description: "Test Description",
+				Images:      []string{"https://example.com/image1.jpg"},
+			},
+		},
+		{
+			name: "with empty optional fields",
+			model: model.Gallery{
+				ID:     "gallery-456",
+				Title:  "Simple Gallery",
+				Images: pq.StringArray{},
+				Metadata: gModel.Metadata{
+					CreatedAt:  testTime(2024, 1, 1),
+					ModifiedAt: testTime(2024, 1, 1),
+					CreatedBy:  "user-123",
+					ModifiedBy: "user-123",
+				},
+			},
+			expected: dto.GalleryResponse{
+				ID:     "gallery-456",
+				Title:  "Simple Gallery",
+				Images: []string{},
+			},
 		},
 	}
 
-	var response dto.GalleryResponse
-	response.FromModel(galleryModel)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var result dto.GalleryResponse
+			result.FromModel(tt.model)
 
-	assert.Equal(t, galleryModel.ID, response.ID)
-	assert.Equal(t, galleryModel.Title, response.Title)
-	assert.Equal(t, galleryModel.Description, response.Description)
-	assert.Equal(t, []string(galleryModel.Images), response.Images) // Compare as []string
-	assert.Equal(t, galleryModel.CreatedBy, response.CreatedBy)
-	assert.Equal(t, galleryModel.ModifiedBy, response.ModifiedBy)
+			assert.Equal(t, tt.expected.ID, result.ID)
+			assert.Equal(t, tt.expected.Title, result.Title)
+			assert.Equal(t, tt.expected.Description, result.Description)
+			assert.Equal(t, tt.expected.Images, result.Images)
+		})
+	}
 }
 
 func TestGetGalleriesResponse_FromModels(t *testing.T) {
-	now := time.Now()
-	galleries := []model.Gallery{
+	tests := []struct {
+		name      string
+		models    []model.Gallery
+		totalData int
+		limit     int
+		expected  dto.GetGalleriesResponse
+	}{
 		{
-			ID:          "test-id-1",
-			Title:       "Test Gallery 1",
-			Description: "Test Description 1",
-			Images:      pq.StringArray{"https://example.com/image1.jpg"}, // Use pq.StringArray
-			Metadata: gModel.Metadata{
-				CreatedAt:  now,
-				ModifiedAt: now,
-				CreatedBy:  "test-user",
-				ModifiedBy: "test-user",
+			name: "with multiple models",
+			models: []model.Gallery{
+				{ID: "1", Title: "Gallery 1", Images: pq.StringArray{"img1.jpg"}},
+				{ID: "2", Title: "Gallery 2", Images: pq.StringArray{"img2.jpg"}},
+			},
+			totalData: 2,
+			limit:     10,
+			expected: dto.GetGalleriesResponse{
+				TotalPage: 1,
+				TotalData: 2,
 			},
 		},
 		{
-			ID:          "test-id-2",
-			Title:       "Test Gallery 2",
-			Description: "Test Description 2",
-			Images:      pq.StringArray{"https://example.com/image2.jpg", "https://example.com/image3.jpg"}, // Use pq.StringArray
-			Metadata: gModel.Metadata{
-				CreatedAt:  now,
-				ModifiedAt: now,
-				CreatedBy:  "test-user",
-				ModifiedBy: "test-user",
+			name:      "with empty models",
+			models:    []model.Gallery{},
+			totalData: 0,
+			limit:     10,
+			expected: dto.GetGalleriesResponse{
+				TotalPage: 0,
+				TotalData: 0,
+				Galleries: []dto.GalleryResponse{},
+			},
+		},
+		{
+			name: "with pagination",
+			models: []model.Gallery{
+				{ID: "1", Title: "Gallery 1", Images: pq.StringArray{"img1.jpg"}},
+			},
+			totalData: 25,
+			limit:     10,
+			expected: dto.GetGalleriesResponse{
+				TotalPage: 3,
+				TotalData: 25,
+			},
+		},
+		{
+			name: "with exact division",
+			models: []model.Gallery{
+				{ID: "1", Title: "Gallery 1"},
+				{ID: "2", Title: "Gallery 2"},
+			},
+			totalData: 20,
+			limit:     10,
+			expected: dto.GetGalleriesResponse{
+				TotalPage: 2,
+				TotalData: 20,
 			},
 		},
 	}
 
-	totalData := 15
-	limit := 10
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var result dto.GetGalleriesResponse
+			result.FromModels(tt.models, tt.totalData, tt.limit)
 
-	var response dto.GetGalleriesResponse
-	response.FromModels(galleries, totalData, limit)
-
-	assert.Equal(t, totalData, response.TotalData)
-	assert.Equal(t, 2, response.TotalPage) // 15 items with limit 10 should give 2 pages
-	assert.Len(t, response.Galleries, len(galleries))
-
-	// Test individual gallery mapping
-	for i, gallery := range response.Galleries {
-		assert.Equal(t, galleries[i].ID, gallery.ID)
-		assert.Equal(t, galleries[i].Title, gallery.Title)
-		assert.Equal(t, []string(galleries[i].Images), gallery.Images) // Compare as []string
+			assert.Equal(t, tt.expected.TotalData, result.TotalData)
+			assert.Equal(t, tt.expected.TotalPage, result.TotalPage)
+			assert.Len(t, result.Galleries, len(tt.models))
+		})
 	}
-}
-
-func TestGetGalleriesResponse_FromModels_EmptyList(t *testing.T) {
-	var galleries []model.Gallery
-	totalData := 0
-	limit := 10
-
-	var response dto.GetGalleriesResponse
-	response.FromModels(galleries, totalData, limit)
-
-	assert.Equal(t, totalData, response.TotalData)
-	assert.Equal(t, 1, response.TotalPage)
-	assert.Len(t, response.Galleries, 0)
 }
 
 func TestUploadImageResponse_FromModel(t *testing.T) {
-	url := "https://example.com/bucket/test-image.jpg"
-	fileName := "test-image.jpg"
+	tests := []struct {
+		name     string
+		url      string
+		fileName string
+		expected dto.UploadImageResponse
+	}{
+		{
+			name:     "with valid URL",
+			url:      "https://example.com/bucket/test-image.jpg",
+			fileName: "test-image.jpg",
+			expected: dto.UploadImageResponse{
+				URL:      "https://example.com/bucket/test-image.jpg",
+				FileName: "test-image.jpg",
+			},
+		},
+		{
+			name:     "with different file extension",
+			url:      "https://example.com/bucket/photo.png",
+			fileName: "photo.png",
+			expected: dto.UploadImageResponse{
+				URL:      "https://example.com/bucket/photo.png",
+				FileName: "photo.png",
+			},
+		},
+	}
 
-	var response dto.UploadImageResponse
-	response.FromModel(url, fileName)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var result dto.UploadImageResponse
+			result.FromModel(tt.url, tt.fileName)
 
-	assert.Equal(t, url, response.URL)
-	assert.Equal(t, fileName, response.FileName)
+			assert.Equal(t, tt.expected.URL, result.URL)
+			assert.Equal(t, tt.expected.FileName, result.FileName)
+		})
+	}
+}
+
+func testTime(year, month, day int) time.Time {
+	return time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
 }

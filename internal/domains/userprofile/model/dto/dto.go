@@ -2,6 +2,7 @@ package dto
 
 import (
 	"oil/internal/domains/userprofile/model"
+	"oil/shared"
 	"oil/shared/constant"
 	gDto "oil/shared/dto"
 	gModel "oil/shared/model"
@@ -73,6 +74,7 @@ type GetUserprofilesResponse struct {
 
 func (r *GetUserprofilesResponse) FromModels(models []model.Userprofile, totalData, limit int) {
 	r.TotalData = totalData
+	r.TotalPage = shared.CalculateTotalPage(totalData, limit)
 
 	r.Userprofiles = make([]UserprofileResponse, len(models))
 	for i, mod := range models {

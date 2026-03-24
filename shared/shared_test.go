@@ -114,22 +114,22 @@ func TestCalculateTotalPage(t *testing.T) {
 		expected int
 	}{
 		{
-			name:     "zero total returns 1",
+			name:     "zero total returns 0",
 			total:    0,
 			limit:    10,
-			expected: 1,
+			expected: 0,
 		},
 		{
-			name:     "zero limit returns 1",
+			name:     "zero limit returns 0",
 			total:    100,
 			limit:    0,
-			expected: 1,
+			expected: 0,
 		},
 		{
-			name:     "negative limit returns 1",
+			name:     "negative limit returns 0",
 			total:    100,
 			limit:    -5,
-			expected: 1,
+			expected: 0,
 		},
 		{
 			name:     "exact division",

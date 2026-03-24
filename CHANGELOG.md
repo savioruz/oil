@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **API Documentation**
+  - Replaced swagger-ui with [Scalar](https://scalar.com/) for API docs
+  - Generate OpenAPI 3.1 via `npx @scalar/cli document upgrade`
+  - Added `@scalar/cli` requirement (install via `npm install -g @scalar/cli`)
+  - Added `github.com/bdpiprava/scalar-go` for server-side Scalar rendering
+
 - **External Auth Service Integration**
   - JWT validation via JWKS from external auth service (`AUTH_SERVICE_URL`)
   - JWT signing: EdDSA/Ed25519 with OKP key type

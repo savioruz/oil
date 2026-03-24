@@ -70,6 +70,8 @@ generate: ## Generate code
 	@if [ ! -f permissions/permissions.json ]; then \
 		echo '{"skip": true, "endpoints": []}' > permissions/permissions.json; \
 	fi
+	@echo "Upgrading to OpenAPI 3.1..."
+	@npx @scalar/cli document upgrade docs/swagger.json --output docs/openapi.json
 .PHONY: generate
 
 generate.mock: ## Generate mock code

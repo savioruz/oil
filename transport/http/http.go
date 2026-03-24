@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"oil/config"
-	"oil/docs"
 	"oil/infras/postgres"
 	"oil/shared/constant"
 	"oil/shared/errkey"
@@ -28,7 +27,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	httpSwagger "github.com/swaggo/http-swagger"
+	scalargo "github.com/bdpiprava/scalar-go"
+	"github.com/bdpiprava/scalar-go/model"
 )
 
 // ServerState represents the state of the HTTP server.
@@ -41,13 +41,11 @@ const (
 	ServerStateInGracePeriod
 	// ServerStateInCleanupPeriod indicates the server is in cleanup period.
 	ServerStateInCleanupPeriod
-)
 
-const (
 	// RouteHealthCheck is the health check endpoint.
 	RouteHealthCheck = "/health"
-	// RouteSwaggerDocs is the swagger documentation endpoint.
-	RouteSwaggerDocs = "/docs/*"
+	// RouteOpenAPIDocs is the OpenAPI documentation endpoint.
+	RouteOpenAPIDocs = "/docs"
 )
 
 // HTTP represents the HTTP server configuration and routing.
@@ -93,7 +91,7 @@ func (h *HTTP) setup() {
 	h.setupMiddlewares()
 	h.setupNotFoundHandler()
 	h.setupRoutes()
-	h.setupSwaggerDocs()
+	h.setupOpenAPIDocs()
 	h.setupGracefulShutdown()
 	h.State = ServerStateReady
 }
@@ -221,12 +219,43 @@ func (h *HTTP) setupRateLimit() {
 	}
 }
 
-func (h *HTTP) setupSwaggerDocs() {
+func (h *HTTP) setupOpenAPIDocs() {
 	if h.Config.Server.Env == constant.ServerEnvDevelopment {
-		docs.SwaggerInfo.Title = h.Config.App.Name
-		h.mux.Get(RouteSwaggerDocs, httpSwagger.Handler())
+		h.mux.Get("/docs", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			html, err := scalargo.NewV2(
+				scalargo.WithSpecDir("docs"),
+				scalargo.WithBaseFileName("openapi.json"),
+				scalargo.WithMetaDataOpts(
+					scalargo.WithTitle(h.Config.App.Name+" API"),
+				),
+				scalargo.WithSpecModifier(func(spec *model.Spec) *model.Spec {
+					buildTime := time.Now().Format("2006-01-02 15:04:05")
+					specBuildInfo := fmt.Sprintf("%s\n\n**Last Updated:** %s", *spec.Info.Description, buildTime)
+					spec.Info.Description = &specBuildInfo
 
-		log.Info().Str("url", fmt.Sprintf("http://localhost:%s/docs/index.html", h.Config.Server.Port)).Msg("Swagger docs available at")
+					return spec
+				}),
+				scalargo.WithAuthenticationOpts(
+					scalargo.WithSecurityScheme("api_key",
+						scalargo.APIKeyScheme("X-API-Key", scalargo.APIKeyLocationHeader, "default-key"),
+					),
+					scalargo.WithSecurityScheme("bearer_auth",
+						scalargo.BearerScheme("default-token"),
+					),
+					scalargo.WithPreferredSecurityScheme("bearer_auth"),
+				),
+			)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+
+				return
+			}
+
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = fmt.Fprint(w, html)
+		}))
+
+		log.Info().Str("url", fmt.Sprintf("http://localhost:%s%s", h.Config.Server.Port, RouteOpenAPIDocs)).Msg("OpenAPI docs available at")
 
 		return
 	}

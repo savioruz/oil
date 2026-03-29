@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-03-29
+
+- **Kafka Configuration**
+  - SASL/SCRAM authentication enabled by default
+  - Requires `kafka_jaas.conf` file (mounted to `/etc/kafka/kafka_jaas.conf`)
+  - **Important**: Never commit `kafka_jaas.conf` with credentials to version control
+
+- **Observability Infrastructure**
+  - Added Elasticsearch and Kibana to `deployments/services.yml` and `docker-compose.yml`
+  - Jaeger now stores spans in Elasticsearch (instead of in-memory)
+
+- **Docker Compose Fixes**
+  - Added missing volume definitions (`postgres_data`, `redis_data`, `es_data`) to `deployments/services.yml`
+  - Removed obsolete `version` attribute from compose files
+
 ## [Unreleased] - 2026-03-24
 
 ### Removed

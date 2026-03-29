@@ -6,6 +6,7 @@
 .build/
 .builder/
 .env
+kafka_jaas.conf
 
 # Ignore mock files
 **mocks

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-BLOCKED_PATTERNS="*_gen.go *_wire_gen.go *mock.go mock_*.go docs.go swagger.json swagger.yaml permissions.json"
+BLOCKED_PATTERNS="*_gen.go *_wire_gen.go *mock.go mock_*.go docs.go swagger.json swagger.yaml permissions.json kafka_jaas.conf"
 
 for pattern in $BLOCKED_PATTERNS; do
   if git diff --cached --name-only | grep -q "$pattern"; then

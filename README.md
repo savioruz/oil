@@ -52,23 +52,35 @@ cp permissions/permissions.example.json permissions/permissions.json
 
 Edit `permissions/permissions.json` with your handler spec.
 
-### 4. Start infrastructure
+### 4. Configure Kafka (if needed)
+
+Kafka is optional. To enable it, configure SASL authentication:
+
+```bash
+cp kafka_jaas.conf.example kafka_jaas.conf
+```
+
+Edit `kafka_jaas.conf` with your credentials. **This file is in `.gitignore` — never commit it.**
+
+### 5. Start infrastructure
 
 ```bash
 docker-compose up -d
 ```
 
-This starts PostgreSQL, Redis, Jaeger, Kafka, and Kafka UI locally.
+This starts PostgreSQL, Redis, Elasticsearch, Kibana, Jaeger, Kafka, and Kafka UI locally.
 
 | Service | Port |
 |---|---|
 | PostgreSQL | 5432 |
 | Redis | 6379 |
+| Elasticsearch | 9200 |
+| Kibana | 5601 |
 | Jaeger UI | 16686 |
 | Kafka | 9092 |
 | Kafka UI | 9080 |
 
-### 4. Run migrations
+### 6. Run migrations
 
 ```bash
 make migrate.up

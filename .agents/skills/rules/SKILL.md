@@ -80,6 +80,33 @@ type MyEntity struct {
 - Declare a `const` for every field that will be used in filters, sorting, or query building.
 - Do **not** put JSON tags on DB models — those belong on DTOs.
 
+### Join Field Tag Rules (`column`, `db`, `table`)
+
+When a field comes from a JOINed table, you must use all three tags:
+
+```go
+FieldName string `column:"original_column" db:"alias_name" table:"source_table"`
+```
+
+- `column:` is actual column name in the joined table  
+- `table:` is source table name  
+- `db:` is alias used in SQL query (MUST match SELECT alias)
+
+### Join Queries
+
+When a model needs to join with other tables, implement a `GetJoinQuery()` method that returns the JOIN clause:
+
+```go
+func (a AIChatContent) GetJoinQuery() string {
+	return `
+		INNER JOIN ai_chats ON ai_chat_contents.chat_id = ai_chats.id
+	`
+}
+```
+
+- Use this pattern for any model that requires table joins in queries.
+- AIChatContent is only an example. Replace it with your actual model struct name when implementing.
+
 ---
 
 ## 3. DTO Conventions
@@ -307,6 +334,7 @@ func (h *Handler) Router(r chi.Router) {
 4. Use `chi.URLParam(r, constant.RequestParamID)` for path parameters.
 5. Have complete Swagger annotations (`@Summary`, `@Description`, `@Tags`, `@Accept`, `@Produce`, `@Param`, `@Success`, `@Failure`, `@Router`, and `@Security BearerAuth` where applicable).
 6. Use `response.WithJSON`, `response.WithMessage`, or `response.WithError` exclusively — never write directly to `http.ResponseWriter`.
+7. If `response.WithMessage` is used, then must use the key. This allows clients to internationalize messages based on the key instead of hardcoded English strings.
 
 ---
 
@@ -364,8 +392,8 @@ Permission rules:
 - `"skip": true` = no authentication required (public endpoint).
 - `"skip": false` + empty `permissions` = authenticated but any role allowed.
 - `"skip": false` + non-empty `permissions` = authenticated + role must be in the list.
-- Valid role values: `"user"`, `"admin"`, `"superadmin"`.
-- Auth/register and auth/login are always `skip: true`.
+- Valid role values: `"user"`, `"admin"`.
+- If an endpoint is private, no need to specify it in `permissions.json` — only public endpoints must be listed with `"skip": true`.
 
 ---
 
@@ -515,10 +543,3 @@ All Kafka operations use the `kafka.Client` interface — never import `kafkaGo`
 The HTTP server handles `SIGTERM` with a two-phase shutdown (grace period → cleanup period). During cleanup, new requests receive a `503 Service Unavailable`. These periods are configurable via `SERVER_SHUTDOWN_GRACE_PERIOD_SECONDS` and `SERVER_SHUTDOWN_CLEANUP_PERIOD_SECONDS`. In development mode (`SERVER_ENV=development`) shutdown is immediate.
 
 ---
-
-## 20. Vercel Serverless Compatibility
-
-The codebase must remain compatible with Vercel's Go runtime. This means:
-- Do not add any global state that requires initialization side-effects outside of `config.Get()` and `logger.InitLogger()`.
-- `api/index.go` is the serverless entry point — it must always call `di.InitializeService()` and `ServeHTTP`.
-- Long-running goroutines (e.g., Kafka consumers) must not be started from `di.InitializeService()` unconditionally — gate them behind config flags so they are skipped in serverless environments.

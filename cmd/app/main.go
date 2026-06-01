@@ -10,10 +10,15 @@ import (
 	migration "oil/helper"
 )
 
-// @title Oil API
+// @title API Reference
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
+// @description e.g. "Bearer {token}"
+// @securityDefinitions.apikey X-API-Key
+// @in header
+// @name X-API-Key
+// @description e.g. "{api_key}"
 func main() {
 	cfg := config.Get()
 

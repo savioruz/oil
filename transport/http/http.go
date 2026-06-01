@@ -133,7 +133,7 @@ func (h *HTTP) setupCleanPaths() {
 
 func (h *HTTP) setupIdentity() {
 	h.mux.Use(middleware.RequestID)
-	h.mux.Use(middleware.RealIP)
+	h.mux.Use(middleware.ClientIPFromRemoteAddr)
 }
 
 func (h *HTTP) setupRecover() {
@@ -226,15 +226,31 @@ func (h *HTTP) setupOpenAPIDocs() {
 				scalargo.WithSpecDir("docs"),
 				scalargo.WithBaseFileName("openapi.json"),
 				scalargo.WithMetaDataOpts(
-					scalargo.WithTitle(h.Config.App.Name+" API"),
+					scalargo.WithTitle(h.Config.App.Name+" API Reference"),
 				),
 				scalargo.WithSpecModifier(func(spec *model.Spec) *model.Spec {
-					buildTime := time.Now().Format("2006-01-02 15:04:05")
-					specBuildInfo := fmt.Sprintf("%s\n\n**Last Updated:** %s", *spec.Info.Description, buildTime)
+					spec.Info.Version = h.Config.Server.Env
+					buildTime := time.Now().Format(constant.DateFormat)
+					specBuildInfo := "**Last Updated:** " + buildTime
 					spec.Info.Description = &specBuildInfo
 
 					return spec
 				}),
+				scalargo.WithCustomHeadJS(`
+					(
+					function() {
+						var link1 = document.createElement('link');
+						link1.rel = 'icon';
+						link1.href = 'https://scalar.com/favicon.svg';
+						document.head.appendChild(link1);
+
+						var link2 = document.createElement('link');
+						link2.rel = 'icon alternate';
+						link2.href = 'https://scalar.com/favicon.png';
+						document.head.appendChild(link2);
+					}
+					)();
+				`),
 				scalargo.WithAuthenticationOpts(
 					scalargo.WithSecurityScheme("api_key",
 						scalargo.APIKeyScheme("X-API-Key", scalargo.APIKeyLocationHeader, "default-key"),

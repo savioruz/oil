@@ -3,12 +3,13 @@ package middleware
 
 import (
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"net/http"
 	"oil/config"
 	"oil/infras/otel"
 	"oil/shared/cache"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 const (
@@ -60,12 +61,15 @@ func (a *appMiddleware) Tracing(next http.Handler) http.Handler {
 			"http.source":         request.RemoteAddr,
 			"http.request_id":     middleware.GetReqID(ctx),
 			"http.client_ip":      a.getClientIP(request),
-			"http.scheme":         request.URL.Scheme,
 			"http.proto":          request.Proto,
 			"http.content_length": request.ContentLength,
 		}
 
 		// Add optional headers if present
+		if scheme := request.URL.Scheme; scheme != "" {
+			attrs["http.scheme"] = scheme
+		}
+
 		if referer := request.Referer(); referer != "" {
 			attrs["http.referer"] = referer
 		}

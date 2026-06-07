@@ -68,15 +68,13 @@ Edit `kafka_jaas.conf` with your credentials. **This file is in `.gitignore` —
 docker-compose up -d
 ```
 
-This starts PostgreSQL, Redis, Elasticsearch, Kibana, Jaeger, Kafka, and Kafka UI locally.
+This starts PostgreSQL, Redis, Jaeger, Kafka, and Kafka UI locally.
 
 | Service | Port |
 |---|---|
 | PostgreSQL | 5432 |
 | Redis | 6379 |
-| Elasticsearch | 9200 |
-| Kibana | 5601 |
-| Jaeger UI | 16686 |
+| Jaeger (Badger) | 16686 |
 | Kafka | 9092 |
 | Kafka UI | 9080 |
 

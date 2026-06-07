@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-06-08
+
+- **Observability Infrastructure**
+  - Replaced Elasticsearch and Kibana with Badger as the Jaeger storage backend
+  - Jaeger now uses embedded Badger storage (self-contained, no external service needed)
+
+- **Docker Compose Fixes**
+  - Replaced `es_data` volume with `badger_data`
+  - Added `prepare-badger-dir` init container to set Badger directory permissions for non-root Jaeger
+
+- **Environment Configuration**
+  - Parametrized all compose files (`docker-compose.yml`, `deployments/app.yml`, `deployments/services.yml`) with `${VAR:-DEFAULT}` env var interpolation
+  - Added compose-level overrides to `.env.example` (Jaeger ports, Kafka cluster ID, Kafka UI auth, Unleash admin credentials)
+  - Cleaned up duplicate env vars in `.env.example`
+
+- **Kafka UI**
+  - Fixed advertised listeners to use internal Docker hostname (`kafka:9092`) instead of `localhost`
+  - Added form-based authentication with configurable admin credentials
+
 ## [Unreleased] - 2026-03-29
 
 - **Kafka Configuration**

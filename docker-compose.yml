@@ -11,28 +11,28 @@ services:
       - SERVER_HOST=${SERVER_HOST:-0.0.0.0}
       - APP_NAME=${APP_NAME:-oil}
       - APP_API_KEY=${APP_API_KEY}
-      - APP_CORS_ENABLE=true
+      - APP_CORS_ENABLE=${APP_CORS_ENABLE:-true}
       - APP_CORS_ALLOWED_ORIGINS=${APP_CORS_ALLOWED_ORIGINS}
-      - APP_RATE_LIMITER_ENABLE=true
-      - APP_RATE_LIMITER_MAX_REQUESTS=100
-      - APP_RATE_LIMITER_WINDOW_SECONDS=60
+      - APP_RATE_LIMITER_ENABLE=${APP_RATE_LIMITER_ENABLE:-true}
+      - APP_RATE_LIMITER_MAX_REQUESTS=${APP_RATE_LIMITER_MAX_REQUESTS:-100}
+      - APP_RATE_LIMITER_WINDOW_SECONDS=${APP_RATE_LIMITER_WINDOW_SECONDS:-60}
       - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
       - DB_POSTGRES_WRITE_HOST=${DB_POSTGRES_WRITE_HOST:-postgres}
       - DB_POSTGRES_WRITE_PORT=${DB_POSTGRES_WRITE_PORT:-5432}
       - DB_POSTGRES_WRITE_USER=${DB_POSTGRES_WRITE_USER:-postgres}
       - DB_POSTGRES_WRITE_PASSWORD=${DB_POSTGRES_WRITE_PASSWORD}
       - DB_POSTGRES_WRITE_NAME=${DB_POSTGRES_WRITE_NAME:-oil}
-      - DB_POSTGRES_WRITE_TIMEZONE=UTC
+      - DB_POSTGRES_WRITE_TIMEZONE=${DB_POSTGRES_WRITE_TIMEZONE:-UTC}
       - DB_POSTGRES_READ_HOST=${DB_POSTGRES_READ_HOST:-postgres}
       - DB_POSTGRES_READ_PORT=${DB_POSTGRES_READ_PORT:-5432}
       - DB_POSTGRES_READ_USER=${DB_POSTGRES_READ_USER:-postgres}
       - DB_POSTGRES_READ_PASSWORD=${DB_POSTGRES_READ_PASSWORD}
       - DB_POSTGRES_READ_NAME=${DB_POSTGRES_READ_NAME:-oil}
-      - DB_POSTGRES_READ_TIMEZONE=UTC
+      - DB_POSTGRES_READ_TIMEZONE=${DB_POSTGRES_READ_TIMEZONE:-UTC}
       - CACHE_REDIS_PRIMARY_HOST=${CACHE_REDIS_PRIMARY_HOST:-redis}
       - CACHE_REDIS_PRIMARY_PORT=${CACHE_REDIS_PRIMARY_PORT:-6379}
       - CACHE_REDIS_PRIMARY_PASSWORD=${CACHE_REDIS_PRIMARY_PASSWORD}
-      - CACHE_TTL=120
+      - CACHE_TTL=${CACHE_TTL:-120}
       - KAFKA_BROKERS=${KAFKA_BROKERS:-kafka:9093}
       - KAFKA_CONSUMER_GROUP=${KAFKA_CONSUMER_GROUP:-oil-consumer}
       - EXTERNAL_OTEL_ENDPOINT=${EXTERNAL_OTEL_ENDPOINT:-jaeger:4317}
@@ -47,7 +47,7 @@ services:
       - UNLEASH_SECRET=${UNLEASH_SECRET:-change-me}
       - UNLEASH_ENVIRONMENT=${UNLEASH_ENVIRONMENT:-development}
     ports:
-      - "8080:8080"
+      - "${APP_PORT:-8080}:8080"
 
   postgres:
     image: postgres:16-alpine
@@ -80,43 +80,36 @@ services:
       timeout: 5s
       retries: 5
 
-  elasticsearch:
-    image: docker.io/elasticsearch:8.19.0
-    container_name: elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms256m -Xmx256m
-    ports:
-      - "9200:9200"
+  prepare-badger-dir:
+    image: docker.io/jaegertracing/all-in-one:latest
+    container_name: prepare-badger-dir
+    user: root
+    command: >
+      /bin/sh -c 'mkdir -p /badger/data && touch /badger/data/.initialized && chown -R 10001:10001 /badger/data'
     volumes:
-      - es_data:/usr/share/elasticsearch/data
-
-  kibana:
-    image: docker.io/kibana:8.19.0
-    container_name: kibana
-    ports:
-      - "5601:5601"
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    depends_on:
-      - elasticsearch
-    restart: always
+      - badger_data:/badger
 
   jaeger:
     image: docker.io/jaegertracing/all-in-one:latest
     container_name: jaeger
+    command:
+      - "--badger.ephemeral=false"
+      - "--badger.directory-key=/badger/data/keys"
+      - "--badger.directory-value=/badger/data/values"
+      - "--badger.span-store-ttl=${JAEGER_BADGER_TTL:-72h0m0s}"
     environment:
-      - SPAN_STORAGE_TYPE=elasticsearch
-      - ES_SERVER_URLS=http://elasticsearch:9200
-      - COLLECTOR_OTLP_ENABLED=true
-    depends_on:
-      - elasticsearch
+      - SPAN_STORAGE_TYPE=${JAEGER_SPAN_STORAGE_TYPE:-badger}
+      - COLLECTOR_OTLP_ENABLED=${JAEGER_COLLECTOR_OTLP_ENABLED:-true}
+    volumes:
+      - badger_data:/badger
     ports:
-      - "16686:16686"   # UI
-      - "14268:14268"   # HTTP collector
-      - "4317:4317"     # OTLP gRPC
-      - "6831:6831/udp" # agent
+      - "${JAEGER_UI_PORT:-16686}:16686"   # UI
+      - "${JAEGER_HTTP_PORT:-14268}:14268"   # HTTP collector
+      - "${JAEGER_OTLP_PORT:-4317}:4317"     # OTLP gRPC
+      - "${JAEGER_AGENT_PORT:-6831}:6831/udp" # agent
+    depends_on:
+      prepare-badger-dir:
+        condition: service_completed_successfully
     restart: always
 
   kafka:
@@ -124,19 +117,20 @@ services:
     container_name: kafka
     hostname: kafka
     ports:
-      - "9092:9092"
+      - "${KAFKA_PORT:-9092}:9092"
     environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_LISTENERS: SASL_PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: SASL_PLAINTEXT://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,SASL_PLAINTEXT:SASL_PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: SASL_PLAINTEXT
-      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
-      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
-      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_CLUSTER_ID: ${KAFKA_CLUSTER_ID:-MkU3OEVBNTcwNTJENDM2QkZkRjQyMkY2ODQ4NkE3NzQ=}
+      KAFKA_NODE_ID: ${KAFKA_NODE_ID:-1}
+      KAFKA_PROCESS_ROLES: ${KAFKA_PROCESS_ROLES:-broker,controller}
+      KAFKA_CONTROLLER_QUORUM_VOTERS: ${KAFKA_CONTROLLER_QUORUM_VOTERS:-1@kafka:9093}
+      KAFKA_LISTENERS: ${KAFKA_LISTENERS:-SASL_PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093}
+      KAFKA_ADVERTISED_LISTENERS: ${KAFKA_ADVERTISED_LISTENERS:-SASL_PLAINTEXT://kafka:9092}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: ${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP:-CONTROLLER:PLAINTEXT,SASL_PLAINTEXT:SASL_PLAINTEXT}
+      KAFKA_CONTROLLER_LISTENER_NAMES: ${KAFKA_CONTROLLER_LISTENER_NAMES:-CONTROLLER}
+      KAFKA_INTER_BROKER_LISTENER_NAME: ${KAFKA_INTER_BROKER_LISTENER_NAME:-SASL_PLAINTEXT}
+      KAFKA_SASL_ENABLED_MECHANISMS: ${KAFKA_SASL_ENABLED_MECHANISMS:-PLAIN}
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: ${KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL:-PLAIN}
+      KAFKA_LOG_DIRS: ${KAFKA_LOG_DIRS:-/tmp/kraft-combined-logs}
       KAFKA_OPTS: -Djava.security.auth.login.config=/etc/kafka/kafka_jaas.conf
     volumes:
       - ../kafka_jaas.conf:/etc/kafka/kafka_jaas.conf
@@ -146,35 +140,38 @@ services:
     image: docker.io/provectuslabs/kafka-ui:latest
     container_name: kafka-ui
     ports:
-      - "9080:8080"
+      - "${KAFKA_UI_PORT:-9080}:8080"
     depends_on:
       - kafka
     environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: SASL_PLAINTEXT
-      KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: PLAIN
+      KAFKA_CLUSTERS_0_NAME: ${KAFKA_UI_CLUSTER_NAME:-local}
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: ${KAFKA_BROKERS_INTERNAL:-kafka:9092}
+      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_PLAINTEXT}
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-PLAIN}
       KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: >
         org.apache.kafka.common.security.plain.PlainLoginModule required
         username="${KAFKA_USER:-kafkauser}"
         password="${KAFKA_PASSWORD:-kafkapassword}";
-      DYNAMIC_CONFIG_ENABLED: true
+      AUTH_TYPE: ${KAFKA_UI_AUTH_TYPE:-LOGIN_FORM}
+      AUTH_USERNAME: ${KAFKA_UI_USERNAME:-admin}
+      AUTH_PASSWORD: ${KAFKA_UI_PASSWORD:-kafka-ui-password}
+      DYNAMIC_CONFIG_ENABLED: ${KAFKA_UI_DYNAMIC_CONFIG:-true}
 
   unleash:
     image: unleashorg/unleash-server:latest
     container_name: oil-unleash
     ports:
-      - "4242:4242"
+      - "${UNLEASH_PORT:-4242}:4242"
     environment:
-      - DATABASE_HOST=postgres
-      - DATABASE_PORT=5432
+      - DATABASE_HOST=${DB_POSTGRES_WRITE_HOST:-postgres}
+      - DATABASE_PORT=${DB_POSTGRES_WRITE_PORT:-5432}
       - DATABASE_NAME=${DB_POSTGRES_WRITE_NAME:-oil}
       - DATABASE_USERNAME=${DB_POSTGRES_WRITE_USER:-postgres}
       - DATABASE_PASSWORD=${DB_POSTGRES_WRITE_PASSWORD:-password}
-      - DATABASE_SSL=false
-      - UNLEASH_URL=http://localhost:4242
-      - UNLEASH_DEFAULT_ADMIN_USERNAME=admin
-      - UNLEASH_DEFAULT_ADMIN_PASSWORD=unleash4all
+      - DATABASE_SSL=${DB_POSTGRES_SSL:-false}
+      - UNLEASH_URL=${UNLEASH_URL:-http://localhost:4242}
+      - UNLEASH_DEFAULT_ADMIN_USERNAME=${UNLEASH_ADMIN_USER:-admin}
+      - UNLEASH_DEFAULT_ADMIN_PASSWORD=${UNLEASH_ADMIN_PASSWORD:-unleash4all}
     depends_on:
       postgres:
         condition: service_healthy
@@ -182,4 +179,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  es_data:
+  badger_data:

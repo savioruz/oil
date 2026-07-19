@@ -81,8 +81,7 @@ func TestGetMe(t *testing.T) {
 	t.Run("Error: userprofile not found", func(t *testing.T) {
 		defer resetResponse()
 
-		sqlMock.ExpectPrepare("SELECT .* FROM user_profiles").
-			ExpectQuery().
+		sqlMock.ExpectQuery("SELECT .* FROM user_profiles").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "auth_user_id", "email", "role", "name", "image", "active", "created_at", "modified_at", "created_by", "modified_by"}))
 
 		resp, err := getClient().Get("/users")
@@ -97,8 +96,7 @@ func TestGetMe(t *testing.T) {
 	t.Run("Error: database query error", func(t *testing.T) {
 		defer resetResponse()
 
-		sqlMock.ExpectPrepare("SELECT .* FROM user_profiles").
-			ExpectQuery().
+		sqlMock.ExpectQuery("SELECT .* FROM user_profiles").
 			WillReturnError(fmt.Errorf("database error"))
 
 		resp, err := getClient().Get("/users")
@@ -114,8 +112,7 @@ func TestGetMe(t *testing.T) {
 		defer resetResponse()
 
 		now := time.Now()
-		sqlMock.ExpectPrepare("SELECT .* FROM user_profiles").
-			ExpectQuery().
+		sqlMock.ExpectQuery("SELECT .* FROM user_profiles").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "auth_user_id", "email", "role", "name", "image", "active", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow("user-id-1", "auth-123", "test@example.com", "user", "Test User", "https://example.com/image.jpg", true, now, now, "auth-123", "auth-123"))
 
@@ -197,8 +194,7 @@ func TestUpdateMe(t *testing.T) {
 	t.Run("Error: userprofile not found", func(t *testing.T) {
 		defer resetResponse()
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE (user_profiles.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE (user_profiles.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
 		resp, err := getClient().
@@ -215,8 +211,7 @@ func TestUpdateMe(t *testing.T) {
 	t.Run("Error: failed to check existence", func(t *testing.T) {
 		defer resetResponse()
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE (user_profiles.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE (user_profiles.id = ?) )")).
 			WillReturnError(fmt.Errorf("db error"))
 
 		resp, err := getClient().
@@ -233,8 +228,7 @@ func TestUpdateMe(t *testing.T) {
 	t.Run("Error: failed to update userprofile", func(t *testing.T) {
 		defer resetResponse()
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE (user_profiles.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE (user_profiles.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		sqlMock.ExpectExec(regexp.QuoteMeta("UPDATE user_profiles SET")).
@@ -254,8 +248,7 @@ func TestUpdateMe(t *testing.T) {
 	t.Run("Success: update userprofile", func(t *testing.T) {
 		defer resetResponse()
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE (user_profiles.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE (user_profiles.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		sqlMock.ExpectExec(regexp.QuoteMeta("UPDATE user_profiles SET")).
@@ -281,8 +274,7 @@ func TestUpdateMe(t *testing.T) {
 			"name": "New Name",
 		}
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE (user_profiles.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE (user_profiles.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		sqlMock.ExpectExec(regexp.QuoteMeta("UPDATE user_profiles SET")).
@@ -377,8 +369,7 @@ func TestGeneratePresignedURL(t *testing.T) {
 			"content_type": "image/jpeg",
 		}
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE (user_profiles.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE (user_profiles.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		mockS3.EXPECT().GetPresignedUploadURL(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
@@ -402,8 +393,7 @@ func TestGeneratePresignedURL(t *testing.T) {
 			"content_type": "image/jpeg",
 		}
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE (user_profiles.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE (user_profiles.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		mockS3.EXPECT().GetPresignedUploadURL(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).

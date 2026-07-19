@@ -15,6 +15,7 @@ import (
 	gDto "oil/shared/dto"
 	"oil/shared/errkey"
 	"oil/shared/failure"
+	"oil/shared/singleflight"
 
 	"github.com/rs/zerolog/log"
 )
@@ -40,15 +41,17 @@ type serviceImpl struct {
 	cache cache.RedisCache
 	otel  otel.Otel
 	ff    unleash.FeatureFlag
+	sf    *singleflight.Group
 }
 
-func New(repo repository.Todo, cfg *config.Config, cache cache.RedisCache, otel otel.Otel, ff unleash.FeatureFlag) Todo {
+func New(repo repository.Todo, cfg *config.Config, cache cache.RedisCache, otel otel.Otel, ff unleash.FeatureFlag, sf *singleflight.Group) Todo {
 	return &serviceImpl{
 		repo:  repo,
 		cfg:   cfg,
 		cache: cache,
 		otel:  otel,
 		ff:    ff,
+		sf:    sf,
 	}
 }
 
@@ -107,38 +110,27 @@ func (s *serviceImpl) GetAll(ctx context.Context, req gDto.QueryParams, filter g
 
 	cacheKey := shared.BuildCacheKeyWithQuery(cacheGetAllTodo, req, filter)
 
-	err = s.cache.Get(ctx, cacheKey, &res)
-	if err == nil {
-		log.Info().Str("cacheKey", cacheKey).Msg("cache hit for todos")
+	return cache.Remember(ctx, s.cache, s.sf, cacheKey, s.cfg.Cache.TTL, func(ctx context.Context) (dto.GetTodosResponse, error) {
+		var out dto.GetTodosResponse
 
-		return res, nil
-	}
+		total, err := s.Count(ctx, req, filter)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to count todos")
 
-	total, err := s.Count(ctx, req, filter)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to count todos")
-
-		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to count todos: %v", err))
-	}
-
-	models, err := s.repo.GetAll(ctx, req, filter)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to get todos")
-
-		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get todos: %v", err))
-	}
-
-	res.FromModels(models, total, req.Limit)
-
-	go func() {
-		c := context.WithoutCancel(ctx)
-
-		if err := s.cache.Save(c, cacheKey, res, s.cfg.Cache.TTL); err != nil {
-			log.Error().Err(err).Msg("failed to save todos to cache")
+			return out, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to count todos: %v", err))
 		}
-	}()
 
-	return res, nil
+		models, err := s.repo.GetAll(ctx, req, filter)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get todos")
+
+			return out, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get todos: %v", err))
+		}
+
+		out.FromModels(models, total, req.Limit)
+
+		return out, nil
+	})
 }
 
 func (s *serviceImpl) Count(ctx context.Context, req gDto.QueryParams, filter gDto.FilterGroup) (res int, err error) {
@@ -148,29 +140,16 @@ func (s *serviceImpl) Count(ctx context.Context, req gDto.QueryParams, filter gD
 
 	cacheKey := shared.BuildCacheKeyWithQuery(cacheCountTodo, req, filter)
 
-	err = s.cache.Get(ctx, cacheKey, &res)
-	if err == nil {
-		log.Info().Str("cacheKey", cacheKey).Msg("cache hit for todo count")
+	return cache.Remember(ctx, s.cache, s.sf, cacheKey, s.cfg.Cache.TTL, func(ctx context.Context) (int, error) {
+		count, err := s.repo.Count(ctx, filter)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to count todos")
 
-		return res, nil
-	}
-
-	res, err = s.repo.Count(ctx, filter)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to count todos")
-
-		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to count todos: %v", err))
-	}
-
-	go func() {
-		c := context.WithoutCancel(ctx)
-
-		if err := s.cache.Save(c, cacheKey, res, s.cfg.Cache.TTL); err != nil {
-			log.Error().Err(err).Msg("failed to save todo count to cache")
+			return 0, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to count todos: %v", err))
 		}
-	}()
 
-	return res, nil
+		return count, nil
+	})
 }
 
 func (s *serviceImpl) Get(ctx context.Context, id string) (res dto.TodoResponse, err error) {
@@ -180,35 +159,24 @@ func (s *serviceImpl) Get(ctx context.Context, id string) (res dto.TodoResponse,
 
 	cacheKey := shared.BuildCacheKey(cacheGetTodo, id)
 
-	err = s.cache.Get(ctx, cacheKey, &res)
-	if err == nil {
-		log.Info().Str("cacheKey", cacheKey).Msg("cache hit for todo")
+	return cache.Remember(ctx, s.cache, s.sf, cacheKey, s.cfg.Cache.TTL, func(ctx context.Context) (dto.TodoResponse, error) {
+		var out dto.TodoResponse
 
-		return res, nil
-	}
+		todo, err := s.repo.Get(ctx, shared.SingleFilter(id, model.FieldID, model.TableName))
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get todo")
 
-	todo, err := s.repo.Get(ctx, shared.SingleFilter(id, model.FieldID, model.TableName))
-	if err != nil {
-		log.Error().Err(err).Msg("failed to get todo")
-
-		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get todo: %v", err))
-	}
-
-	if todo.ID == constant.EmptyString {
-		return res, failure.NotFoundWithKey(errkey.ErrTodoNotFound, "todo not found")
-	}
-
-	res.FromModel(todo)
-
-	go func() {
-		c := context.WithoutCancel(ctx)
-
-		if err := s.cache.Save(c, cacheKey, res, s.cfg.Cache.TTL); err != nil {
-			log.Error().Err(err).Msg("failed to save todo to cache")
+			return out, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get todo: %v", err))
 		}
-	}()
 
-	return res, nil
+		if todo.ID == constant.EmptyString {
+			return out, failure.NotFoundWithKey(errkey.ErrTodoNotFound, "todo not found")
+		}
+
+		out.FromModel(todo)
+
+		return out, nil
+	})
 }
 
 func (s *serviceImpl) Update(ctx context.Context, req dto.UpdateTodoRequest, id string) error {

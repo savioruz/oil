@@ -25,6 +25,7 @@ import (
 	"oil/internal/handlers/todo"
 	cacheMocks "oil/shared/cache/mocks"
 	"oil/shared/constant"
+	"oil/shared/singleflight"
 	"oil/transport/http/response"
 )
 
@@ -39,7 +40,7 @@ func setup(t *testing.T, ctrl *gomock.Controller) (*httptest.Server, sqlmock.Sql
 
 	repo := repository.New(sqlConn, otel)
 	ff, _ := unleash.New(cfg)
-	svc := service.New(repo, cfg, mockCache, otel, ff)
+	svc := service.New(repo, cfg, mockCache, otel, ff, singleflight.New())
 	handler := todo.New(svc, otel)
 
 	mux.Route("/api", func(r chi.Router) {
@@ -223,8 +224,8 @@ func TestGetTodos(t *testing.T) {
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
-			ExpectQuery().
+		// Mock count query failure (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
 			WillReturnError(fmt.Errorf("count error"))
 
 		resp, err := getClient().Get("/todos")
@@ -242,14 +243,14 @@ func TestGetTodos(t *testing.T) {
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
-			ExpectQuery().
+		// Mock successful count (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
 		mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-		sqlMock.ExpectPrepare("SELECT .* FROM todos").
-			ExpectQuery().
+		// Mock get all failure (uses PrepareNamed)
+		sqlMock.ExpectQuery("SELECT .* FROM todos").
 			WillReturnError(fmt.Errorf("query error"))
 
 		resp, err := getClient().Get("/todos")
@@ -267,13 +268,12 @@ func TestGetTodos(t *testing.T) {
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
-			ExpectQuery().
+		// Mock successful count (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
 		now := time.Now()
-		sqlMock.ExpectPrepare("SELECT .* FROM todos").
-			ExpectQuery().
+		sqlMock.ExpectQuery("SELECT .* FROM todos").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "completed", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow("id1", "Todo 1", "Description 1", false, now, now, "user1", "user1").
 				AddRow("id2", "Todo 2", "Description 2", true, now, now, "user1", "user1"))
@@ -301,13 +301,12 @@ func TestGetTodos(t *testing.T) {
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
-			ExpectQuery().
+		// Mock successful count (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(25))
 
 		now := time.Now()
-		sqlMock.ExpectPrepare("SELECT .* FROM todos").
-			ExpectQuery().
+		sqlMock.ExpectQuery("SELECT .* FROM todos").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "completed", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow("id1", "Todo 1", "Description 1", false, now, now, "user1", "user1"))
 
@@ -334,13 +333,12 @@ func TestGetTodos(t *testing.T) {
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
-			ExpectQuery().
+		// Mock successful count with filter (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
 		now := time.Now()
-		sqlMock.ExpectPrepare("SELECT .* FROM todos").
-			ExpectQuery().
+		sqlMock.ExpectQuery("SELECT .* FROM todos").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "completed", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow("id1", "Shopping", "Buy groceries", false, now, now, "user1", "user1"))
 
@@ -366,13 +364,12 @@ func TestGetTodos(t *testing.T) {
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
-			ExpectQuery().
+		// Mock successful count with filter (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(todos.id) FROM todos")).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
 		now := time.Now()
-		sqlMock.ExpectPrepare("SELECT .* FROM todos").
-			ExpectQuery().
+		sqlMock.ExpectQuery("SELECT .* FROM todos").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "completed", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow("id1", "Completed Todo", "This is done", true, now, now, "user1", "user1"))
 
@@ -459,8 +456,7 @@ func TestGetTodoByID(t *testing.T) {
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
 		// Mock get query - no rows returned (uses PrepareNamed)
-		sqlMock.ExpectPrepare("SELECT .* FROM todos WHERE \\(todos\\.id = \\?\\)").
-			ExpectQuery().
+		sqlMock.ExpectQuery("SELECT .* FROM todos WHERE \\(todos\\.id = \\?\\)").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "completed", "created_at", "modified_at", "created_by", "modified_by"}))
 
 		resp, err := getClient().Get("/todos/" + todoID)
@@ -481,8 +477,7 @@ func TestGetTodoByID(t *testing.T) {
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
 		// Mock get query failure (uses PrepareNamed)
-		sqlMock.ExpectPrepare("SELECT .* FROM todos WHERE \\(todos\\.id = \\?\\)").
-			ExpectQuery().
+		sqlMock.ExpectQuery("SELECT .* FROM todos WHERE \\(todos\\.id = \\?\\)").
 			WillReturnError(fmt.Errorf("database error"))
 
 		resp, err := getClient().Get("/todos/" + todoID)
@@ -504,8 +499,7 @@ func TestGetTodoByID(t *testing.T) {
 
 		// Mock successful get (uses PrepareNamed)
 		now := time.Now()
-		sqlMock.ExpectPrepare("SELECT .* FROM todos WHERE \\(todos\\.id = \\?\\)").
-			ExpectQuery().
+		sqlMock.ExpectQuery("SELECT .* FROM todos WHERE \\(todos\\.id = \\?\\)").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "completed", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow(todoID, "Test Todo", "Test Description", false, now, now, "user1", "user1"))
 
@@ -630,8 +624,7 @@ func TestUpdateTodo(t *testing.T) {
 		todoID := "non-existent-id"
 
 		// Mock exists check - doesn't exist (uses PrepareNamed)
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
 		resp, err := getClient().
@@ -651,8 +644,7 @@ func TestUpdateTodo(t *testing.T) {
 		todoID := "test-id"
 
 		// Mock exists check failure (uses PrepareNamed)
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
 			WillReturnError(fmt.Errorf("db error"))
 
 		resp, err := getClient().
@@ -672,8 +664,7 @@ func TestUpdateTodo(t *testing.T) {
 		todoID := "test-id"
 
 		// Mock exists check - exists (uses PrepareNamed)
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		// Mock update failure (uses NamedExec directly, no Prepare)
@@ -697,8 +688,7 @@ func TestUpdateTodo(t *testing.T) {
 		todoID := "test-id"
 
 		// Mock exists check - exists (uses PrepareNamed)
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		// Mock successful update (uses NamedExec directly, no Prepare)
@@ -731,8 +721,7 @@ func TestUpdateTodo(t *testing.T) {
 		}
 
 		// Mock exists check - exists (uses PrepareNamed)
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		// Mock successful update (uses NamedExec directly, no Prepare)
@@ -764,8 +753,7 @@ func TestUpdateTodo(t *testing.T) {
 		}
 
 		// Mock exists check - exists (uses PrepareNamed)
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		// Mock successful update (uses NamedExec directly, no Prepare)
@@ -817,8 +805,7 @@ func TestDeleteTodo(t *testing.T) {
 		todoID := "non-existent-id"
 
 		// Mock exists check - doesn't exist (uses PrepareNamed)
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
 		resp, err := getClient().Delete("/todos/" + todoID)
@@ -836,8 +823,7 @@ func TestDeleteTodo(t *testing.T) {
 		todoID := "test-id"
 
 		// Mock exists check failure (uses PrepareNamed)
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
 			WillReturnError(fmt.Errorf("db error"))
 
 		resp, err := getClient().Delete("/todos/" + todoID)
@@ -855,8 +841,7 @@ func TestDeleteTodo(t *testing.T) {
 		todoID := "test-id"
 
 		// Mock exists check - exists (uses PrepareNamed)
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		// Mock delete failure (uses NamedExec directly, no Prepare)
@@ -878,8 +863,7 @@ func TestDeleteTodo(t *testing.T) {
 		todoID := "test-id"
 
 		// Mock exists check - exists (uses PrepareNamed)
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		// Mock successful delete (uses NamedExec directly, no Prepare)
@@ -907,8 +891,7 @@ func TestDeleteTodo(t *testing.T) {
 		todoID := "550e8400-e29b-41d4-a716-446655440000"
 
 		// Mock exists check - exists (uses PrepareNamed)
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
-			ExpectQuery().
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM todos WHERE (todos.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		// Mock successful delete (uses NamedExec directly, no Prepare)

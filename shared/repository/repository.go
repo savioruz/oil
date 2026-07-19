@@ -138,21 +138,17 @@ func (repo *Repository[T]) Exist(ctx context.Context, filter dto.FilterGroup) (b
 
 	exist := false
 
-	prepare, err := repo.db.Read.PrepareNamedContext(ctx, query)
+	namedQuery, namedArgs, err := sqlx.Named(query, args)
 	if err != nil {
 		logger.ErrorWithStack(err)
 		scope.TraceError(err)
 
 		return false, fmt.Errorf("failed to check exist data (%s): %w", repo.entity, err)
 	}
-	defer func(prepare *sqlx.NamedStmt) {
-		err := prepare.Close()
-		if err != nil {
-			logger.ErrorWithStack(err)
-		}
-	}(prepare)
 
-	err = prepare.GetContext(ctx, &exist, args)
+	namedQuery = repo.db.Read.Rebind(namedQuery)
+
+	err = repo.db.Read.GetContext(ctx, &exist, namedQuery, namedArgs...)
 	if err != nil {
 		logger.ErrorWithStack(err)
 		scope.TraceError(err)
@@ -176,21 +172,17 @@ func (repo *Repository[T]) Get(ctx context.Context, filter dto.FilterGroup, colu
 
 	var model T
 
-	prepare, err := repo.db.Read.PrepareNamedContext(ctx, query)
+	namedQuery, namedArgs, err := sqlx.Named(query, args)
 	if err != nil {
 		logger.ErrorWithStack(err)
 		scope.TraceError(err)
 
 		return model, fmt.Errorf("failed to prepare statement (%s): %w", repo.entity, err)
 	}
-	defer func(prepare *sqlx.NamedStmt) {
-		err := prepare.Close()
-		if err != nil {
-			logger.ErrorWithStack(err)
-		}
-	}(prepare)
 
-	err = prepare.GetContext(ctx, &model, args)
+	namedQuery = repo.db.Read.Rebind(namedQuery)
+
+	err = repo.db.Read.GetContext(ctx, &model, namedQuery, namedArgs...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return model, nil
 	}
@@ -229,9 +221,7 @@ func (repo *Repository[T]) GetAll(ctx context.Context, params dto.QueryParams, f
 		pagination = "LIMIT :limit"
 	}
 
-	if params.SortBy != "" && params.SortDir != "" {
-		ordering = fmt.Sprintf("ORDER BY %s %s", params.SortBy, params.SortDir)
-	}
+	ordering = repo.buildOrderBy(params)
 
 	query := fmt.Sprintf("SELECT %s FROM %s %s %s %s %s", selectQuery, repo.table, repo.join, where, ordering, pagination)
 
@@ -239,21 +229,17 @@ func (repo *Repository[T]) GetAll(ctx context.Context, params dto.QueryParams, f
 
 	var models []T
 
-	prepare, err := repo.db.Read.PrepareNamedContext(ctx, query)
+	namedQuery, namedArgs, err := sqlx.Named(query, args)
 	if err != nil {
 		logger.ErrorWithStack(err)
 		scope.TraceError(err)
 
 		return models, fmt.Errorf("failed to prepare statement (%s): %w", repo.entity, err)
 	}
-	defer func(prepare *sqlx.NamedStmt) {
-		err := prepare.Close()
-		if err != nil {
-			logger.ErrorWithStack(err)
-		}
-	}(prepare)
 
-	err = prepare.SelectContext(ctx, &models, args)
+	namedQuery = repo.db.Read.Rebind(namedQuery)
+
+	err = repo.db.Read.SelectContext(ctx, &models, namedQuery, namedArgs...)
 	if err != nil {
 		logger.ErrorWithStack(err)
 		scope.TraceError(err)
@@ -276,21 +262,17 @@ func (repo *Repository[T]) Count(ctx context.Context, filter dto.FilterGroup) (i
 
 	var count int
 
-	prepare, err := repo.db.Read.PrepareNamedContext(ctx, query)
+	namedQuery, namedArgs, err := sqlx.Named(query, args)
 	if err != nil {
 		logger.ErrorWithStack(err)
 		scope.TraceError(err)
 
 		return 0, fmt.Errorf("failed to prepare statement (%s): %w", repo.entity, err)
 	}
-	defer func(prepare *sqlx.NamedStmt) {
-		err := prepare.Close()
-		if err != nil {
-			logger.ErrorWithStack(err)
-		}
-	}(prepare)
 
-	err = prepare.GetContext(ctx, &count, args)
+	namedQuery = repo.db.Read.Rebind(namedQuery)
+
+	err = repo.db.Read.GetContext(ctx, &count, namedQuery, namedArgs...)
 	if err != nil {
 		logger.ErrorWithStack(err)
 		scope.TraceError(err)
@@ -344,18 +326,13 @@ func (repo *Repository[T]) update(ctx context.Context, exec execer, mod map[stri
 	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, constant.OtelRepositoryScopeName+".update")
 	defer scope.End()
 
-	updateField := make([]string, 0, len(mod))
-
-	for col := range maps.Keys(mod) {
-		updateField = append(updateField, fmt.Sprintf("%s = :%s", col, col))
-	}
+	updateQuery, setArgs := buildUpdateAssignments(mod)
 
 	where, args := repo.BuildWhereClause(ctx, filter)
-	updateQuery := strings.Join(updateField, ", ")
 	query := fmt.Sprintf("UPDATE %s SET %s %s", repo.table, updateQuery, where)
 
 	scope.SetAttribute(constant.OtelQueryAttributeKey, query)
-	maps.Copy(args, mod)
+	maps.Copy(args, setArgs)
 
 	_, err := exec.NamedExecContext(ctx, query, args)
 	if err != nil {
@@ -425,6 +402,41 @@ func (repo *Repository[T]) insertBulk(ctx context.Context, exec execer, models [
 	}
 
 	return nil
+}
+
+// buildUpdateAssignments builds the SET clause for an UPDATE statement and the
+// named args backing it. SET placeholders are prefixed with "_set_" so they can
+// never collide with WHERE-clause args that reference the same column name.
+func buildUpdateAssignments(mod map[string]any) (clause string, args map[string]any) {
+	updateField := make([]string, 0, len(mod))
+	args = make(map[string]any, len(mod))
+
+	for col := range mod {
+		setParam := "_set_" + col
+		updateField = append(updateField, fmt.Sprintf("%s = :%s", col, setParam))
+		args[setParam] = mod[col]
+	}
+
+	return strings.Join(updateField, ", "), args
+}
+
+// buildOrderBy returns a safe ORDER BY clause, or an empty string when no valid
+// ordering is requested. SortBy is validated against the entity's known columns
+// to prevent SQL injection through the raw sort field; SortDir is already
+// constrained to ASC/DESC upstream.
+func (repo *Repository[T]) buildOrderBy(params dto.QueryParams) string {
+	if params.SortBy == "" || params.SortDir == "" {
+		return ""
+	}
+
+	sortable := slices.ContainsFunc(repo.columns, func(c column) bool {
+		return c.name == params.SortBy || c.alias == params.SortBy
+	})
+	if !sortable {
+		return ""
+	}
+
+	return fmt.Sprintf("ORDER BY %s %s", params.SortBy, params.SortDir)
 }
 
 func (repo *Repository[T]) getSelectQuery(ctx context.Context, columnsParam ...string) string {

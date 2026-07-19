@@ -21,6 +21,7 @@ import (
 	"oil/shared/constant"
 	gDto "oil/shared/dto"
 	gModel "oil/shared/model"
+	"oil/shared/singleflight"
 )
 
 func setup(t *testing.T) (*gomock.Controller, *todoMocks.MockTodo, *cacheMocks.MockRedisCache, *config.Config, otel.Otel) {
@@ -38,7 +39,7 @@ func TestTodoService_Create(t *testing.T) {
 	defer ctrl.Finish()
 
 	ff, _ := unleash.New(cfg)
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff, singleflight.New())
 
 	tests := []struct {
 		name      string
@@ -94,7 +95,7 @@ func TestTodoService_GetAll(t *testing.T) {
 	defer ctrl.Finish()
 
 	ff, _ := unleash.New(cfg)
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff, singleflight.New())
 
 	tests := []struct {
 		name       string
@@ -180,12 +181,108 @@ func TestTodoService_GetAll(t *testing.T) {
 	}
 }
 
+func TestTodoService_Count(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := todoMocks.NewMockTodo(ctrl)
+	mockCache := cacheMocks.NewMockRedisCache(ctrl)
+	mockOtel := otelMocks.NewOtel()
+
+	cfg := &config.Config{}
+	cfg.Cache.TTL = 3600
+
+	ff, _ := unleash.New(cfg)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff, singleflight.New())
+
+	tests := []struct {
+		name       string
+		params     gDto.QueryParams
+		filter     gDto.FilterGroup
+		setupMock  func()
+		wantResult int
+		wantErr    bool
+	}{
+		{
+			name:   "successful count with cache hit",
+			params: gDto.QueryParams{},
+			filter: gDto.FilterGroup{},
+			setupMock: func() {
+				mockCache.EXPECT().
+					Get(gomock.Any(), gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, key string, dest *int) error {
+						*dest = 5
+						return nil
+					})
+			},
+			wantResult: 5,
+			wantErr:    false,
+		},
+		{
+			name:   "successful count with cache miss",
+			params: gDto.QueryParams{},
+			filter: gDto.FilterGroup{},
+			setupMock: func() {
+				mockCache.EXPECT().
+					Get(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(errors.New("cache miss"))
+
+				mockRepo.EXPECT().
+					Count(gomock.Any(), gomock.Any()).
+					Return(10, nil)
+
+				mockCache.EXPECT().
+					Save(gomock.Any(), gomock.Any(), 10, gomock.Any()).
+					Return(nil).
+					AnyTimes()
+			},
+			wantResult: 10,
+			wantErr:    false,
+		},
+		{
+			name:   "repository error",
+			params: gDto.QueryParams{},
+			filter: gDto.FilterGroup{},
+			setupMock: func() {
+				mockCache.EXPECT().
+					Get(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(errors.New("cache miss"))
+
+				mockRepo.EXPECT().
+					Count(gomock.Any(), gomock.Any()).
+					Return(0, errors.New("database error"))
+			},
+			wantResult: 0,
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+
+			ctx := context.Background()
+			result, err := svc.Count(ctx, tt.params, tt.filter)
+
+			// Allow time for goroutines to complete
+			time.Sleep(10 * time.Millisecond)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.wantResult, result)
+			}
+		})
+	}
+}
+
 func TestTodoService_Get(t *testing.T) {
 	ctrl, mockRepo, mockCache, cfg, mockOtel := setup(t)
 	defer ctrl.Finish()
 
 	ff, _ := unleash.New(cfg)
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff, singleflight.New())
 
 	now := time.Now()
 	todo := model.Todo{
@@ -274,7 +371,7 @@ func TestTodoService_Update(t *testing.T) {
 	defer ctrl.Finish()
 
 	ff, _ := unleash.New(cfg)
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff, singleflight.New())
 
 	tests := []struct {
 		name      string
@@ -365,7 +462,7 @@ func TestTodoService_Delete(t *testing.T) {
 	defer ctrl.Finish()
 
 	ff, _ := unleash.New(cfg)
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, ff, singleflight.New())
 
 	tests := []struct {
 		name      string

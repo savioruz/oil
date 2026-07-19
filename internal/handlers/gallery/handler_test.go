@@ -245,8 +245,8 @@ func TestGetGalleries(t *testing.T) {
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
-			ExpectQuery().
+		// Mock count query failure (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
 			WillReturnError(fmt.Errorf("count error"))
 
 		resp, err := getClient().Get("/galleries")
@@ -264,14 +264,14 @@ func TestGetGalleries(t *testing.T) {
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
-			ExpectQuery().
+		// Mock successful count (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
 		mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-		sqlMock.ExpectPrepare("SELECT .* FROM galleries").
-			ExpectQuery().
+		// Mock get all failure (uses PrepareNamed)
+		sqlMock.ExpectQuery("SELECT .* FROM galleries").
 			WillReturnError(fmt.Errorf("query error"))
 
 		resp, err := getClient().Get("/galleries")
@@ -289,15 +289,14 @@ func TestGetGalleries(t *testing.T) {
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
-			ExpectQuery().
+		// Mock successful count (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
 		now := time.Now()
 		images1 := pq.StringArray{"https://example.com/image1.jpg", "https://example.com/image2.jpg"}
 		images2 := pq.StringArray{"https://example.com/image3.jpg"}
-		sqlMock.ExpectPrepare("SELECT .* FROM galleries").
-			ExpectQuery().
+		sqlMock.ExpectQuery("SELECT .* FROM galleries").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow("id1", "Gallery 1", "Description 1", images1, now, now, "user1", "user1").
 				AddRow("id2", "Gallery 2", "Description 2", images2, now, now, "user1", "user1"))
@@ -323,14 +322,13 @@ func TestGetGalleries(t *testing.T) {
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
-			ExpectQuery().
+		// Mock successful count (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(25))
 
 		now := time.Now()
 		images := pq.StringArray{"https://example.com/image1.jpg"}
-		sqlMock.ExpectPrepare("SELECT .* FROM galleries").
-			ExpectQuery().
+		sqlMock.ExpectQuery("SELECT .* FROM galleries").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow("id1", "Gallery 1", "Description 1", images, now, now, "user1", "user1"))
 
@@ -357,14 +355,13 @@ func TestGetGalleries(t *testing.T) {
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
-			ExpectQuery().
+		// Mock successful count with filter (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(galleries.id) FROM galleries")).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
 		now := time.Now()
 		images := pq.StringArray{"https://example.com/vacation.jpg"}
-		sqlMock.ExpectPrepare("SELECT .* FROM galleries").
-			ExpectQuery().
+		sqlMock.ExpectQuery("SELECT .* FROM galleries").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow("id1", "Vacation Photos", "Summer vacation", images, now, now, "user1", "user1"))
 
@@ -448,8 +445,8 @@ func TestGetGalleryByID(t *testing.T) {
 
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		sqlMock.ExpectPrepare("SELECT .* FROM galleries WHERE \\(galleries\\.id = \\?\\)").
-			ExpectQuery().
+		// Mock get query - no rows returned (uses PrepareNamed)
+		sqlMock.ExpectQuery("SELECT .* FROM galleries WHERE \\(galleries\\.id = \\?\\)").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}))
 
 		resp, err := getClient().Get("/galleries/" + galleryID)
@@ -468,8 +465,8 @@ func TestGetGalleryByID(t *testing.T) {
 
 		mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cache miss"))
 
-		sqlMock.ExpectPrepare("SELECT .* FROM galleries WHERE \\(galleries\\.id = \\?\\)").
-			ExpectQuery().
+		// Mock get query failure (uses PrepareNamed)
+		sqlMock.ExpectQuery("SELECT .* FROM galleries WHERE \\(galleries\\.id = \\?\\)").
 			WillReturnError(fmt.Errorf("database error"))
 
 		resp, err := getClient().Get("/galleries/" + galleryID)
@@ -490,8 +487,7 @@ func TestGetGalleryByID(t *testing.T) {
 
 		now := time.Now()
 		images := pq.StringArray{"https://example.com/test1.jpg", "https://example.com/test2.jpg"}
-		sqlMock.ExpectPrepare("SELECT .* FROM galleries WHERE \\(galleries\\.id = \\?\\)").
-			ExpectQuery().
+		sqlMock.ExpectQuery("SELECT .* FROM galleries WHERE \\(galleries\\.id = \\?\\)").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow(galleryID, "Test Gallery", "Test Description", images, now, now, "user1", "user1"))
 
@@ -607,8 +603,8 @@ func TestUpdateGallery(t *testing.T) {
 
 		galleryID := "non-existent-id"
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
-			ExpectQuery().
+		// Mock exists check - doesn't exist (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
 		resp, err := getClient().
@@ -627,8 +623,8 @@ func TestUpdateGallery(t *testing.T) {
 
 		galleryID := "test-id"
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
-			ExpectQuery().
+		// Mock exists check failure (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
 			WillReturnError(fmt.Errorf("db error"))
 
 		resp, err := getClient().
@@ -647,8 +643,8 @@ func TestUpdateGallery(t *testing.T) {
 
 		galleryID := "test-id"
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
-			ExpectQuery().
+		// Mock exists check - exists (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		sqlMock.ExpectExec(regexp.QuoteMeta("UPDATE galleries SET")).
@@ -670,8 +666,8 @@ func TestUpdateGallery(t *testing.T) {
 
 		galleryID := "test-id"
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
-			ExpectQuery().
+		// Mock exists check - exists (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		sqlMock.ExpectExec(regexp.QuoteMeta("UPDATE galleries SET")).
@@ -702,8 +698,8 @@ func TestUpdateGallery(t *testing.T) {
 			Title: "Only Title Updated",
 		}
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
-			ExpectQuery().
+		// Mock exists check - exists (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM galleries WHERE (galleries.id = ?) )")).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		sqlMock.ExpectExec(regexp.QuoteMeta("UPDATE galleries SET")).
@@ -752,8 +748,8 @@ func TestDeleteGallery(t *testing.T) {
 
 		galleryID := "non-existent-id"
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT ")).
-			ExpectQuery().
+		// Mock Get query - returns empty gallery (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT ")).
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}))
 
 		resp, err := getClient().Delete("/galleries/" + galleryID)
@@ -770,8 +766,8 @@ func TestDeleteGallery(t *testing.T) {
 
 		galleryID := "test-id"
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT ")).
-			ExpectQuery().
+		// Mock Get query failure (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT ")).
 			WillReturnError(fmt.Errorf("db error"))
 
 		resp, err := getClient().Delete("/galleries/" + galleryID)
@@ -788,8 +784,8 @@ func TestDeleteGallery(t *testing.T) {
 
 		galleryID := "test-id"
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT ")).
-			ExpectQuery().
+		// Mock Get query - returns gallery (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT ")).
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow(galleryID, "Test Gallery", "Test Description", pq.StringArray{"https://example.com/image1.jpg"}, time.Now(), time.Now(), "user-id", "user-id"))
 
@@ -810,8 +806,8 @@ func TestDeleteGallery(t *testing.T) {
 
 		galleryID := "test-id"
 
-		sqlMock.ExpectPrepare(regexp.QuoteMeta("SELECT ")).
-			ExpectQuery().
+		// Mock Get query - returns gallery (uses PrepareNamed)
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT ")).
 			WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "images", "created_at", "modified_at", "created_by", "modified_by"}).
 				AddRow(galleryID, "Test Gallery", "Test Description", pq.StringArray{"https://example.com/image1.jpg"}, time.Now(), time.Now(), "user-id", "user-id"))
 

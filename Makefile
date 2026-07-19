@@ -51,6 +51,9 @@ lint.prepare: ## Prepare the environment for linting
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin latest
 
 lint: generate generate.mock ## Run linters
+	golangci-lint run ./...
+
+lint.fix: generate generate.mock ## Run linters and fix issues
 	golangci-lint run ./... --fix
 
 generate: ## Generate code

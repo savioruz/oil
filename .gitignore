@@ -32,6 +32,8 @@ docs/docs.go
 docs/swagger.json
 docs/openapi.json
 docs/swagger.yaml
+docs/openapi.json
+docs/superpowers
 
 # Ignore permission file
 permissions/permissions.json

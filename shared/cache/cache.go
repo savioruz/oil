@@ -34,8 +34,8 @@ type redisCache struct {
 	otel   otel.Otel
 }
 
-// NewRedisCache creates a new instance of RedisCache with the provided Redis client and OpenTelemetry instance.
-func NewRedisCache(client *redis.Client, ot otel.Otel) RedisCache {
+// New creates a new instance of RedisCache with the provided Redis client and OpenTelemetry instance.
+func New(client *redis.Client, ot otel.Otel) RedisCache {
 	return &redisCache{
 		client: client,
 		otel:   ot,
@@ -50,18 +50,36 @@ func (cache *redisCache) Clear(ctx context.Context, prefix string) (err error) {
 
 	scope.SetAttribute(otelCacheKeyAttribute, prefix)
 
-	scan := cache.client.Scan(ctx, 0, prefix, 0)
-	if scan != nil {
-		iter := scan.Iterator()
+	const batchSize = 500
 
-		for iter.Next(ctx) {
-			key := iter.Val()
-			if err = cache.client.Del(ctx, key).Err(); err != nil {
-				log.Error().Err(err).Str("key", key).Str("RedisCache", "Clear").Msg("failed to del cache")
+	iter := cache.client.Scan(ctx, 0, prefix, 0).Iterator()
+	pipe := cache.client.Pipeline()
+	batched := 0
+
+	for iter.Next(ctx) {
+		pipe.Del(ctx, iter.Val())
+
+		batched++
+
+		if batched%batchSize == 0 {
+			if _, err = pipe.Exec(ctx); err != nil {
+				log.Error().Err(err).Str("RedisCache", "Clear").Msg("failed to del cache batch")
 
 				return fmt.Errorf("failed to delete cache value: %w", err)
 			}
 		}
+	}
+
+	if err = iter.Err(); err != nil {
+		log.Error().Err(err).Str("RedisCache", "Clear").Msg("failed to scan cache keys")
+
+		return fmt.Errorf("failed to scan cache keys: %w", err)
+	}
+
+	if _, err = pipe.Exec(ctx); err != nil {
+		log.Error().Err(err).Str("RedisCache", "Clear").Msg("failed to del cache batch")
+
+		return fmt.Errorf("failed to delete cache value: %w", err)
 	}
 
 	return nil

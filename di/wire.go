@@ -4,7 +4,6 @@
 package di
 
 import (
-	"github.com/google/wire"
 	"oil/config"
 	"oil/infras/jwt"
 	"oil/infras/otel"
@@ -16,9 +15,12 @@ import (
 	userprofileHandler "oil/internal/handlers/userprofile"
 	"oil/permissions"
 	"oil/shared/cache"
+	"oil/shared/singleflight"
 	"oil/transport/http"
 	"oil/transport/http/middleware"
 	"oil/transport/http/router"
+
+	"github.com/google/wire"
 
 	todoRepository "oil/internal/domains/todo/repository"
 	todoService "oil/internal/domains/todo/service"
@@ -51,7 +53,8 @@ var middlewares = wire.NewSet(
 )
 
 var sharedHelpers = wire.NewSet(
-	cache.NewRedisCache,
+	cache.New,
+	singleflight.New,
 )
 
 var todoDomain = wire.NewSet(

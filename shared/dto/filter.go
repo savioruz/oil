@@ -53,12 +53,12 @@ type Filter struct {
 
 // GetWhereClause generates the SQL WHERE clause for the filter based on its operator and value,
 // and returns the clause along with a map of named parameters for query execution.
-func (f *Filter) GetWhereClause() (string, map[string]any) {
+func (f Filter) GetWhereClause() (string, map[string]any) {
 	args := map[string]any{}
 
 	column := f.Field
 	if f.Table != "" {
-		column = fmt.Sprintf("%s.%s", f.Table, f.Field)
+		column = f.Table + "." + f.Field
 	}
 
 	argName := f.ArgName
@@ -70,31 +70,31 @@ func (f *Filter) GetWhereClause() (string, map[string]any) {
 	case FilterOperatorEq:
 		args[argName] = f.Value
 
-		return fmt.Sprintf("%s = :%s", column, argName), args
+		return column + " = :" + argName, args
 	case FilterOperatorLike:
-		args[argName] = fmt.Sprintf("%%%s%%", f.Value)
+		args[argName] = "%" + f.Value.(string) + "%"
 
-		return fmt.Sprintf("LOWER(%s) LIKE LOWER(:%s) ", column, argName), args
+		return "LOWER(" + column + ") LIKE LOWER(:" + argName + ") ", args
 	case FilterOperatorIn:
 		named := inArgs(argName, f.Value, args)
 
-		return fmt.Sprintf("%s IN (%s) ", column, strings.Join(named, ", ")), args
+		return column + " IN (" + strings.Join(named, ", ") + ") ", args
 	case FilterOperatorNotEq:
 		args[argName] = f.Value
 
-		return fmt.Sprintf("%s != :%s", column, argName), args
+		return column + " != :" + argName, args
 	case FilterOperatorLessEq:
 		args[argName] = f.Value
 
-		return fmt.Sprintf("%s <= :%s", column, argName), args
+		return column + " <= :" + argName, args
 	case FilterOperatorGreaterEq:
 		args[argName] = f.Value
 
-		return fmt.Sprintf("%s >= :%s", column, argName), args
+		return column + " >= :" + argName, args
 	case FilterPlainQuery:
 		query, _ := f.Value.(string)
 
-		return fmt.Sprintf("(%s)", query), args
+		return "(" + query + ")", args
 	case FilterIsNotNull:
 		return column + " IS NOT NULL", args
 	case FilterIsNull:
@@ -111,9 +111,9 @@ type FilterGroup struct {
 }
 
 // GetWhereClause generates the combined WHERE clause for the filter group, including all nested filters and groups, and returns the clause along with a map of named parameters for query execution.
-func (f *FilterGroup) GetWhereClause() (string, map[string]any) {
-	args := map[string]any{}
-	whereClause := []string{}
+func (f FilterGroup) GetWhereClause() (string, map[string]any) {
+	args := make(map[string]any, len(f.Filters))
+	whereClause := make([]string, 0, len(f.Filters))
 
 	for _, filter := range f.Filters {
 		switch fill := filter.(type) {
@@ -134,7 +134,7 @@ func (f *FilterGroup) GetWhereClause() (string, map[string]any) {
 		return "", args
 	}
 
-	return fmt.Sprintf("(%s)", strings.Join(whereClause, " "+f.Operator+" ")), args
+	return "(" + strings.Join(whereClause, " "+f.Operator+" ") + ")", args
 }
 
 // inArgs populates 'args' from a slice value and returns the placeholder names.
@@ -144,36 +144,52 @@ func inArgs(argName string, value any, args map[string]any) []string {
 	case []string:
 		named := make([]string, len(v))
 		for i, s := range v {
-			name := argName + "_" + strconv.Itoa(i)
-			args[name] = s
-			named[i] = ":" + name
+			var b strings.Builder
+			b.WriteByte(':')
+			b.WriteString(argName)
+			b.WriteByte('_')
+			b.WriteString(strconv.Itoa(i))
+			named[i] = b.String()
+			args[named[i][1:]] = s
 		}
 
 		return named
 	case []int:
 		named := make([]string, len(v))
 		for i, n := range v {
-			name := argName + "_" + strconv.Itoa(i)
-			args[name] = n
-			named[i] = ":" + name
+			var b strings.Builder
+			b.WriteByte(':')
+			b.WriteString(argName)
+			b.WriteByte('_')
+			b.WriteString(strconv.Itoa(i))
+			named[i] = b.String()
+			args[named[i][1:]] = n
 		}
 
 		return named
 	case []int64:
 		named := make([]string, len(v))
 		for i, n := range v {
-			name := argName + "_" + strconv.Itoa(i)
-			args[name] = n
-			named[i] = ":" + name
+			var b strings.Builder
+			b.WriteByte(':')
+			b.WriteString(argName)
+			b.WriteByte('_')
+			b.WriteString(strconv.Itoa(i))
+			named[i] = b.String()
+			args[named[i][1:]] = n
 		}
 
 		return named
 	case []any:
 		named := make([]string, len(v))
 		for i, a := range v {
-			name := argName + "_" + strconv.Itoa(i)
-			args[name] = a
-			named[i] = ":" + name
+			var b strings.Builder
+			b.WriteByte(':')
+			b.WriteString(argName)
+			b.WriteByte('_')
+			b.WriteString(strconv.Itoa(i))
+			named[i] = b.String()
+			args[named[i][1:]] = a
 		}
 
 		return named

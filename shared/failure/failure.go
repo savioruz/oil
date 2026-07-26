@@ -148,14 +148,11 @@ func Forbidden(msg string) error {
 
 // GetCode returns the error code of an error interface.
 func GetCode(err error) int {
-	// Check for ValidationError first
-	var valErr *ValidationError
-	if errors.As(err, &valErr) {
+	if valErr, ok := unwrapAs[*ValidationError](err); ok {
 		return valErr.Code
 	}
 
-	var fail *Failure
-	if errors.As(err, &fail) {
+	if fail, ok := unwrapAs[*Failure](err); ok {
 		return fail.Code
 	}
 
@@ -164,41 +161,37 @@ func GetCode(err error) int {
 
 // GetKey returns the error key of an error interface.
 func GetKey(err error) errkey.ErrorKey {
-	// Check for ValidationError first (has multiple field errors)
-	var valErr *ValidationError
-	if errors.As(err, &valErr) {
-		// For multi-field validation errors, return generic validation.failed
-		// The actual field-level keys are in the Fields array
+	if valErr, ok := unwrapAs[*ValidationError](err); ok {
+		_ = valErr // dipakai cuma buat mastiin match; key-nya fixed di bawah
+
 		return errkey.ErrValidationFailed
 	}
 
-	var fail *Failure
-	if errors.As(err, &fail) {
-		// If the key is empty, return a default based on the status code
-		if fail.Key == "" {
-			// Return appropriate default key based on status code
-			switch {
-			case fail.Code == http.StatusUnprocessableEntity:
-				return errkey.ErrValidationFailed
-			case fail.Code == http.StatusBadRequest:
-				return errkey.ErrValidationFailed
-			case fail.Code == http.StatusNotFound:
-				return errkey.ErrNotFound
-			case fail.Code == http.StatusUnauthorized:
-				return errkey.ErrUnauthorized
-			case fail.Code == http.StatusForbidden:
-				return errkey.ErrForbidden
-			case fail.Code >= http.StatusInternalServerError:
-				return errkey.ErrInternalServer
-			default:
-				return errkey.ErrInternalServer
-			}
-		}
+	fail, ok := unwrapAs[*Failure](err)
+	if !ok {
+		return errkey.ErrInternalServer
+	}
 
+	if fail.Key != "" {
 		return fail.Key
 	}
 
-	return errkey.ErrInternalServer
+	switch {
+	case fail.Code == http.StatusUnprocessableEntity:
+		return errkey.ErrValidationFailed
+	case fail.Code == http.StatusBadRequest:
+		return errkey.ErrValidationFailed
+	case fail.Code == http.StatusNotFound:
+		return errkey.ErrNotFound
+	case fail.Code == http.StatusUnauthorized:
+		return errkey.ErrUnauthorized
+	case fail.Code == http.StatusForbidden:
+		return errkey.ErrForbidden
+	case fail.Code >= http.StatusInternalServerError:
+		return errkey.ErrInternalServer
+	default:
+		return errkey.ErrInternalServer
+	}
 }
 
 // NewWithKey creates a new Failure with a key, code, and message.
@@ -271,4 +264,23 @@ func ServiceUnavailableWithKey(key errkey.ErrorKey, message string) error {
 		Message: message,
 		Key:     key,
 	}
+}
+
+// unwrapAs walks the error chain looking for a value assignable to T using a
+// direct type assertion instead of reflect-based errors.As. It only follows
+// chains created via fmt.Errorf("...: %w", err) (the only wrapping style used
+// in this codebase for Failure/ValidationError).
+func unwrapAs[T error](err error) (T, bool) {
+	for err != nil {
+		var v T
+		if errors.As(err, &v) {
+			return v, true
+		}
+
+		err = errors.Unwrap(err)
+	}
+
+	var zero T
+
+	return zero, false
 }

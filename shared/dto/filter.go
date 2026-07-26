@@ -72,7 +72,12 @@ func (f Filter) GetWhereClause() (string, map[string]any) {
 
 		return column + " = :" + argName, args
 	case FilterOperatorLike:
-		args[argName] = "%" + f.Value.(string) + "%"
+		val, ok := f.Value.(string)
+		if !ok {
+			return "", args
+		}
+
+		args[argName] = "%" + val + "%"
 
 		return "LOWER(" + column + ") LIKE LOWER(:" + argName + ") ", args
 	case FilterOperatorIn:

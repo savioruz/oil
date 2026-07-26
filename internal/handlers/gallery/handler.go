@@ -107,9 +107,11 @@ func (handler *Handler) GetGalleries(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Query().Get(model.FieldTitle)
 	description := r.URL.Query().Get(model.FieldDescription)
 
+	const maxFilters = 2
+
 	filterGroup := gDto.FilterGroup{
 		Operator: gDto.FilterGroupOperatorAnd,
-		Filters:  []any{},
+		Filters:  make([]any, 0, maxFilters),
 	}
 
 	if title != "" {

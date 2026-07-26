@@ -102,17 +102,19 @@ func (handler *Handler) GetTodos(w http.ResponseWriter, r *http.Request) {
 
 	title := r.URL.Query().Get(model.FieldTitle)
 
+	const maxFilters = 2
+
 	filterGroup := gDto.FilterGroup{
 		Operator: gDto.FilterGroupOperatorAnd,
-		Filters: []any{
-			gDto.Filter{
-				Field:    model.FieldTitle,
-				Operator: gDto.FilterOperatorLike,
-				Value:    title,
-				Table:    model.TableName,
-			},
-		},
+		Filters:  make([]any, 0, maxFilters),
 	}
+
+	filterGroup.Filters = append(filterGroup.Filters, gDto.Filter{
+		Field:    model.FieldTitle,
+		Operator: gDto.FilterOperatorLike,
+		Value:    title,
+		Table:    model.TableName,
+	})
 
 	if complete, err := shared.ConvertStringToBool(r.URL.Query().Get(model.FieldCompleted)); err == nil {
 		filterGroup.Filters = append(filterGroup.Filters, gDto.Filter{

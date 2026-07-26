@@ -513,7 +513,7 @@ func (repo *Repository[T]) BuildWhereClause(ctx context.Context, filter dto.Filt
 	where, args := filter.GetWhereClause()
 
 	if where == "" {
-		return where, map[string]any{}
+		return where, args
 	}
 
 	return " WHERE " + where + " ", args

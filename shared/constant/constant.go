@@ -168,6 +168,4 @@ const (
 const (
 	// Asterix is used in cache keys to represent wildcard
 	Asterix = "*"
-	// EmptyString is used to represent an empty string value
-	EmptyString = ""
 )

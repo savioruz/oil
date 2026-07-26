@@ -1,4 +1,4 @@
-// Package s3 provides S3 client utilities for file storage operations.
+// Package s3 provides S3-compatible client utilities for file storage operations.
 //
 //nolint:revive
 package s3
@@ -10,12 +10,11 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	awsConfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/rs/zerolog/log"
 
 	"mime/multipart"
@@ -39,7 +38,7 @@ type S3 interface {
 }
 
 type s3Impl struct {
-	Client *s3.Client
+	Client *minio.Client
 	Config *config.Config
 	otel   otel.Otel
 }
@@ -53,15 +52,13 @@ func (svc *s3Impl) UploadFile(ctx context.Context, bucketName, directory string,
 		bucketName = svc.Config.External.S3.BucketName
 	}
 
-	scope.SetAttributes(map[string]any{
-		otelAttrFileName: fileName,
-		otelAttrBucket:   bucketName,
-	})
+	scope.SetAttribute(otelAttrFileName, fileName)
+	scope.SetAttribute(otelAttrBucket, bucketName)
 
 	buf := bytes.NewBuffer(nil)
 
 	if _, err = buf.ReadFrom(file); err != nil {
-		return constant.EmptyString, fmt.Errorf("failed to read file: %w", err)
+		return "", fmt.Errorf("failed to read file: %w", err)
 	}
 
 	contentType := fileHeader.Header.Get(constant.RequestHeaderContentType)
@@ -78,10 +75,8 @@ func (svc *s3Impl) UploadFileBytes(ctx context.Context, bucketName, directory, f
 		bucketName = svc.Config.External.S3.BucketName
 	}
 
-	scope.SetAttributes(map[string]any{
-		otelAttrFileName: fileName,
-		otelAttrBucket:   bucketName,
-	})
+	scope.SetAttribute(otelAttrFileName, fileName)
+	scope.SetAttribute(otelAttrBucket, bucketName)
 
 	buf := bytes.NewBuffer(fileData)
 
@@ -93,17 +88,12 @@ func (svc *s3Impl) DeleteFile(ctx context.Context, bucketName, directory, object
 	defer scope.End()
 	defer scope.TraceIfError(err)
 
-	scope.SetAttributes(map[string]any{
-		otelAttrFileName: objectName,
-		otelAttrBucket:   bucketName,
-	})
+	scope.SetAttribute(otelAttrFileName, objectName)
+	scope.SetAttribute(otelAttrBucket, bucketName)
 
 	objectKey := path.Join(directory, objectName)
 
-	_, err = svc.Client.DeleteObject(ctx, &s3.DeleteObjectInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(objectKey),
-	})
+	err = svc.Client.RemoveObject(ctx, bucketName, objectKey, minio.RemoveObjectOptions{})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to delete file from S3")
 
@@ -123,12 +113,12 @@ func (svc *s3Impl) GetObjectNameFromURL(bucketName, url string) (objectName stri
 
 	apiEndpoint := svc.Config.External.S3.APIEndpoint
 
-	bucketURL := fmt.Sprintf("%s/%s/", apiEndpoint, bucketName)
+	bucketURL := apiEndpoint + "/" + bucketName + "/"
 	if len(url) >= len(bucketURL) && url[:len(bucketURL)] == bucketURL {
 		return url[len(bucketURL):]
 	}
 
-	return constant.EmptyString
+	return ""
 }
 
 func (svc *s3Impl) GetPresignedUploadURL(ctx context.Context, bucketName, directory, fileName, contentType string, expiryMinutes int) (string, error) {
@@ -141,22 +131,21 @@ func (svc *s3Impl) GetPresignedUploadURL(ctx context.Context, bucketName, direct
 
 	objectKey := path.Join(directory, fileName)
 
-	presignClient := s3.NewPresignClient(svc.Client)
+	// NOTE: minio-go's PresignedPutObject does not carry ContentType through
+	// the signature the way s3.PutObjectInput did. If you need to constrain
+	// the uploader to a specific content-type, enforce it server-side after
+	// upload (HEAD the object) or use PresignedPostPolicy with a content-type
+	// condition instead of PresignedPutObject.
+	_ = contentType
 
-	presignedURL, err := presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(bucketName),
-		Key:         aws.String(objectKey),
-		ContentType: aws.String(contentType),
-	}, func(opts *s3.PresignOptions) {
-		opts.Expires = time.Duration(expiryMinutes) * time.Minute
-	})
+	presignedURL, err := svc.Client.PresignedPutObject(ctx, bucketName, objectKey, time.Duration(expiryMinutes)*time.Minute)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to generate presigned URL")
 
-		return constant.EmptyString, fmt.Errorf("failed to generate presigned URL: %w", err)
+		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
 	}
 
-	return presignedURL.URL, nil
+	return presignedURL.String(), nil
 }
 
 func (svc *s3Impl) upload(ctx context.Context, bucket, directory, fileName, contentType string, buf *bytes.Buffer) (url string, err error) {
@@ -165,52 +154,46 @@ func (svc *s3Impl) upload(ctx context.Context, bucket, directory, fileName, cont
 	defer scope.TraceIfError(err)
 
 	objectKey := path.Join(directory, fileName)
-	fileReader := bytes.NewReader(buf.Bytes())
+	size := int64(buf.Len())
 
-	_, err = svc.Client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:        aws.String(bucket),
-		Key:           aws.String(objectKey),
-		Body:          fileReader,
-		ContentType:   aws.String(contentType),
-		ContentLength: aws.Int64(fileReader.Size()),
+	_, err = svc.Client.PutObject(ctx, bucket, objectKey, buf, size, minio.PutObjectOptions{
+		ContentType: contentType,
 	})
 	if err != nil {
-		return constant.EmptyString, fmt.Errorf("failed to upload file to S3: %w", err)
+		return "", fmt.Errorf("failed to upload file to S3: %w", err)
 	}
 
 	publicDomain := svc.Config.External.S3.PublicDomain
 
-	return fmt.Sprintf("%s/%s", publicDomain, objectKey), nil
+	return publicDomain + "/" + objectKey, nil
 }
 
-func New(config *config.Config, otel otel.Otel) S3 {
-	endpoint := config.External.S3.APIEndpoint
-	accessKeyID := config.External.S3.AccessKeyID
-	secretAccessKey := config.External.S3.SecretAccessKey
+func New(cfg *config.Config, otl otel.Otel) S3 {
+	rawEndpoint := cfg.External.S3.APIEndpoint
+	accessKeyID := cfg.External.S3.AccessKeyID
+	secretAccessKey := cfg.External.S3.SecretAccessKey
 
-	staticProvider := credentials.NewStaticCredentialsProvider(
-		accessKeyID,
-		secretAccessKey,
-		"",
-	)
+	secure := true
+	endpoint := rawEndpoint
 
-	cfg, err := awsConfig.LoadDefaultConfig(
-		context.TODO(),
-		awsConfig.WithCredentialsProvider(staticProvider),
-	)
-	if err != nil {
-		log.Err(err).Msg("Error loading AWS configuration")
+	if after, ok := strings.CutPrefix(rawEndpoint, "https://"); ok {
+		endpoint = after
+	} else if after, ok := strings.CutPrefix(rawEndpoint, "http://"); ok {
+		endpoint = after
+		secure = false
 	}
 
-	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-		o.BaseEndpoint = aws.String(endpoint)
-		o.UsePathStyle = true
-		o.Region = "auto"
+	client, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
+		Secure: secure,
 	})
+	if err != nil {
+		log.Err(err).Msg("Error creating minio client")
+	}
 
 	return &s3Impl{
-		Client: s3Client,
-		Config: config,
-		otel:   otel,
+		Client: client,
+		Config: cfg,
+		otel:   otl,
 	}
 }

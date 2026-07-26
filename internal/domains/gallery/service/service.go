@@ -149,7 +149,7 @@ func (s *serviceImpl) Get(ctx context.Context, id string) (res dto.GalleryRespon
 			return out, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get gallery: %v", err))
 		}
 
-		if gallery.ID == constant.EmptyString {
+		if gallery.ID == "" {
 			return out, failure.NotFoundWithKey(errkey.ErrGalleryNotFound, "gallery not found")
 		}
 
@@ -215,7 +215,7 @@ func (s *serviceImpl) Delete(ctx context.Context, id string) (err error) {
 		return failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get gallery: %v", err))
 	}
 
-	if gallery.ID == constant.EmptyString {
+	if gallery.ID == "" {
 		log.Error().Msg("gallery not found")
 
 		return failure.NotFoundWithKey(errkey.ErrGalleryNotFound, "gallery not found")
@@ -283,7 +283,7 @@ func (s *serviceImpl) DeleteImagesFromS3(ctx context.Context, req dto.DeleteImag
 
 	for _, imageURL := range req.ImageURLs {
 		objectName := s.s3.GetObjectNameFromURL(bucketName, imageURL)
-		if objectName == constant.EmptyString {
+		if objectName == "" {
 			log.Warn().Str("url", imageURL).Msg("failed to extract object name from URL")
 
 			continue

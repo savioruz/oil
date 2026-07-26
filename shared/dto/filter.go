@@ -4,7 +4,7 @@ package dto
 import (
 	"fmt"
 	"maps"
-	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -76,23 +76,9 @@ func (f *Filter) GetWhereClause() (string, map[string]any) {
 
 		return fmt.Sprintf("LOWER(%s) LIKE LOWER(:%s) ", column, argName), args
 	case FilterOperatorIn:
-		val := reflect.ValueOf(f.Value)
-		vType := val.Type()
+		named := inArgs(argName, f.Value, args)
 
-		switch vType.Kind() {
-		case reflect.Array, reflect.Slice:
-			named := make([]string, val.Len())
-
-			for idx := range val.Len() {
-				args[fmt.Sprintf("%s_%d", argName, idx)] = val.Index(idx).Interface()
-
-				named[idx] = fmt.Sprintf(":%s_%d", argName, idx)
-			}
-
-			return fmt.Sprintf("%s IN (%s) ", column, strings.Join(named, ", ")), args
-		default:
-			return fmt.Sprintf("%s IN (%s) ", column, f.Value), args
-		}
+		return fmt.Sprintf("%s IN (%s) ", column, strings.Join(named, ", ")), args
 	case FilterOperatorNotEq:
 		args[argName] = f.Value
 
@@ -149,4 +135,49 @@ func (f *FilterGroup) GetWhereClause() (string, map[string]any) {
 	}
 
 	return fmt.Sprintf("(%s)", strings.Join(whereClause, " "+f.Operator+" ")), args
+}
+
+// inArgs populates 'args' from a slice value and returns the placeholder names.
+// It uses a type-switch over common slice types instead of reflect.
+func inArgs(argName string, value any, args map[string]any) []string {
+	switch v := value.(type) {
+	case []string:
+		named := make([]string, len(v))
+		for i, s := range v {
+			name := argName + "_" + strconv.Itoa(i)
+			args[name] = s
+			named[i] = ":" + name
+		}
+
+		return named
+	case []int:
+		named := make([]string, len(v))
+		for i, n := range v {
+			name := argName + "_" + strconv.Itoa(i)
+			args[name] = n
+			named[i] = ":" + name
+		}
+
+		return named
+	case []int64:
+		named := make([]string, len(v))
+		for i, n := range v {
+			name := argName + "_" + strconv.Itoa(i)
+			args[name] = n
+			named[i] = ":" + name
+		}
+
+		return named
+	case []any:
+		named := make([]string, len(v))
+		for i, a := range v {
+			name := argName + "_" + strconv.Itoa(i)
+			args[name] = a
+			named[i] = ":" + name
+		}
+
+		return named
+	default:
+		return []string{fmt.Sprint(value)}
+	}
 }

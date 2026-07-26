@@ -43,6 +43,7 @@ type Repository[T any] struct {
 	columns       []column
 	join          string
 	InsertColumns []string
+	selectQuery   string
 }
 
 // NewRepository creates a new instance of Repository for a specific entity type T,
@@ -75,6 +76,7 @@ func NewRepository[T any](entityName, tableName, primaryColumn string, dbConnect
 		columns:       columns,
 		join:          joinQueryStr,
 		InsertColumns: insertColumns,
+		selectQuery:   buildSelectQuery(columns),
 	}
 }
 
@@ -408,16 +410,30 @@ func (repo *Repository[T]) insertBulk(ctx context.Context, exec execer, models [
 // named args backing it. SET placeholders are prefixed with "_set_" so they can
 // never collide with WHERE-clause args that reference the same column name.
 func buildUpdateAssignments(mod map[string]any) (clause string, args map[string]any) {
-	updateField := make([]string, 0, len(mod))
 	args = make(map[string]any, len(mod))
 
-	for col := range mod {
+	var b strings.Builder
+
+	const estimateLen = 30 // ponytail: "col = :_set_col, " per entry
+	b.Grow(len(mod) * estimateLen)
+
+	first := true
+
+	for col, val := range mod {
 		setParam := "_set_" + col
-		updateField = append(updateField, fmt.Sprintf("%s = :%s", col, setParam))
-		args[setParam] = mod[col]
+
+		if !first {
+			b.WriteString(", ")
+		}
+
+		b.WriteString(col)
+		b.WriteString(" = :")
+		b.WriteString(setParam)
+		args[setParam] = val
+		first = false
 	}
 
-	return strings.Join(updateField, ", "), args
+	return b.String(), args
 }
 
 // buildOrderBy returns a safe ORDER BY clause, or an empty string when no valid
@@ -439,29 +455,46 @@ func (repo *Repository[T]) buildOrderBy(params dto.QueryParams) string {
 	return fmt.Sprintf("ORDER BY %s %s", params.SortBy, params.SortDir)
 }
 
+// buildSelectQuery pre-computes the full SELECT column string from a column list.
+func buildSelectQuery(columns []column) string {
+	parts := make([]string, len(columns))
+	for i, c := range columns {
+		switch {
+		case c.table == "":
+			parts[i] = c.name
+		case c.alias != "":
+			parts[i] = c.table + "." + c.name + " AS " + c.alias
+		default:
+			parts[i] = c.table + "." + c.name
+		}
+	}
+
+	return strings.Join(parts, ", ")
+}
+
 func (repo *Repository[T]) getSelectQuery(ctx context.Context, columnsParam ...string) string {
 	_, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.getSelectQuery", constant.OtelRepositoryScopeName, repo.entity))
 	defer scope.End()
 
-	columns := []string{}
-	for _, col := range repo.columns {
-		tableField := col.table
-		name := col.name
-		alias := col.alias
+	if len(columnsParam) == 0 {
+		return repo.selectQuery
+	}
 
-		if len(columnsParam) > 0 && !slices.Contains(columnsParam, name) {
+	columns := make([]string, 0, len(repo.columns))
+	for _, col := range repo.columns {
+		if !slices.Contains(columnsParam, col.name) {
 			continue
 		}
 
 		var column string
-		if tableField == "" {
-			column = name
-		} else {
-			if alias != "" {
-				column = fmt.Sprintf("%s.%s AS %s", tableField, name, alias)
-			} else {
-				column = fmt.Sprintf("%s.%s", tableField, name)
-			}
+
+		switch {
+		case col.table == "":
+			column = col.name
+		case col.alias != "":
+			column = col.table + "." + col.name + " AS " + col.alias
+		default:
+			column = col.table + "." + col.name
 		}
 
 		columns = append(columns, column)
@@ -481,7 +514,7 @@ func (repo *Repository[T]) BuildWhereClause(ctx context.Context, filter dto.Filt
 		return where, map[string]any{}
 	}
 
-	return fmt.Sprintf(" WHERE %s ", where), args
+	return " WHERE " + where + " ", args
 }
 
 func getColumns(table string, reflectType reflect.Type) (columns []column, insertColumns []string) {

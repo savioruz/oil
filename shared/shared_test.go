@@ -16,90 +16,95 @@ import (
 
 func TestConvertStringToBool(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		expected *bool
+		name        string
+		input       string
+		expected    bool
+		expectError bool
 	}{
 		{
-			name:     "empty string returns nil",
-			input:    "",
-			expected: nil,
+			name:        "empty string returns error",
+			input:       "",
+			expected:    false,
+			expectError: true,
 		},
 		{
 			name:     "valid true string",
 			input:    "true",
-			expected: boolPtr(true),
+			expected: true,
 		},
 		{
 			name:     "valid false string",
 			input:    "false",
-			expected: boolPtr(false),
+			expected: false,
 		},
 		{
 			name:     "valid 1 string",
 			input:    "1",
-			expected: boolPtr(true),
+			expected: true,
 		},
 		{
 			name:     "valid 0 string",
 			input:    "0",
-			expected: boolPtr(false),
+			expected: false,
 		},
 		{
 			name:     "valid t string",
 			input:    "t",
-			expected: boolPtr(true),
+			expected: true,
 		},
 		{
 			name:     "valid f string",
 			input:    "f",
-			expected: boolPtr(false),
+			expected: false,
 		},
 		{
 			name:     "valid T string",
 			input:    "T",
-			expected: boolPtr(true),
+			expected: true,
 		},
 		{
 			name:     "valid F string",
 			input:    "F",
-			expected: boolPtr(false),
+			expected: false,
 		},
 		{
 			name:     "valid TRUE string",
 			input:    "TRUE",
-			expected: boolPtr(true),
+			expected: true,
 		},
 		{
 			name:     "valid FALSE string",
 			input:    "FALSE",
-			expected: boolPtr(false),
+			expected: false,
 		},
 		{
-			name:     "invalid string returns nil",
-			input:    "invalid",
-			expected: nil,
+			name:        "invalid string returns error",
+			input:       "invalid",
+			expected:    false,
+			expectError: true,
 		},
 		{
-			name:     "random string returns nil",
-			input:    "random",
-			expected: nil,
+			name:        "random string returns error",
+			input:       "random",
+			expected:    false,
+			expectError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := shared.ConvertStringToBool(tt.input)
+			result, err := shared.ConvertStringToBool(tt.input)
 
-			if tt.expected == nil {
-				if result != nil {
-					t.Errorf("expected nil, got %v", *result)
+			if tt.expectError {
+				if err == nil {
+					t.Error("expected error, got nil")
 				}
 			} else {
-				if result == nil {
-					t.Errorf("expected %v, got nil", *tt.expected)
-				} else if *result != *tt.expected {
-					t.Errorf("expected %v, got %v", *tt.expected, *result)
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if result != tt.expected {
+					t.Errorf("expected %v, got %v", tt.expected, result)
 				}
 			}
 		})

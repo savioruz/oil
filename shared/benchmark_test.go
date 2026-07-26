@@ -12,7 +12,7 @@ func BenchmarkConvertStringToBool(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, tt := range tests {
-			_ = shared.ConvertStringToBool(tt)
+			_, _ = shared.ConvertStringToBool(tt)
 		}
 	}
 }

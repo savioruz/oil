@@ -14,7 +14,7 @@ func TestErrorKeyInResponse(t *testing.T) {
 	errMsg := "gallery not found"
 
 	errResponse := response.Error{
-		Error: &errMsg,
+		Error: errMsg,
 	}
 
 	// Marshal to JSON

@@ -114,11 +114,11 @@ func (handler *Handler) GetTodos(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	if complete := shared.ConvertStringToBool(r.URL.Query().Get(model.FieldCompleted)); complete != nil {
+	if complete, err := shared.ConvertStringToBool(r.URL.Query().Get(model.FieldCompleted)); err == nil {
 		filterGroup.Filters = append(filterGroup.Filters, gDto.Filter{
 			Field:    model.FieldCompleted,
 			Operator: gDto.FilterOperatorEq,
-			Value:    *complete,
+			Value:    complete,
 			Table:    model.TableName,
 		})
 	}

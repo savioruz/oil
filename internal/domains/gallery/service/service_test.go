@@ -22,6 +22,7 @@ import (
 	gDto "oil/shared/dto"
 	"oil/shared/errkey"
 	"oil/shared/failure"
+	"oil/shared/singleflight"
 )
 
 func setup(t *testing.T) (*gomock.Controller, *galleryMocks.MockGallery, *cacheMocks.MockRedisCache, *config.Config, *s3mocks.MockS3, otel.Otel) {
@@ -39,7 +40,7 @@ func TestCreate(t *testing.T) {
 	ctrl, mockRepo, mockCache, cfg, mockS3, mockOtel := setup(t)
 	defer ctrl.Finish()
 
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3, singleflight.New())
 
 	tests := []struct {
 		name      string
@@ -98,7 +99,7 @@ func TestGetAll(t *testing.T) {
 	ctrl, mockRepo, mockCache, cfg, mockS3, mockOtel := setup(t)
 	defer ctrl.Finish()
 
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3, singleflight.New())
 
 	mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("cache miss")).AnyTimes()
 	mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
@@ -175,7 +176,7 @@ func TestGet(t *testing.T) {
 	ctrl, mockRepo, mockCache, cfg, mockS3, mockOtel := setup(t)
 	defer ctrl.Finish()
 
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3, singleflight.New())
 
 	mockCache.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("cache miss")).AnyTimes()
 	mockCache.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
@@ -246,7 +247,7 @@ func TestUpdate(t *testing.T) {
 	ctrl, mockRepo, mockCache, cfg, mockS3, mockOtel := setup(t)
 	defer ctrl.Finish()
 
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3, singleflight.New())
 
 	mockCache.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockCache.EXPECT().Clear(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
@@ -339,7 +340,7 @@ func TestDelete(t *testing.T) {
 
 	cfg.External.S3.BucketName = "test-bucket"
 
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3, singleflight.New())
 
 	tests := []struct {
 		name      string
@@ -427,7 +428,7 @@ func TestUploadImage(t *testing.T) {
 
 	cfg.External.S3.BucketName = "test-bucket"
 
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3, singleflight.New())
 
 	tests := []struct {
 		name      string
@@ -486,7 +487,7 @@ func TestDeleteImagesFromS3(t *testing.T) {
 
 	cfg.External.S3.BucketName = "test-bucket"
 
-	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3)
+	svc := service.New(mockRepo, cfg, mockCache, mockOtel, mockS3, singleflight.New())
 
 	tests := []struct {
 		name      string

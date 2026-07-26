@@ -123,7 +123,6 @@ func TestGetMe(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseData.Data)
 		assert.Equal(t, "user-id-1", responseData.Data.ID)
 		assert.Equal(t, "test@example.com", responseData.Data.Email)
 		assert.Equal(t, "Test User", responseData.Data.Name)
@@ -263,8 +262,8 @@ func TestUpdateMe(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseMessage.Message)
-		assert.Equal(t, "Userprofile updated successfully", *responseMessage.Message)
+		assert.NotEmpty(t, responseMessage.Message)
+		assert.Equal(t, "Userprofile updated successfully", responseMessage.Message)
 	})
 
 	t.Run("Success: partial update - only name", func(t *testing.T) {
@@ -408,7 +407,6 @@ func TestGeneratePresignedURL(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseData.Data)
 		assert.NotEmpty(t, responseData.Data.UploadURL)
 		assert.NotEmpty(t, responseData.Data.FileKey)
 	})

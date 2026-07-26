@@ -8,12 +8,14 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"oil/config"
 	"oil/shared/cache"
 	"oil/shared/constant"
 	"oil/shared/dto"
+	"oil/shared/errkey"
 	"oil/shared/timezone"
 	"reflect"
 	"strconv"
@@ -22,20 +24,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// ConvertStringToBool converts a string value to a boolean pointer.
-func ConvertStringToBool(value string) *bool {
+var errValidationFailed = errors.New(string(errkey.ErrValidationFailed))
+
+// ConvertStringToBool converts a string value to a boolean.
+func ConvertStringToBool(value string) (bool, error) {
 	if value == "" {
-		return nil
+		return false, errValidationFailed
 	}
 
 	boolValue, err := strconv.ParseBool(value)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to convert string to bool")
-
-		return nil
+		return false, err
 	}
 
-	return &boolValue
+	return boolValue, nil
 }
 
 // CalculateTotalPage calculates the total number of pages based on total items and limit per page.

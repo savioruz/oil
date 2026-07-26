@@ -16,6 +16,7 @@ import (
 	gDto "oil/shared/dto"
 	"oil/shared/errkey"
 	"oil/shared/failure"
+	"oil/shared/singleflight"
 
 	"github.com/rs/zerolog/log"
 )
@@ -47,15 +48,17 @@ type serviceImpl struct {
 	cache cache.RedisCache
 	otel  otel.Otel
 	s3    s3.S3
+	sf    *singleflight.Group
 }
 
-func New(repo repository.Gallery, cfg *config.Config, cache cache.RedisCache, otel otel.Otel, s3 s3.S3) Gallery {
+func New(repo repository.Gallery, cfg *config.Config, cache cache.RedisCache, otel otel.Otel, s3 s3.S3, sf *singleflight.Group) Gallery {
 	return &serviceImpl{
 		repo:  repo,
 		cfg:   cfg,
 		cache: cache,
 		otel:  otel,
 		s3:    s3,
+		sf:    sf,
 	}
 }
 
@@ -64,7 +67,7 @@ func (s *serviceImpl) Create(ctx context.Context, req dto.CreateGalleryRequest) 
 	defer scope.End()
 	defer scope.TraceIfError(err)
 
-	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	user := shared.GetUserID(ctx)
 
 	if err = s.repo.Insert(ctx, req.ToModel(user)); err != nil {
 		return failure.InternalErrorWithKey(errkey.ErrGalleryCreateFailed, fmt.Sprintf("failed to create gallery: %v", err))
@@ -87,38 +90,27 @@ func (s *serviceImpl) GetAll(ctx context.Context, req gDto.QueryParams, filter g
 
 	cacheKey := shared.BuildCacheKeyWithQuery(cacheGetAllGallery, req, filter)
 
-	err = s.cache.Get(ctx, cacheKey, &res)
-	if err == nil {
-		log.Info().Str("cacheKey", cacheKey).Msg("cache hit for galleries")
+	return cache.Remember(ctx, s.cache, s.sf, cacheKey, s.cfg.Cache.TTL, func(ctx context.Context) (dto.GetGalleriesResponse, error) {
+		var out dto.GetGalleriesResponse
 
-		return res, nil
-	}
+		total, err := s.Count(ctx, req, filter)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to count galleries")
 
-	total, err := s.Count(ctx, req, filter)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to count galleries")
-
-		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to count galleries: %v", err))
-	}
-
-	galleries, err := s.repo.GetAll(ctx, req, filter)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to get galleries")
-
-		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get galleries: %v", err))
-	}
-
-	res.FromModels(galleries, total, req.Limit)
-
-	go func() {
-		c := context.WithoutCancel(ctx)
-
-		if err := s.cache.Save(c, cacheKey, res, s.cfg.Cache.TTL); err != nil {
-			log.Error().Err(err).Msg("failed to save galleries to cache")
+			return out, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to count galleries: %v", err))
 		}
-	}()
 
-	return res, nil
+		galleries, err := s.repo.GetAll(ctx, req, filter)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get galleries")
+
+			return out, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get galleries: %v", err))
+		}
+
+		out.FromModels(galleries, total, req.Limit)
+
+		return out, nil
+	})
 }
 
 func (s *serviceImpl) Count(ctx context.Context, req gDto.QueryParams, filter gDto.FilterGroup) (total int, err error) {
@@ -128,29 +120,16 @@ func (s *serviceImpl) Count(ctx context.Context, req gDto.QueryParams, filter gD
 
 	cacheKey := shared.BuildCacheKeyWithQuery(cacheCountGallery, req, filter)
 
-	err = s.cache.Get(ctx, cacheKey, &total)
-	if err == nil {
-		log.Info().Str("cacheKey", cacheKey).Msg("cache hit for gallery count")
+	return cache.Remember(ctx, s.cache, s.sf, cacheKey, s.cfg.Cache.TTL, func(ctx context.Context) (int, error) {
+		count, err := s.repo.Count(ctx, filter)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to count galleries")
 
-		return total, nil
-	}
-
-	total, err = s.repo.Count(ctx, filter)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to count galleries")
-
-		return total, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to count galleries: %v", err))
-	}
-
-	go func() {
-		c := context.WithoutCancel(ctx)
-
-		if err := s.cache.Save(c, cacheKey, total, s.cfg.Cache.TTL); err != nil {
-			log.Error().Err(err).Msg("failed to save gallery count to cache")
+			return 0, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to count galleries: %v", err))
 		}
-	}()
 
-	return total, nil
+		return count, nil
+	})
 }
 
 func (s *serviceImpl) Get(ctx context.Context, id string) (res dto.GalleryResponse, err error) {
@@ -160,35 +139,24 @@ func (s *serviceImpl) Get(ctx context.Context, id string) (res dto.GalleryRespon
 
 	cacheKey := shared.BuildCacheKey(cacheGetGallery, id)
 
-	err = s.cache.Get(ctx, cacheKey, &res)
-	if err == nil {
-		log.Info().Str("cacheKey", cacheKey).Msg("cache hit for gallery")
+	return cache.Remember(ctx, s.cache, s.sf, cacheKey, s.cfg.Cache.TTL, func(ctx context.Context) (dto.GalleryResponse, error) {
+		var out dto.GalleryResponse
 
-		return res, nil
-	}
+		gallery, err := s.repo.Get(ctx, shared.SingleFilter(id, model.FieldID, model.TableName))
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get gallery")
 
-	gallery, err := s.repo.Get(ctx, shared.SingleFilter(id, model.FieldID, model.TableName))
-	if err != nil {
-		log.Error().Err(err).Msg("failed to get gallery")
-
-		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get gallery: %v", err))
-	}
-
-	if gallery.ID == constant.EmptyString {
-		return res, failure.NotFoundWithKey(errkey.ErrGalleryNotFound, "gallery not found")
-	}
-
-	res.FromModel(gallery)
-
-	go func() {
-		c := context.WithoutCancel(ctx)
-
-		if err := s.cache.Save(c, cacheKey, res, s.cfg.Cache.TTL); err != nil {
-			log.Error().Err(err).Msg("failed to save gallery to cache")
+			return out, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get gallery: %v", err))
 		}
-	}()
 
-	return res, nil
+		if gallery.ID == "" {
+			return out, failure.NotFoundWithKey(errkey.ErrGalleryNotFound, "gallery not found")
+		}
+
+		out.FromModel(gallery)
+
+		return out, nil
+	})
 }
 
 func (s *serviceImpl) Update(ctx context.Context, req dto.UpdateGalleryRequest, id string) (err error) {
@@ -196,7 +164,7 @@ func (s *serviceImpl) Update(ctx context.Context, req dto.UpdateGalleryRequest, 
 	defer scope.End()
 	defer scope.TraceIfError(err)
 
-	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	user := shared.GetUserID(ctx)
 	filter := shared.SingleFilter(id, model.FieldID, model.TableName)
 
 	exist, err := s.repo.Exist(ctx, filter)
@@ -247,7 +215,7 @@ func (s *serviceImpl) Delete(ctx context.Context, id string) (err error) {
 		return failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get gallery: %v", err))
 	}
 
-	if gallery.ID == constant.EmptyString {
+	if gallery.ID == "" {
 		log.Error().Msg("gallery not found")
 
 		return failure.NotFoundWithKey(errkey.ErrGalleryNotFound, "gallery not found")
@@ -259,6 +227,9 @@ func (s *serviceImpl) Delete(ctx context.Context, id string) (err error) {
 		return failure.InternalErrorWithKey(errkey.ErrGalleryDeleteFailed, fmt.Sprintf("failed to delete gallery: %v", err))
 	}
 
+	images := make([]string, len(gallery.Images))
+	copy(images, gallery.Images)
+
 	go func() {
 		c := context.WithoutCancel(ctx)
 
@@ -269,9 +240,9 @@ func (s *serviceImpl) Delete(ctx context.Context, id string) (err error) {
 		shared.InvalidateCaches(c, s.cache, cacheGetAllGallery)
 		shared.InvalidateCaches(c, s.cache, cacheCountGallery)
 
-		if len(gallery.Images) > 0 {
+		if len(images) > 0 {
 			deleteReq := dto.DeleteImagesRequest{
-				ImageURLs: gallery.Images,
+				ImageURLs: images,
 			}
 			if err := s.DeleteImagesFromS3(c, deleteReq); err != nil {
 				log.Error().Err(err).Msg("failed to delete images from S3")
@@ -312,7 +283,7 @@ func (s *serviceImpl) DeleteImagesFromS3(ctx context.Context, req dto.DeleteImag
 
 	for _, imageURL := range req.ImageURLs {
 		objectName := s.s3.GetObjectNameFromURL(bucketName, imageURL)
-		if objectName == constant.EmptyString {
+		if objectName == "" {
 			log.Warn().Str("url", imageURL).Msg("failed to extract object name from URL")
 
 			continue

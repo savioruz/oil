@@ -5,6 +5,7 @@ import (
 	"oil/infras/otel"
 	"oil/internal/domains/userprofile/model/dto"
 	"oil/internal/domains/userprofile/service"
+	"oil/shared"
 	"oil/shared/constant"
 	"oil/shared/failure"
 	"oil/shared/validator"
@@ -48,7 +49,7 @@ func (handler *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".GetMe")
 	defer scope.End()
 
-	userID, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	userID := shared.GetUserID(ctx)
 	if userID == "" {
 		response.WithError(w, failure.Unauthorized("unauthorized"))
 
@@ -85,7 +86,7 @@ func (handler *Handler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".UpdateMe")
 	defer scope.End()
 
-	userID, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	userID := shared.GetUserID(ctx)
 	if userID == "" {
 		response.WithError(w, failure.Unauthorized("unauthorized"))
 
@@ -118,7 +119,7 @@ func (handler *Handler) GeneratePresignedURL(w http.ResponseWriter, r *http.Requ
 	ctx, scope := handler.otel.NewScope(r.Context(), constant.OtelHandlerScopeName, constant.OtelHandlerScopeName+".GeneratePresignedURL")
 	defer scope.End()
 
-	userID, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	userID := shared.GetUserID(ctx)
 	if userID == "" {
 		response.WithError(w, failure.Unauthorized("unauthorized"))
 

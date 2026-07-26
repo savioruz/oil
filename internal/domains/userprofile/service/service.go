@@ -59,7 +59,7 @@ func (s *serviceImpl) GetOrCreateByAuthUserID(ctx context.Context, authUserID, e
 		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get userprofile: %v", err))
 	}
 
-	if profile.ID != constant.EmptyString {
+	if profile.ID != "" {
 		res.FromModel(profile)
 
 		return res, nil
@@ -104,7 +104,7 @@ func (s *serviceImpl) Get(ctx context.Context, id string) (res dto.UserprofileRe
 		return res, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get userprofile: %v", err))
 	}
 
-	if profile.ID == constant.EmptyString {
+	if profile.ID == "" {
 		return res, failure.NotFoundWithKey(errkey.ErrUserprofileNotFound, "userprofile not found")
 	}
 

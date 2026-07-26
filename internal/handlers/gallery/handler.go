@@ -8,6 +8,7 @@ import (
 	"oil/internal/domains/gallery/model"
 	"oil/internal/domains/gallery/model/dto"
 	"oil/internal/domains/gallery/service"
+	"oil/shared"
 	"oil/shared/constant"
 	gDto "oil/shared/dto"
 	"oil/shared/validator"
@@ -79,7 +80,7 @@ func (handler *Handler) CreateGallery(writer http.ResponseWriter, request *http.
 		return
 	}
 
-	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	user := shared.GetUserID(ctx)
 	scope.AddEvent("Gallery created successfully by user " + user)
 
 	response.WithMessage(writer, http.StatusCreated, "Gallery created successfully")
@@ -107,10 +108,14 @@ func (handler *Handler) GetGalleries(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Query().Get(model.FieldTitle)
 	description := r.URL.Query().Get(model.FieldDescription)
 
+	const maxFilters = 3
+
 	filterGroup := gDto.FilterGroup{
 		Operator: gDto.FilterGroupOperatorAnd,
-		Filters:  []any{},
+		Filters:  make([]any, 0, maxFilters),
 	}
+
+	filterGroup.Filters = append(filterGroup.Filters, shared.UserFilter(ctx, constant.FieldCreatedBy, model.TableName))
 
 	if title != "" {
 		filterGroup.Filters = append(filterGroup.Filters, gDto.Filter{
@@ -217,7 +222,7 @@ func (handler *Handler) UpdateGallery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	user := shared.GetUserID(ctx)
 	scope.AddEvent("Gallery updated successfully by user " + user)
 
 	response.WithMessage(w, http.StatusOK, "Gallery updated successfully")
@@ -251,7 +256,7 @@ func (handler *Handler) DeleteGallery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	user := shared.GetUserID(ctx)
 	scope.AddEvent("Gallery deleted successfully by user " + user)
 
 	response.WithMessage(w, http.StatusOK, "Gallery deleted successfully")
@@ -313,7 +318,7 @@ func (handler *Handler) UploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	user := shared.GetUserID(ctx)
 	scope.AddEvent("Image uploaded successfully by user " + user)
 
 	response.WithJSON(w, http.StatusOK, res)
@@ -355,7 +360,7 @@ func (handler *Handler) DeleteImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	user := shared.GetUserID(ctx)
 	scope.AddEvent("Images deleted successfully by user " + user)
 
 	response.WithMessage(w, http.StatusOK, "Images deleted successfully")

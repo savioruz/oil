@@ -8,12 +8,14 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"oil/config"
 	"oil/shared/cache"
 	"oil/shared/constant"
 	"oil/shared/dto"
+	"oil/shared/errkey"
 	"oil/shared/timezone"
 	"reflect"
 	"strconv"
@@ -22,20 +24,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// ConvertStringToBool converts a string value to a boolean pointer.
-func ConvertStringToBool(value string) *bool {
+var errValidationFailed = errors.New(string(errkey.ErrValidationFailed))
+
+// ConvertStringToBool converts a string value to a boolean.
+func ConvertStringToBool(value string) (bool, error) {
 	if value == "" {
-		return nil
+		return false, errValidationFailed
 	}
 
 	boolValue, err := strconv.ParseBool(value)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to convert string to bool")
-
-		return nil
+		return false, err
 	}
 
-	return &boolValue
+	return boolValue, nil
 }
 
 // CalculateTotalPage calculates the total number of pages based on total items and limit per page.
@@ -47,6 +49,41 @@ func CalculateTotalPage(total, limit int) (res int) {
 	}
 
 	return res
+}
+
+// GetUserID extracts the authenticated user's ID from the context.
+// Returns the empty string if the context key is missing or the value has an unexpected type.
+func GetUserID(ctx context.Context) string {
+	v, _ := ctx.Value(constant.ContextKeyUserID).(string)
+
+	return v
+}
+
+// GetUserEmail extracts the authenticated user's email from the context.
+// Returns the empty string if the context key is missing or the value has an unexpected type.
+func GetUserEmail(ctx context.Context) string {
+	v, _ := ctx.Value(constant.ContextKeyUserEmail).(string)
+
+	return v
+}
+
+// GetUserRole extracts the authenticated user's role from the context.
+// Returns the empty string if the context key is missing or the value has an unexpected type.
+func GetUserRole(ctx context.Context) string {
+	v, _ := ctx.Value(constant.ContextKeyUserRole).(string)
+
+	return v
+}
+
+// UserFilter returns a filter matching the given field to the authenticated user's ID.
+// The returned Filter is suitable for use in a FilterGroup to scope queries by owner.
+func UserFilter(ctx context.Context, field, table string) dto.Filter {
+	return dto.Filter{
+		Field:    field,
+		Operator: dto.FilterOperatorEq,
+		Value:    GetUserID(ctx),
+		Table:    table,
+	}
 }
 
 // TransformFields converts the fields of a struct into a map of updated fields.

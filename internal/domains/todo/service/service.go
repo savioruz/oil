@@ -169,7 +169,7 @@ func (s *serviceImpl) Get(ctx context.Context, id string) (res dto.TodoResponse,
 			return out, failure.InternalErrorWithKey(errkey.ErrDatabaseQuery, fmt.Sprintf("failed to get todo: %v", err))
 		}
 
-		if todo.ID == constant.EmptyString {
+		if todo.ID == "" {
 			return out, failure.NotFoundWithKey(errkey.ErrTodoNotFound, "todo not found")
 		}
 

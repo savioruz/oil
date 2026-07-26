@@ -16,90 +16,95 @@ import (
 
 func TestConvertStringToBool(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		expected *bool
+		name        string
+		input       string
+		expected    bool
+		expectError bool
 	}{
 		{
-			name:     "empty string returns nil",
-			input:    "",
-			expected: nil,
+			name:        "empty string returns error",
+			input:       "",
+			expected:    false,
+			expectError: true,
 		},
 		{
 			name:     "valid true string",
 			input:    "true",
-			expected: boolPtr(true),
+			expected: true,
 		},
 		{
 			name:     "valid false string",
 			input:    "false",
-			expected: boolPtr(false),
+			expected: false,
 		},
 		{
 			name:     "valid 1 string",
 			input:    "1",
-			expected: boolPtr(true),
+			expected: true,
 		},
 		{
 			name:     "valid 0 string",
 			input:    "0",
-			expected: boolPtr(false),
+			expected: false,
 		},
 		{
 			name:     "valid t string",
 			input:    "t",
-			expected: boolPtr(true),
+			expected: true,
 		},
 		{
 			name:     "valid f string",
 			input:    "f",
-			expected: boolPtr(false),
+			expected: false,
 		},
 		{
 			name:     "valid T string",
 			input:    "T",
-			expected: boolPtr(true),
+			expected: true,
 		},
 		{
 			name:     "valid F string",
 			input:    "F",
-			expected: boolPtr(false),
+			expected: false,
 		},
 		{
 			name:     "valid TRUE string",
 			input:    "TRUE",
-			expected: boolPtr(true),
+			expected: true,
 		},
 		{
 			name:     "valid FALSE string",
 			input:    "FALSE",
-			expected: boolPtr(false),
+			expected: false,
 		},
 		{
-			name:     "invalid string returns nil",
-			input:    "invalid",
-			expected: nil,
+			name:        "invalid string returns error",
+			input:       "invalid",
+			expected:    false,
+			expectError: true,
 		},
 		{
-			name:     "random string returns nil",
-			input:    "random",
-			expected: nil,
+			name:        "random string returns error",
+			input:       "random",
+			expected:    false,
+			expectError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := shared.ConvertStringToBool(tt.input)
+			result, err := shared.ConvertStringToBool(tt.input)
 
-			if tt.expected == nil {
-				if result != nil {
-					t.Errorf("expected nil, got %v", *result)
+			if tt.expectError {
+				if err == nil {
+					t.Error("expected error, got nil")
 				}
 			} else {
-				if result == nil {
-					t.Errorf("expected %v, got nil", *tt.expected)
-				} else if *result != *tt.expected {
-					t.Errorf("expected %v, got %v", *tt.expected, *result)
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if result != tt.expected {
+					t.Errorf("expected %v, got %v", tt.expected, result)
 				}
 			}
 		})
@@ -702,5 +707,75 @@ func TestGenerateQueryHashWithUnmarshalableData(t *testing.T) {
 	expectedHashPart := "page_1_limit_10_sortBy_created_at_sortDir_DESC"
 	if parts[3] != expectedHashPart {
 		t.Errorf("expected hash part to be %s, got %s", expectedHashPart, parts[3])
+	}
+}
+
+func BenchmarkConvertStringToBool(b *testing.B) {
+	tests := []string{"true", "false", "1", "0", "True", "False", ""}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, tt := range tests {
+			_, _ = shared.ConvertStringToBool(tt)
+		}
+	}
+}
+
+func BenchmarkCalculateTotalPage(b *testing.B) {
+	tests := []struct {
+		total int
+		limit int
+	}{
+		{0, 10},
+		{1, 10},
+		{100, 10},
+		{1000, 10},
+		{10000, 10},
+		{100, 20},
+		{100, 50},
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, tt := range tests {
+			_ = shared.CalculateTotalPage(tt.total, tt.limit)
+		}
+	}
+}
+
+func BenchmarkSingleFilter(b *testing.B) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = shared.SingleFilter("123", "id", "users")
+	}
+}
+
+func BenchmarkBuildCacheKey(b *testing.B) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = shared.BuildCacheKey("user", "123", "profile")
+	}
+}
+
+func BenchmarkBuildCacheKeyWithoutPostfix(b *testing.B) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = shared.BuildCacheKey("user")
+	}
+}
+
+func BenchmarkGenerateUniqueFilename(b *testing.B) {
+	filenames := []string{
+		"image.jpg",
+		"document.pdf",
+		"very_long_filename_that_should_be_handled_properly.png",
+		"file.txt",
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, name := range filenames {
+			_ = shared.GenerateUniqueFilename(name)
+		}
 	}
 }

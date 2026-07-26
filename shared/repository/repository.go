@@ -43,6 +43,8 @@ type Repository[T any] struct {
 	columns       []column
 	join          string
 	InsertColumns []string
+	selectQuery   string
+	scopePrefix   string
 }
 
 // NewRepository creates a new instance of Repository for a specific entity type T,
@@ -75,6 +77,8 @@ func NewRepository[T any](entityName, tableName, primaryColumn string, dbConnect
 		columns:       columns,
 		join:          joinQueryStr,
 		InsertColumns: insertColumns,
+		selectQuery:   buildSelectQuery(columns),
+		scopePrefix:   constant.OtelRepositoryScopeName + "." + entityName + ".",
 	}
 }
 
@@ -82,7 +86,7 @@ func NewRepository[T any](entityName, tableName, primaryColumn string, dbConnect
 // abstracting the common logic for both Insert and InsertTx methods. It takes a context,
 // an execer (which can be either a sqlx.DB or sqlx.Tx), and the model to be inserted, returning an error if the operation fails.
 func (repo *Repository[T]) insert(ctx context.Context, exec execer, model T) error {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.insert", constant.OtelRepositoryScopeName, repo.entity))
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"insert")
 	defer scope.End()
 
 	placeholders := make([]string, 0, len(repo.InsertColumns))
@@ -91,7 +95,7 @@ func (repo *Repository[T]) insert(ctx context.Context, exec execer, model T) err
 		placeholders = append(placeholders, ":"+col)
 	}
 
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", repo.table, strings.Join(repo.InsertColumns, ", "), strings.Join(placeholders, ", "))
+	query := "INSERT INTO " + repo.table + " (" + strings.Join(repo.InsertColumns, ", ") + ") VALUES (" + strings.Join(placeholders, ", ") + ")"
 	scope.SetAttribute(constant.OtelQueryAttributeKey, query)
 
 	_, err := exec.NamedExecContext(ctx, query, model)
@@ -107,7 +111,7 @@ func (repo *Repository[T]) insert(ctx context.Context, exec execer, model T) err
 
 // Insert inserts a new record into the database, returning an error if the operation fails.
 func (repo *Repository[T]) Insert(ctx context.Context, model T) error {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.Insert", constant.OtelRepositoryScopeName, repo.entity))
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"Insert")
 	defer scope.End()
 
 	return repo.insert(ctx, repo.db.Write, model) //nolint:wrapcheck
@@ -117,7 +121,7 @@ func (repo *Repository[T]) Insert(ctx context.Context, model T) error {
 // allowing for atomic operations and ensuring that the insert operation is part of the transaction's scope.
 // It takes a context, a sqlx.Tx transaction object, and the model to be inserted, returning an error if the operation fails.
 func (repo *Repository[T]) InsertTx(ctx context.Context, sqltx *sqlx.Tx, model T) error {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.InsertTx", constant.OtelRepositoryScopeName, repo.entity))
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"InsertTx")
 	defer scope.End()
 
 	return repo.insert(ctx, sqltx, model) //nolint:wrapcheck
@@ -125,7 +129,7 @@ func (repo *Repository[T]) InsertTx(ctx context.Context, sqltx *sqlx.Tx, model T
 
 // Exist checks if a record exists that matches the given filter criteria, returning true if it exists and false otherwise, along with any error encountered during the operation.
 func (repo *Repository[T]) Exist(ctx context.Context, filter dto.FilterGroup) (bool, error) {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.Exist", constant.OtelRepositoryScopeName, repo.entity))
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"Exist")
 	defer scope.End()
 
 	where, args := repo.BuildWhereClause(ctx, filter)
@@ -133,7 +137,7 @@ func (repo *Repository[T]) Exist(ctx context.Context, filter dto.FilterGroup) (b
 		return false, errRequiredFilter
 	}
 
-	query := fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s %s)", repo.table, where)
+	query := "SELECT EXISTS(SELECT 1 FROM " + repo.table + " " + where + ")"
 	scope.SetAttribute(constant.OtelQueryAttributeKey, query)
 
 	exist := false
@@ -161,13 +165,13 @@ func (repo *Repository[T]) Exist(ctx context.Context, filter dto.FilterGroup) (b
 
 // Get returns a single record that matches the given filter criteria, along with any error encountered during the operation.
 func (repo *Repository[T]) Get(ctx context.Context, filter dto.FilterGroup, columns ...string) (T, error) {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.Get", constant.OtelRepositoryScopeName, repo.entity))
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"Get")
 	defer scope.End()
 
 	where, args := repo.BuildWhereClause(ctx, filter)
 	selectQuery := repo.getSelectQuery(ctx, columns...)
 
-	query := fmt.Sprintf("SELECT %s FROM %s %s %s", selectQuery, repo.table, repo.join, where)
+	query := "SELECT " + selectQuery + " FROM " + repo.table + " " + repo.join + " " + where
 	scope.SetAttribute(constant.OtelQueryAttributeKey, query)
 
 	var model T
@@ -199,7 +203,7 @@ func (repo *Repository[T]) Get(ctx context.Context, filter dto.FilterGroup, colu
 
 // GetAll returns a slice of records that match the given filter criteria, along with any error encountered during the operation.
 func (repo *Repository[T]) GetAll(ctx context.Context, params dto.QueryParams, filter dto.FilterGroup, columns ...string) ([]T, error) {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.GetAll", constant.OtelRepositoryScopeName, repo.entity))
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"GetAll")
 	defer scope.End()
 
 	where, args := repo.BuildWhereClause(ctx, filter)
@@ -223,7 +227,7 @@ func (repo *Repository[T]) GetAll(ctx context.Context, params dto.QueryParams, f
 
 	ordering = repo.buildOrderBy(params)
 
-	query := fmt.Sprintf("SELECT %s FROM %s %s %s %s %s", selectQuery, repo.table, repo.join, where, ordering, pagination)
+	query := "SELECT " + selectQuery + " FROM " + repo.table + " " + repo.join + " " + where + " " + ordering + " " + pagination
 
 	scope.SetAttribute(constant.OtelQueryAttributeKey, query)
 
@@ -252,12 +256,12 @@ func (repo *Repository[T]) GetAll(ctx context.Context, params dto.QueryParams, f
 
 // Count returns the total number of records that match the given filter criteria.
 func (repo *Repository[T]) Count(ctx context.Context, filter dto.FilterGroup) (int, error) {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.Count", constant.OtelRepositoryScopeName, repo.entity))
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"Count")
 	defer scope.End()
 
 	where, args := repo.BuildWhereClause(ctx, filter)
 
-	query := fmt.Sprintf("SELECT COUNT(%s.%s) FROM %s %s %s", repo.table, repo.primaryColumn, repo.table, repo.join, where)
+	query := "SELECT COUNT(" + repo.table + "." + repo.primaryColumn + ") FROM " + repo.table + " " + repo.join + " " + where
 	scope.SetAttribute(constant.OtelQueryAttributeKey, query)
 
 	var count int
@@ -284,7 +288,7 @@ func (repo *Repository[T]) Count(ctx context.Context, filter dto.FilterGroup) (i
 }
 
 func (repo *Repository[T]) delete(ctx context.Context, exec execer, filter dto.FilterGroup) error {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.delete", constant.OtelRepositoryScopeName, repo.entity))
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"delete")
 	defer scope.End()
 
 	where, args := repo.BuildWhereClause(ctx, filter)
@@ -292,7 +296,7 @@ func (repo *Repository[T]) delete(ctx context.Context, exec execer, filter dto.F
 		return errRequiredFilter
 	}
 
-	query := fmt.Sprintf("DELETE FROM %s %s", repo.table, where)
+	query := "DELETE FROM " + repo.table + " " + where
 	scope.SetAttribute(constant.OtelQueryAttributeKey, query)
 
 	_, err := exec.NamedExecContext(ctx, query, args)
@@ -308,7 +312,7 @@ func (repo *Repository[T]) delete(ctx context.Context, exec execer, filter dto.F
 
 // Delete removes records matching the filter from the database.
 func (repo *Repository[T]) Delete(ctx context.Context, filter dto.FilterGroup) error {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.Delete", constant.OtelRepositoryScopeName, repo.entity))
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"Delete")
 	defer scope.End()
 
 	return repo.delete(ctx, repo.db.Write, filter) //nolint:wrapcheck
@@ -316,20 +320,20 @@ func (repo *Repository[T]) Delete(ctx context.Context, filter dto.FilterGroup) e
 
 // DeleteTx removes records matching the filter within a transaction.
 func (repo *Repository[T]) DeleteTx(ctx context.Context, sqltx *sqlx.Tx, filter dto.FilterGroup) error {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.DeleteTx", constant.OtelRepositoryScopeName, repo.entity))
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"DeleteTx")
 	defer scope.End()
 
 	return repo.delete(ctx, sqltx, filter) //nolint:wrapcheck
 }
 
 func (repo *Repository[T]) update(ctx context.Context, exec execer, mod map[string]any, filter dto.FilterGroup) error {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, constant.OtelRepositoryScopeName+".update")
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"update")
 	defer scope.End()
 
 	updateQuery, setArgs := buildUpdateAssignments(mod)
 
 	where, args := repo.BuildWhereClause(ctx, filter)
-	query := fmt.Sprintf("UPDATE %s SET %s %s", repo.table, updateQuery, where)
+	query := "UPDATE " + repo.table + " SET " + updateQuery + " " + where
 
 	scope.SetAttribute(constant.OtelQueryAttributeKey, query)
 	maps.Copy(args, setArgs)
@@ -347,7 +351,7 @@ func (repo *Repository[T]) update(ctx context.Context, exec execer, mod map[stri
 
 // Update modifies records matching the filter with the provided values.
 func (repo *Repository[T]) Update(ctx context.Context, mod map[string]any, filter dto.FilterGroup) error {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, constant.OtelRepositoryScopeName+".Update")
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"Update")
 	defer scope.End()
 
 	return repo.update(ctx, repo.db.Write, mod, filter) //nolint:wrapcheck
@@ -355,7 +359,7 @@ func (repo *Repository[T]) Update(ctx context.Context, mod map[string]any, filte
 
 // UpdateTx modifies records matching the filter within a transaction.
 func (repo *Repository[T]) UpdateTx(ctx context.Context, sqltx *sqlx.Tx, mod map[string]any, filter dto.FilterGroup) error {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, constant.OtelRepositoryScopeName+".UpdateTx")
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"UpdateTx")
 	defer scope.End()
 
 	return repo.update(ctx, sqltx, mod, filter) //nolint:wrapcheck
@@ -363,7 +367,7 @@ func (repo *Repository[T]) UpdateTx(ctx context.Context, sqltx *sqlx.Tx, mod map
 
 // InsertBulk inserts multiple records into the database.
 func (repo *Repository[T]) InsertBulk(ctx context.Context, models []T) error {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.InsertBulk", constant.OtelRepositoryScopeName, repo.entity))
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"InsertBulk")
 	defer scope.End()
 
 	return repo.insertBulk(ctx, repo.db.Write, models)
@@ -371,14 +375,14 @@ func (repo *Repository[T]) InsertBulk(ctx context.Context, models []T) error {
 
 // InsertBulkTx inserts multiple records into the database within a transaction.
 func (repo *Repository[T]) InsertBulkTx(ctx context.Context, sqltx *sqlx.Tx, models []T) error {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.InsertBulkTx", constant.OtelRepositoryScopeName, repo.entity))
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"InsertBulkTx")
 	defer scope.End()
 
 	return repo.insertBulk(ctx, sqltx, models)
 }
 
 func (repo *Repository[T]) insertBulk(ctx context.Context, exec execer, models []T) error {
-	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.insertBulk", constant.OtelRepositoryScopeName, repo.entity))
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"insertBulk")
 	defer scope.End()
 
 	var err error
@@ -389,7 +393,7 @@ func (repo *Repository[T]) insertBulk(ctx context.Context, exec execer, models [
 		placeholders = append(placeholders, ":"+column)
 	}
 
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", repo.table, strings.Join(repo.InsertColumns, ", "), strings.Join(placeholders, ", "))
+	query := "INSERT INTO " + repo.table + " (" + strings.Join(repo.InsertColumns, ", ") + ") VALUES (" + strings.Join(placeholders, ", ") + ")"
 
 	scope.SetAttribute(constant.OtelQueryAttributeKey+repo.entity, query)
 
@@ -408,16 +412,30 @@ func (repo *Repository[T]) insertBulk(ctx context.Context, exec execer, models [
 // named args backing it. SET placeholders are prefixed with "_set_" so they can
 // never collide with WHERE-clause args that reference the same column name.
 func buildUpdateAssignments(mod map[string]any) (clause string, args map[string]any) {
-	updateField := make([]string, 0, len(mod))
 	args = make(map[string]any, len(mod))
 
-	for col := range mod {
+	var b strings.Builder
+
+	const estimateLen = 30 // ponytail: "col = :_set_col, " per entry
+	b.Grow(len(mod) * estimateLen)
+
+	first := true
+
+	for col, val := range mod {
 		setParam := "_set_" + col
-		updateField = append(updateField, fmt.Sprintf("%s = :%s", col, setParam))
-		args[setParam] = mod[col]
+
+		if !first {
+			b.WriteString(", ")
+		}
+
+		b.WriteString(col)
+		b.WriteString(" = :")
+		b.WriteString(setParam)
+		args[setParam] = val
+		first = false
 	}
 
-	return strings.Join(updateField, ", "), args
+	return b.String(), args
 }
 
 // buildOrderBy returns a safe ORDER BY clause, or an empty string when no valid
@@ -436,32 +454,49 @@ func (repo *Repository[T]) buildOrderBy(params dto.QueryParams) string {
 		return ""
 	}
 
-	return fmt.Sprintf("ORDER BY %s %s", params.SortBy, params.SortDir)
+	return "ORDER BY " + params.SortBy + " " + params.SortDir
+}
+
+// buildSelectQuery pre-computes the full SELECT column string from a column list.
+func buildSelectQuery(columns []column) string {
+	parts := make([]string, len(columns))
+	for i, c := range columns {
+		switch {
+		case c.table == "":
+			parts[i] = c.name
+		case c.alias != "":
+			parts[i] = c.table + "." + c.name + " AS " + c.alias
+		default:
+			parts[i] = c.table + "." + c.name
+		}
+	}
+
+	return strings.Join(parts, ", ")
 }
 
 func (repo *Repository[T]) getSelectQuery(ctx context.Context, columnsParam ...string) string {
-	_, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.getSelectQuery", constant.OtelRepositoryScopeName, repo.entity))
+	_, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"getSelectQuery")
 	defer scope.End()
 
-	columns := []string{}
-	for _, col := range repo.columns {
-		tableField := col.table
-		name := col.name
-		alias := col.alias
+	if len(columnsParam) == 0 {
+		return repo.selectQuery
+	}
 
-		if len(columnsParam) > 0 && !slices.Contains(columnsParam, name) {
+	columns := make([]string, 0, len(repo.columns))
+	for _, col := range repo.columns {
+		if !slices.Contains(columnsParam, col.name) {
 			continue
 		}
 
 		var column string
-		if tableField == "" {
-			column = name
-		} else {
-			if alias != "" {
-				column = fmt.Sprintf("%s.%s AS %s", tableField, name, alias)
-			} else {
-				column = fmt.Sprintf("%s.%s", tableField, name)
-			}
+
+		switch {
+		case col.table == "":
+			column = col.name
+		case col.alias != "":
+			column = col.table + "." + col.name + " AS " + col.alias
+		default:
+			column = col.table + "." + col.name
 		}
 
 		columns = append(columns, column)
@@ -472,16 +507,16 @@ func (repo *Repository[T]) getSelectQuery(ctx context.Context, columnsParam ...s
 
 // BuildWhereClause builds a WHERE clause from the provided filter.
 func (repo *Repository[T]) BuildWhereClause(ctx context.Context, filter dto.FilterGroup) (string, map[string]any) {
-	_, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, fmt.Sprintf("%s.%s.BuildWhereClause", constant.OtelRepositoryScopeName, repo.entity))
+	_, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"BuildWhereClause")
 	defer scope.End()
 
 	where, args := filter.GetWhereClause()
 
 	if where == "" {
-		return where, map[string]any{}
+		return where, args
 	}
 
-	return fmt.Sprintf(" WHERE %s ", where), args
+	return " WHERE " + where + " ", args
 }
 
 func getColumns(table string, reflectType reflect.Type) (columns []column, insertColumns []string) {

@@ -190,8 +190,8 @@ func TestCreateTodo(t *testing.T) {
 
 		assert.Equal(t, http.StatusCreated, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseMessage.Message)
-		assert.Equal(t, "Todo created successfully", *responseMessage.Message)
+		assert.NotEmpty(t, responseMessage.Message)
+		assert.Equal(t, "Todo created successfully", responseMessage.Message)
 	})
 }
 
@@ -287,7 +287,6 @@ func TestGetTodos(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseData.Data)
 		assert.Equal(t, 2, len(responseData.Data.Todos))
 		assert.Equal(t, "Todo 1", responseData.Data.Todos[0].Title)
 		assert.False(t, responseData.Data.Todos[0].Completed)
@@ -322,7 +321,6 @@ func TestGetTodos(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseData.Data)
 		assert.Equal(t, 25, responseData.Data.TotalData)
 		assert.Equal(t, 3, responseData.Data.TotalPage)
 	})
@@ -353,7 +351,6 @@ func TestGetTodos(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseData.Data)
 		assert.Equal(t, 1, len(responseData.Data.Todos))
 		assert.Contains(t, responseData.Data.Todos[0].Title, "Shopping")
 	})
@@ -384,7 +381,6 @@ func TestGetTodos(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseData.Data)
 		assert.Equal(t, 1, len(responseData.Data.Todos))
 		assert.True(t, responseData.Data.Todos[0].Completed)
 	})
@@ -513,13 +509,10 @@ func TestGetTodoByID(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseData.Data)
-		if responseData.Data != nil {
-			assert.Equal(t, todoID, responseData.Data.ID)
+		assert.Equal(t, todoID, responseData.Data.ID)
 			assert.Equal(t, "Test Todo", responseData.Data.Title)
 			assert.Equal(t, "Test Description", responseData.Data.Description)
 			assert.False(t, responseData.Data.Completed)
-		}
 	})
 
 	t.Run("Success: cache hit", func(t *testing.T) {
@@ -548,11 +541,8 @@ func TestGetTodoByID(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseData.Data)
-		if responseData.Data != nil {
-			assert.Equal(t, "Cached Todo", responseData.Data.Title)
+		assert.Equal(t, "Cached Todo", responseData.Data.Title)
 			assert.True(t, responseData.Data.Completed)
-		}
 	})
 }
 
@@ -708,8 +698,8 @@ func TestUpdateTodo(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseMessage.Message)
-		assert.Equal(t, "Todo updated successfully", *responseMessage.Message)
+		assert.NotEmpty(t, responseMessage.Message)
+		assert.Equal(t, "Todo updated successfully", responseMessage.Message)
 	})
 
 	t.Run("Success: partial update - only title", func(t *testing.T) {
@@ -881,8 +871,8 @@ func TestDeleteTodo(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseMessage.Message)
-		assert.Equal(t, "Todo deleted successfully", *responseMessage.Message)
+		assert.NotEmpty(t, responseMessage.Message)
+		assert.Equal(t, "Todo deleted successfully", responseMessage.Message)
 	})
 
 	t.Run("Success: delete todo with UUID format", func(t *testing.T) {

@@ -28,6 +28,7 @@ import (
 	"oil/internal/handlers/gallery"
 	cacheMocks "oil/shared/cache/mocks"
 	"oil/shared/constant"
+	"oil/shared/singleflight"
 	"oil/transport/http/response"
 )
 
@@ -42,7 +43,7 @@ func setup(t *testing.T, ctrl *gomock.Controller) (*httptest.Server, sqlmock.Sql
 	mockS3 := s3Mocks.NewMockS3(ctrl)
 
 	repo := repository.New(sqlConn, otel)
-	svc := service.New(repo, cfg, mockCache, otel, mockS3)
+	svc := service.New(repo, cfg, mockCache, otel, mockS3, singleflight.New())
 	handler := gallery.New(svc, mockS3, otel)
 
 	mux.Route("/api", func(r chi.Router) {
@@ -211,8 +212,8 @@ func TestCreateGallery(t *testing.T) {
 
 		assert.Equal(t, http.StatusCreated, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseMessage.Message)
-		assert.Equal(t, "Gallery created successfully", *responseMessage.Message)
+		assert.NotEmpty(t, responseMessage.Message)
+		assert.Equal(t, "Gallery created successfully", responseMessage.Message)
 	})
 }
 
@@ -310,7 +311,6 @@ func TestGetGalleries(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseData.Data)
 		assert.Equal(t, 2, len(responseData.Data.Galleries))
 		assert.Equal(t, "Gallery 1", responseData.Data.Galleries[0].Title)
 		assert.Equal(t, "Gallery 2", responseData.Data.Galleries[1].Title)
@@ -344,7 +344,6 @@ func TestGetGalleries(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseData.Data)
 		assert.Equal(t, 25, responseData.Data.TotalData)
 		assert.Equal(t, 3, responseData.Data.TotalPage)
 	})
@@ -376,7 +375,6 @@ func TestGetGalleries(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseData.Data)
 		assert.Equal(t, 1, len(responseData.Data.Galleries))
 		assert.Contains(t, responseData.Data.Galleries[0].Title, "Vacation")
 	})
@@ -500,13 +498,10 @@ func TestGetGalleryByID(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseData.Data)
-		if responseData.Data != nil {
-			assert.Equal(t, galleryID, responseData.Data.ID)
+		assert.Equal(t, galleryID, responseData.Data.ID)
 			assert.Equal(t, "Test Gallery", responseData.Data.Title)
 			assert.Equal(t, "Test Description", responseData.Data.Description)
 			assert.Equal(t, 2, len(responseData.Data.Images))
-		}
 	})
 
 	t.Run("Success: cache hit", func(t *testing.T) {
@@ -534,10 +529,7 @@ func TestGetGalleryByID(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseData.Data)
-		if responseData.Data != nil {
-			assert.Equal(t, "Cached Gallery", responseData.Data.Title)
-		}
+		assert.Equal(t, "Cached Gallery", responseData.Data.Title)
 	})
 }
 
@@ -685,8 +677,8 @@ func TestUpdateGallery(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		if assert.NotNil(t, responseMessage.Message) {
-			assert.Equal(t, "Gallery updated successfully", *responseMessage.Message)
+		if assert.NotEmpty(t, responseMessage.Message) {
+			assert.Equal(t, "Gallery updated successfully", responseMessage.Message)
 		}
 	})
 
@@ -827,8 +819,8 @@ func TestDeleteGallery(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		if assert.NotNil(t, responseMessage.Message) {
-			assert.Equal(t, "Gallery deleted successfully", *responseMessage.Message)
+		if assert.NotEmpty(t, responseMessage.Message) {
+			assert.Equal(t, "Gallery deleted successfully", responseMessage.Message)
 		}
 	})
 }
@@ -920,11 +912,8 @@ func TestUploadImage(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseData.Data)
-		if responseData.Data != nil {
-			assert.NotEmpty(t, responseData.Data.URL)
+		assert.NotEmpty(t, responseData.Data.URL)
 			assert.NotEmpty(t, responseData.Data.FileName)
-		}
 	})
 }
 
@@ -1064,7 +1053,7 @@ func TestDeleteImages(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
-		assert.NotNil(t, responseMessage.Message)
-		assert.Equal(t, "Images deleted successfully", *responseMessage.Message)
+		assert.NotEmpty(t, responseMessage.Message)
+		assert.Equal(t, "Images deleted successfully", responseMessage.Message)
 	})
 }

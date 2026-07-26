@@ -203,31 +203,38 @@ func buildFieldPath(valErr val.FieldError) string {
 	fieldPath := parts[1]
 
 	// Convert to snake_case but preserve array indices
-	result := ""
+	const growExtra = 8
+
+	var b strings.Builder
+	b.Grow(len(fieldPath) + growExtra)
+
 	inBracket := false
 
 	for i, r := range fieldPath {
 		switch {
 		case r == '[':
 			inBracket = true
-			result += string(r)
+
+			b.WriteRune(r)
 		case r == ']':
 			inBracket = false
-			result += string(r)
+
+			b.WriteRune(r)
 		case inBracket:
-			result += string(r)
+			b.WriteRune(r)
 		case r >= 'A' && r <= 'Z':
 			if i > 0 && !inBracket {
-				result += "_"
+				b.WriteByte('_')
 			}
 
-			result += strings.ToLower(string(r))
+			const toLowerMask = 0x20
+			b.WriteByte(byte(r | toLowerMask))
 		default:
-			result += string(r)
+			b.WriteRune(r)
 		}
 	}
 
-	return result
+	return b.String()
 }
 
 // generateFieldMessage returns the error key for the validation tag

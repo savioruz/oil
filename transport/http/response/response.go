@@ -12,12 +12,12 @@ import (
 
 // Data represents a generic response structure for successful responses containing data
 type Data[T any] struct {
-	Data *T `json:"data,omitempty"`
+	Data T `json:"data,omitempty"`
 }
 
 // Error represents a simple error response with an error key
 type Error struct {
-	Error *string `json:"error,omitempty"`
+	Error string `json:"error,omitempty"`
 }
 
 // FieldError represents a single field validation error
@@ -33,17 +33,17 @@ type ValidationErrors struct {
 
 // Message represents a simple text message response
 type Message struct {
-	Message *string `json:"message,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 // WithMessage sends a response with a simple text message
 func WithMessage(writer http.ResponseWriter, code int, message string) {
-	response(writer, code, Message{Message: &message})
+	writeJSON(writer, code, Message{Message: message})
 }
 
 // WithJSON sends a response containing a JSON object
 func WithJSON(writer http.ResponseWriter, code int, jsonPayload interface{}) {
-	response(writer, code, Data[any]{Data: &jsonPayload})
+	writeJSON(writer, code, Data[any]{Data: jsonPayload})
 }
 
 // WithError sends a response with an error key
@@ -72,15 +72,13 @@ func WithError(writer http.ResponseWriter, err error) {
 			}
 		}
 
-		response(writer, code, ValidationErrors{Errors: fieldErrors})
+		writeJSON(writer, code, ValidationErrors{Errors: fieldErrors})
 
 		return
 	}
 
 	// For non-validation errors, return the general error key
-	key := failure.GetKey(err)
-	errorValue := string(key)
-	response(writer, code, Error{Error: &errorValue})
+	writeJSON(writer, code, Error{Error: string(failure.GetKey(err))})
 }
 
 // WithRequestLimitExceeded sends a default response for when the request limit is exceeded
@@ -98,19 +96,11 @@ func WithUnhealthy(writer http.ResponseWriter) {
 	WithMessage(writer, http.StatusServiceUnavailable, constant.ResponseErrorUnhealthy)
 }
 
-func response(writer http.ResponseWriter, code int, payload interface{}) {
-	response, err := json.Marshal(payload)
-	if err != nil {
-		logger.ErrorWithStack(err)
-
-		return
-	}
-
+func writeJSON(writer http.ResponseWriter, code int, payload interface{}) {
 	writer.Header().Set(constant.RequestHeaderContentType, constant.ContentTypeJSON)
 	writer.WriteHeader(code)
 
-	_, err = writer.Write(response)
-	if err != nil {
+	if err := json.NewEncoder(writer).Encode(payload); err != nil {
 		logger.ErrorWithStack(err)
 	}
 }

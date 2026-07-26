@@ -296,3 +296,57 @@ func TestValidatorInitialization(t *testing.T) {
 		t.Errorf("expected no validation error for valid struct, got: %v", err)
 	}
 }
+
+// Pre-built fixtures for benchmarks to avoid timing setup costs.
+var (
+	benchValidStruct = &ValidTestStruct{
+		Name:     "John Doe",
+		Email:    "john@example.com",
+		Age:      25,
+		Category: "user",
+	}
+	benchInvalidSingle = &ValidTestStruct{
+		Name:     "",
+		Email:    "john@example.com",
+		Age:      25,
+		Category: "user",
+	}
+	benchInvalidMulti = &ValidTestStruct{
+		Name:     "",
+		Email:    "invalid",
+		Age:      -1,
+		Category: "invalid",
+	}
+)
+
+// BenchmarkValidateStruct_Valid measures the happy path where all fields pass.
+func BenchmarkValidateStruct_Valid(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = validator.ValidateStruct[ValidTestStruct](benchValidStruct)
+	}
+}
+
+// BenchmarkValidateStruct_SingleErr measures one field failing validation.
+func BenchmarkValidateStruct_SingleErr(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = validator.ValidateStruct[ValidTestStruct](benchInvalidSingle)
+	}
+}
+
+// BenchmarkValidateStruct_MultiErr measures multiple fields failing.
+func BenchmarkValidateStruct_MultiErr(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = validator.ValidateStruct[ValidTestStruct](benchInvalidMulti)
+	}
+}
+
+// BenchmarkValidateVar measures single-variable validation.
+func BenchmarkValidateVar(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = validator.ValidateVar("test@example.com", "required,email")
+	}
+}

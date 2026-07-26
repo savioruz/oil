@@ -67,7 +67,7 @@ func (s *serviceImpl) Create(ctx context.Context, req dto.CreateGalleryRequest) 
 	defer scope.End()
 	defer scope.TraceIfError(err)
 
-	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	user := shared.GetUserID(ctx)
 
 	if err = s.repo.Insert(ctx, req.ToModel(user)); err != nil {
 		return failure.InternalErrorWithKey(errkey.ErrGalleryCreateFailed, fmt.Sprintf("failed to create gallery: %v", err))
@@ -164,7 +164,7 @@ func (s *serviceImpl) Update(ctx context.Context, req dto.UpdateGalleryRequest, 
 	defer scope.End()
 	defer scope.TraceIfError(err)
 
-	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	user := shared.GetUserID(ctx)
 	filter := shared.SingleFilter(id, model.FieldID, model.TableName)
 
 	exist, err := s.repo.Exist(ctx, filter)

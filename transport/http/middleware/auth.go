@@ -8,6 +8,7 @@ import (
 	"oil/infras/otel"
 	"oil/internal/domains/userprofile/service"
 	"oil/permissions"
+	"oil/shared"
 	"oil/shared/constant"
 	"oil/shared/errkey"
 	"oil/shared/failure"
@@ -233,7 +234,7 @@ func (m *authRoleImpl) RBAC(next http.Handler) http.Handler {
 		}
 
 		// Get user role from context
-		userRole, _ := ctx.Value(constant.ContextKeyUserRole).(string)
+		userRole := shared.GetUserRole(ctx)
 
 		// Check if user role is allowed (permissions field now contains roles)
 		if len(permission.Permissions) > 0 {

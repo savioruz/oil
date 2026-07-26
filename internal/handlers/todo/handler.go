@@ -75,7 +75,7 @@ func (handler *Handler) CreateTodo(writer http.ResponseWriter, request *http.Req
 		return
 	}
 
-	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	user := shared.GetUserID(ctx)
 	scope.AddEvent("Todo created successfully by user " + user)
 
 	response.WithMessage(writer, http.StatusCreated, "Todo created successfully")
@@ -102,12 +102,14 @@ func (handler *Handler) GetTodos(w http.ResponseWriter, r *http.Request) {
 
 	title := r.URL.Query().Get(model.FieldTitle)
 
-	const maxFilters = 2
+	const maxFilters = 3
 
 	filterGroup := gDto.FilterGroup{
 		Operator: gDto.FilterGroupOperatorAnd,
 		Filters:  make([]any, 0, maxFilters),
 	}
+
+	filterGroup.Filters = append(filterGroup.Filters, shared.UserFilter(ctx, constant.FieldCreatedBy, model.TableName))
 
 	filterGroup.Filters = append(filterGroup.Filters, gDto.Filter{
 		Field:    model.FieldTitle,
@@ -212,7 +214,7 @@ func (handler *Handler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	user := shared.GetUserID(ctx)
 	scope.AddEvent("Todo updated successfully by user " + user)
 
 	response.WithMessage(w, http.StatusOK, "Todo updated successfully")
@@ -246,7 +248,7 @@ func (handler *Handler) DeleteTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, _ := ctx.Value(constant.ContextKeyUserID).(string)
+	user := shared.GetUserID(ctx)
 	scope.AddEvent("Todo deleted successfully by user " + user)
 
 	response.WithMessage(w, http.StatusOK, "Todo deleted successfully")

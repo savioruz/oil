@@ -222,3 +222,77 @@ func TestSortDirectionConstants(t *testing.T) {
 		t.Errorf("expected SortDirDesc to be 'DESC', got %s", dto.SortDirDesc)
 	}
 }
+
+func BenchmarkFilterGetWhereClause_eq(b *testing.B) {
+	f := dto.Filter{Field: "id", Operator: dto.FilterOperatorEq, Value: "abc", Table: "users"}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		f.GetWhereClause()
+	}
+}
+
+func BenchmarkFilterGetWhereClause_like(b *testing.B) {
+	f := dto.Filter{Field: "name", Operator: dto.FilterOperatorLike, Value: "alice", Table: "users"}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		f.GetWhereClause()
+	}
+}
+
+func BenchmarkFilterGetWhereClause_in_5(b *testing.B) {
+	f := dto.Filter{Field: "id", Operator: dto.FilterOperatorIn, Value: []string{"a", "b", "c", "d", "e"}, Table: "users"}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		f.GetWhereClause()
+	}
+}
+
+func BenchmarkFilterGetWhereClause_in_20(b *testing.B) {
+	vals := make([]string, 20)
+	for i := range 20 {
+		vals[i] = "val_xxxxxxxxxxxxxxxxxx"
+	}
+	f := dto.Filter{Field: "id", Operator: dto.FilterOperatorIn, Value: vals, Table: "users"}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		f.GetWhereClause()
+	}
+}
+
+func BenchmarkFilterGetWhereClause_notEq(b *testing.B) {
+	f := dto.Filter{Field: "status", Operator: dto.FilterOperatorNotEq, Value: "deleted", Table: "users"}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		f.GetWhereClause()
+	}
+}
+
+func BenchmarkFilterGroupGetWhereClause_3filters(b *testing.B) {
+	fg := dto.FilterGroup{
+		Operator: dto.FilterGroupOperatorAnd,
+		Filters: []any{
+			dto.Filter{Field: "id", Operator: dto.FilterOperatorEq, Value: "123", Table: "users"},
+			dto.Filter{Field: "status", Operator: dto.FilterOperatorNotEq, Value: "deleted", Table: "users"},
+			dto.Filter{Field: "name", Operator: dto.FilterOperatorLike, Value: "alice", Table: "users"},
+		},
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		fg.GetWhereClause()
+	}
+}
+
+func BenchmarkFilterIsNull(b *testing.B) {
+	f := dto.Filter{Field: "deleted_at", Operator: dto.FilterIsNull, Table: "users"}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		f.GetWhereClause()
+	}
+}

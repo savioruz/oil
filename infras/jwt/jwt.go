@@ -28,6 +28,7 @@ import (
 const (
 	jwksEndpoint = "/api/auth/jwks"
 	httpTimeout  = 10 * time.Second
+	bitsPerByte  = 8
 )
 
 var (
@@ -43,6 +44,7 @@ var (
 	ErrTokenParseFailed   = errors.New("auth.token_parse_failed")
 	ErrTokenMissingKid    = errors.New("auth.token_missing_kid")
 	ErrTokenInvalidClaims = errors.New("auth.token_invalid_claims")
+	ErrInvalidECKey       = errors.New("auth.invalid_ec_key")
 )
 
 type Claims struct {
@@ -237,10 +239,22 @@ func (k *JWK) toECPublicKey() (crypto.PublicKey, error) {
 	}
 
 	curve := elliptic.P521()
-	key := &ecdsa.PublicKey{
-		Curve: curve,
-		X:     new(big.Int).SetBytes(xBytes),
-		Y:     new(big.Int).SetBytes(yBytes),
+
+	// JWK coordinates are minimal-length big-endian octets, while the SEC1
+	// uncompressed point needs coordinates padded to the curve's byte size.
+	coordLen := (curve.Params().BitSize + bitsPerByte - 1) / bitsPerByte
+	if len(xBytes) > coordLen || len(yBytes) > coordLen {
+		return nil, ErrInvalidECKey
+	}
+
+	point := make([]byte, 1+2*coordLen)
+	point[0] = 4 // uncompressed point marker
+	copy(point[1+coordLen-len(xBytes):], xBytes)
+	copy(point[1+2*coordLen-len(yBytes):], yBytes)
+
+	key, err := ecdsa.ParseUncompressedPublicKey(curve, point)
+	if err != nil {
+		return nil, fmt.Errorf("invalid EC public key: %w", err)
 	}
 
 	return key, nil

@@ -483,3 +483,80 @@ func TestInsertBulkError(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to bulk insert")
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestUpdateWithCountHappyPath(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectExec("UPDATE test_table SET .* WHERE").WillReturnResult(sqlmock.NewResult(0, 2))
+
+	affected, err := repo.UpdateWithCount(context.Background(), map[string]any{"name": "bob"}, idFilter("1"))
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), affected)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUpdateWithCountRequiresFilter(t *testing.T) {
+	repo, _ := newTestRepo(t)
+
+	_, err := repo.UpdateWithCount(context.Background(), map[string]any{"name": "bob"}, dto.FilterGroup{})
+	assert.ErrorIs(t, err, errRequiredFilter)
+}
+
+func TestUpdateWithCountError(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectExec("UPDATE test_table SET .* WHERE").WillReturnError(assert.AnError)
+
+	_, err := repo.UpdateWithCount(context.Background(), map[string]any{"name": "bob"}, idFilter("1"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update data")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBindNamedArgs(t *testing.T) {
+	t.Run("binds named args to positional", func(t *testing.T) {
+		query, args, err := BindNamedArgs("SELECT * FROM t WHERE id = :id", map[string]any{"id": "1"})
+		require.NoError(t, err)
+		assert.Contains(t, query, "$1")
+		assert.Equal(t, []any{"1"}, args)
+	})
+
+	t.Run("errors on missing arg", func(t *testing.T) {
+		_, _, err := BindNamedArgs("SELECT * FROM t WHERE id = :id", nil)
+		require.Error(t, err)
+	})
+}
+
+func TestBuildSelectQueryVariants(t *testing.T) {
+	plain := buildSelectQuery([]column{{name: "id"}})
+	assert.Equal(t, "id", plain)
+
+	qualified := buildSelectQuery([]column{{name: "id", table: "t"}})
+	assert.Equal(t, "t.id", qualified)
+
+	aliased := buildSelectQuery([]column{{name: "id", table: "t", alias: "id"}})
+	assert.Equal(t, "t.id AS id", aliased)
+}
+
+func TestGetSelectQueryMatchesAlias(t *testing.T) {
+	repo := &Repository[testEntity]{
+		otel:        otelMocks.NewOtel(),
+		table:       testTableName,
+		entity:      testEntityName,
+		selectQuery: "t.id AS uid, t.name AS name",
+		columns: []column{
+			{table: "t", name: "id", alias: "uid"},
+			{table: "t", name: "name", alias: "name"},
+		},
+	}
+	ctx := context.Background()
+
+	// Selecting by alias ("uid") must work even though the column name is "id".
+	byAlias := repo.getSelectQuery(ctx, "uid")
+	assert.Contains(t, byAlias, "t.id AS uid")
+	assert.NotContains(t, byAlias, "t.name")
+
+	// Selecting by column name works too.
+	byName := repo.getSelectQuery(ctx, "id")
+	assert.Contains(t, byName, "t.id AS uid")
+}

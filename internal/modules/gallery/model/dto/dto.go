@@ -2,7 +2,7 @@ package dto
 
 import (
 	"mime/multipart"
-	"oil/internal/domains/gallery/model"
+	"oil/internal/modules/gallery/model"
 	"oil/shared"
 	gDto "oil/shared/dto"
 	gModel "oil/shared/model"

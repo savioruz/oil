@@ -22,14 +22,14 @@ import (
 
 	"github.com/google/wire"
 
-	todoRepository "oil/internal/domains/todo/repository"
-	todoService "oil/internal/domains/todo/service"
+	todoRepository "oil/internal/modules/todo/repository"
+	todoService "oil/internal/modules/todo/service"
 
-	userprofileRepository "oil/internal/domains/userprofile/repository"
-	userprofileService "oil/internal/domains/userprofile/service"
+	userprofileRepository "oil/internal/modules/userprofile/repository"
+	userprofileService "oil/internal/modules/userprofile/service"
 
-	galleryRepository "oil/internal/domains/gallery/repository"
-	galleryService "oil/internal/domains/gallery/service"
+	galleryRepository "oil/internal/modules/gallery/repository"
+	galleryService "oil/internal/modules/gallery/service"
 	galleryHandler "oil/internal/handlers/gallery"
 )
 
@@ -57,29 +57,29 @@ var sharedHelpers = wire.NewSet(
 	singleflight.New,
 )
 
-var todoDomain = wire.NewSet(
+var todoModule = wire.NewSet(
 	todoRepository.New,
 	todoService.New,
 )
 
-var userprofileDomain = wire.NewSet(
+var userprofileModule = wire.NewSet(
 	userprofileRepository.New,
 	userprofileService.New,
 )
 
-var galleryDomain = wire.NewSet(
+var galleryModule = wire.NewSet(
 	galleryRepository.New,
 	galleryService.New,
 )
 
-var domains = wire.NewSet(
-	todoDomain,
-	userprofileDomain,
-	galleryDomain,
+var modules = wire.NewSet(
+	todoModule,
+	userprofileModule,
+	galleryModule,
 )
 
 var routing = wire.NewSet(
-	wire.Struct(new(router.DomainHandlers), "*"),
+	wire.Struct(new(router.ModuleHandlers), "*"),
 	todoHandler.New,
 	galleryHandler.New,
 	userprofileHandler.New,
@@ -92,7 +92,7 @@ func InitializeService() (*http.HTTP, error) {
 		infrastructures,
 		middlewares,
 		sharedHelpers,
-		domains,
+		modules,
 		routing,
 		http.New,
 	)

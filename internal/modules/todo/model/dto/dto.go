@@ -1,7 +1,7 @@
 package dto
 
 import (
-	"oil/internal/domains/todo/model"
+	"oil/internal/modules/todo/model"
 	"oil/shared"
 	gDto "oil/shared/dto"
 	gModel "oil/shared/model"

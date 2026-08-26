@@ -1,7 +1,7 @@
 package dto
 
 import (
-	"oil/internal/domains/userprofile/model"
+	"oil/internal/modules/userprofile/model"
 	"oil/shared"
 	"oil/shared/constant"
 	gDto "oil/shared/dto"

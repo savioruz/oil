@@ -3,8 +3,8 @@ package userprofile
 import (
 	"net/http"
 	"oil/infras/otel"
-	"oil/internal/domains/userprofile/model/dto"
-	"oil/internal/domains/userprofile/service"
+	"oil/internal/modules/userprofile/model/dto"
+	"oil/internal/modules/userprofile/service"
 	"oil/shared"
 	"oil/shared/constant"
 	"oil/shared/failure"

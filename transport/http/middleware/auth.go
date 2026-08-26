@@ -6,7 +6,7 @@ import (
 	"oil/config"
 	"oil/infras/jwt"
 	"oil/infras/otel"
-	"oil/internal/domains/userprofile/service"
+	"oil/internal/modules/userprofile/service"
 	"oil/permissions"
 	"oil/shared"
 	"oil/shared/constant"

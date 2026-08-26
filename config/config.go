@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
@@ -121,7 +122,7 @@ type Config struct {
 var (
 	conf        Config
 	once        sync.Once
-	initialized bool
+	initialized atomic.Bool
 )
 
 // Init loads the configuration from environment variables and .env file (if present) and processes it into the Config struct.
@@ -141,7 +142,7 @@ func Init() error {
 			log.Fatal().Err(err).Msg("Failed to process environment variables")
 		}
 
-		initialized = true
+		initialized.Store(true)
 
 		log.Info().Msg("Service configuration initialized successfully")
 	})
@@ -155,7 +156,7 @@ func Init() error {
 
 // Get returns a pointer to the Config struct. If the configuration has not been initialized yet, it will call Init() to load the configuration first.
 func Get() *Config {
-	if !initialized {
+	if !initialized.Load() {
 		if err := Init(); err != nil {
 			log.Fatal().Err(err).Msg("Failed to initialize configuration")
 		}

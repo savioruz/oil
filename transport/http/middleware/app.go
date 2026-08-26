@@ -3,10 +3,10 @@ package middleware
 
 import (
 	"fmt"
+	"github.com/savioruz/oil/config"
+	"github.com/savioruz/oil/infras/otel"
+	"github.com/savioruz/oil/shared/cache"
 	"net/http"
-	"oil/config"
-	"oil/infras/otel"
-	"oil/shared/cache"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"

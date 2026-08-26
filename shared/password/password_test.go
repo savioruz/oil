@@ -2,7 +2,7 @@ package password_test
 
 import (
 	"errors"
-	"oil/shared/password"
+	"github.com/savioruz/oil/shared/password"
 	"strings"
 	"testing"
 

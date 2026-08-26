@@ -8,17 +8,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"oil/config"
-	"oil/infras/otel"
-	otelMocks "oil/infras/otel/mocks"
-	s3mocks "oil/infras/s3/mocks"
-	userprofileMocks "oil/internal/modules/userprofile/mocks"
-	"oil/internal/modules/userprofile/model"
-	"oil/internal/modules/userprofile/model/dto"
-	"oil/internal/modules/userprofile/service"
-	"oil/shared"
-	"oil/shared/errkey"
-	"oil/shared/failure"
+	"github.com/savioruz/oil/config"
+	"github.com/savioruz/oil/infras/otel"
+	otelMocks "github.com/savioruz/oil/infras/otel/mocks"
+	s3mocks "github.com/savioruz/oil/infras/s3/mocks"
+	userprofileMocks "github.com/savioruz/oil/internal/modules/userprofile/mocks"
+	"github.com/savioruz/oil/internal/modules/userprofile/model"
+	"github.com/savioruz/oil/internal/modules/userprofile/model/dto"
+	"github.com/savioruz/oil/internal/modules/userprofile/service"
+	"github.com/savioruz/oil/shared"
+	"github.com/savioruz/oil/shared/errkey"
+	"github.com/savioruz/oil/shared/failure"
 )
 
 func setup(t *testing.T) (*gomock.Controller, *userprofileMocks.MockUserprofile, *config.Config, *s3mocks.MockS3, otel.Otel) {

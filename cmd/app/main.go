@@ -1,13 +1,13 @@
 package main
 
 import (
-	"oil/config"
-	"oil/di"
-	"oil/shared/logger"
+	"github.com/savioruz/oil/config"
+	"github.com/savioruz/oil/di"
+	"github.com/savioruz/oil/shared/logger"
 
 	"github.com/rs/zerolog/log"
 
-	migration "oil/helper"
+	migration "github.com/savioruz/oil/helper"
 )
 
 // @title API Reference

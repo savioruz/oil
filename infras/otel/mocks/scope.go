@@ -1,6 +1,6 @@
 package mocks
 
-import "oil/infras/otel"
+import "github.com/savioruz/oil/infras/otel"
 
 type scopeImpl struct {
 }

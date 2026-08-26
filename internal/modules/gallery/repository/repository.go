@@ -4,11 +4,11 @@ package repository
 
 import (
 	"context"
-	"oil/infras/otel"
-	"oil/infras/postgres"
-	"oil/internal/modules/gallery/model"
-	gDto "oil/shared/dto"
-	gRepo "oil/shared/repository"
+	"github.com/savioruz/oil/infras/otel"
+	"github.com/savioruz/oil/infras/postgres"
+	"github.com/savioruz/oil/internal/modules/gallery/model"
+	gDto "github.com/savioruz/oil/shared/dto"
+	gRepo "github.com/savioruz/oil/shared/repository"
 )
 
 type Gallery interface {

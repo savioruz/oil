@@ -1,11 +1,11 @@
 package dto_test
 
 import (
+	"github.com/savioruz/oil/shared/constant"
+	"github.com/savioruz/oil/shared/dto"
+	"github.com/savioruz/oil/shared/model"
 	"net/http"
 	"net/url"
-	"oil/shared/constant"
-	"oil/shared/dto"
-	"oil/shared/model"
 	"testing"
 	"time"
 )
@@ -431,10 +431,10 @@ func TestFilter_GetWhereClause(t *testing.T) {
 
 func TestFilterGroup_GetWhereClause(t *testing.T) {
 	tests := []struct {
-		name   string
-		fg     dto.FilterGroup
-		want   string
-		args   map[string]any
+		name string
+		fg   dto.FilterGroup
+		want string
+		args map[string]any
 	}{
 		{
 			name: "empty",

@@ -3,11 +3,11 @@ package middleware
 
 import (
 	"errors"
+	"github.com/savioruz/oil/shared"
+	"github.com/savioruz/oil/shared/cache"
+	"github.com/savioruz/oil/shared/constant"
+	"github.com/savioruz/oil/transport/http/response"
 	"net/http"
-	"oil/shared"
-	"oil/shared/cache"
-	"oil/shared/constant"
-	"oil/transport/http/response"
 	"strconv"
 	"strings"
 )

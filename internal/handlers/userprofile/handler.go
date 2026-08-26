@@ -1,15 +1,15 @@
 package userprofile
 
 import (
+	"github.com/savioruz/oil/infras/otel"
+	"github.com/savioruz/oil/internal/modules/userprofile/model/dto"
+	"github.com/savioruz/oil/internal/modules/userprofile/service"
+	"github.com/savioruz/oil/shared"
+	"github.com/savioruz/oil/shared/constant"
+	"github.com/savioruz/oil/shared/failure"
+	"github.com/savioruz/oil/shared/validator"
+	"github.com/savioruz/oil/transport/http/response"
 	"net/http"
-	"oil/infras/otel"
-	"oil/internal/modules/userprofile/model/dto"
-	"oil/internal/modules/userprofile/service"
-	"oil/shared"
-	"oil/shared/constant"
-	"oil/shared/failure"
-	"oil/shared/validator"
-	"oil/transport/http/response"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"

@@ -5,7 +5,7 @@ package otel
 
 import (
 	"context"
-	"oil/config"
+	"github.com/savioruz/oil/config"
 
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel"

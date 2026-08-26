@@ -3,8 +3,8 @@ package failure
 
 import (
 	"errors"
+	"github.com/savioruz/oil/shared/errkey"
 	"net/http"
-	"oil/shared/errkey"
 )
 
 // Failure is a wrapper for error messages and codes using standard HTTP response codes.

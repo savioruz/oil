@@ -15,18 +15,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"oil/config"
-	"oil/infras/otel/mocks"
-	postgresMocks "oil/infras/postgres/mocks"
-	"oil/infras/unleash"
-	"oil/internal/modules/todo/model/dto"
-	"oil/internal/modules/todo/repository"
-	"oil/internal/modules/todo/service"
-	"oil/internal/handlers/todo"
-	cacheMocks "oil/shared/cache/mocks"
-	"oil/shared/constant"
-	"oil/shared/singleflight"
-	"oil/transport/http/response"
+	"github.com/savioruz/oil/config"
+	"github.com/savioruz/oil/infras/otel/mocks"
+	postgresMocks "github.com/savioruz/oil/infras/postgres/mocks"
+	"github.com/savioruz/oil/infras/unleash"
+	"github.com/savioruz/oil/internal/handlers/todo"
+	"github.com/savioruz/oil/internal/modules/todo/model/dto"
+	"github.com/savioruz/oil/internal/modules/todo/repository"
+	"github.com/savioruz/oil/internal/modules/todo/service"
+	cacheMocks "github.com/savioruz/oil/shared/cache/mocks"
+	"github.com/savioruz/oil/shared/constant"
+	"github.com/savioruz/oil/shared/singleflight"
+	"github.com/savioruz/oil/transport/http/response"
 )
 
 func setup(t *testing.T, ctrl *gomock.Controller) (*httptest.Server, sqlmock.Sqlmock, *cacheMocks.MockRedisCache) {
@@ -510,9 +510,9 @@ func TestGetTodoByID(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
 		assert.Equal(t, todoID, responseData.Data.ID)
-			assert.Equal(t, "Test Todo", responseData.Data.Title)
-			assert.Equal(t, "Test Description", responseData.Data.Description)
-			assert.False(t, responseData.Data.Completed)
+		assert.Equal(t, "Test Todo", responseData.Data.Title)
+		assert.Equal(t, "Test Description", responseData.Data.Description)
+		assert.False(t, responseData.Data.Completed)
 	})
 
 	t.Run("Success: cache hit", func(t *testing.T) {
@@ -542,7 +542,7 @@ func TestGetTodoByID(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
 		assert.Equal(t, "Cached Todo", responseData.Data.Title)
-			assert.True(t, responseData.Data.Completed)
+		assert.True(t, responseData.Data.Completed)
 	})
 }
 

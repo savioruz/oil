@@ -2,7 +2,7 @@ package cache
 
 import (
 	"context"
-	"oil/shared/singleflight"
+	"github.com/savioruz/oil/shared/singleflight"
 
 	"github.com/rs/zerolog/log"
 )

@@ -1,12 +1,12 @@
 package dto
 
 import (
+	"github.com/savioruz/oil/internal/modules/gallery/model"
+	"github.com/savioruz/oil/shared"
+	gDto "github.com/savioruz/oil/shared/dto"
+	gModel "github.com/savioruz/oil/shared/model"
+	"github.com/savioruz/oil/shared/timezone"
 	"mime/multipart"
-	"oil/internal/modules/gallery/model"
-	"oil/shared"
-	gDto "oil/shared/dto"
-	gModel "oil/shared/model"
-	"oil/shared/timezone"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"

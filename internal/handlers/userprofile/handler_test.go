@@ -15,16 +15,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"oil/config"
-	"oil/infras/otel/mocks"
-	postgresMocks "oil/infras/postgres/mocks"
-	s3mocks "oil/infras/s3/mocks"
-	"oil/internal/modules/userprofile/model/dto"
-	"oil/internal/modules/userprofile/repository"
-	"oil/internal/modules/userprofile/service"
-	"oil/internal/handlers/userprofile"
-	"oil/shared/constant"
-	"oil/transport/http/response"
+	"github.com/savioruz/oil/config"
+	"github.com/savioruz/oil/infras/otel/mocks"
+	postgresMocks "github.com/savioruz/oil/infras/postgres/mocks"
+	s3mocks "github.com/savioruz/oil/infras/s3/mocks"
+	"github.com/savioruz/oil/internal/handlers/userprofile"
+	"github.com/savioruz/oil/internal/modules/userprofile/model/dto"
+	"github.com/savioruz/oil/internal/modules/userprofile/repository"
+	"github.com/savioruz/oil/internal/modules/userprofile/service"
+	"github.com/savioruz/oil/shared/constant"
+	"github.com/savioruz/oil/transport/http/response"
 )
 
 func setup(t *testing.T, ctrl *gomock.Controller) (*httptest.Server, sqlmock.Sqlmock, *s3mocks.MockS3) {

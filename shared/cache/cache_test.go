@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	otelMocks "oil/infras/otel/mocks"
+	otelMocks "github.com/savioruz/oil/infras/otel/mocks"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"

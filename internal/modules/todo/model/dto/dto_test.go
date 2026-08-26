@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"oil/internal/modules/todo/model"
-	"oil/internal/modules/todo/model/dto"
-	gModel "oil/shared/model"
+	"github.com/savioruz/oil/internal/modules/todo/model"
+	"github.com/savioruz/oil/internal/modules/todo/model/dto"
+	gModel "github.com/savioruz/oil/shared/model"
 
 	"github.com/stretchr/testify/assert"
 )

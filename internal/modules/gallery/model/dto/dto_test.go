@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"oil/internal/modules/gallery/model"
-	"oil/internal/modules/gallery/model/dto"
-	gModel "oil/shared/model"
+	"github.com/savioruz/oil/internal/modules/gallery/model"
+	"github.com/savioruz/oil/internal/modules/gallery/model/dto"
+	gModel "github.com/savioruz/oil/shared/model"
 
 	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"

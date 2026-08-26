@@ -1,8 +1,8 @@
 package dto
 
 import (
+	"github.com/savioruz/oil/shared/constant"
 	"net/http"
-	"oil/shared/constant"
 	"strconv"
 	"strings"
 )

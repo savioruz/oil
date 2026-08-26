@@ -17,10 +17,10 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/rs/zerolog/log"
 
+	"github.com/savioruz/oil/config"
+	"github.com/savioruz/oil/infras/otel"
+	"github.com/savioruz/oil/shared/constant"
 	"mime/multipart"
-	"oil/config"
-	"oil/infras/otel"
-	"oil/shared/constant"
 )
 
 const (

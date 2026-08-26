@@ -28,6 +28,46 @@ A production-grade Go REST API boilerplate with chi router, PostgreSQL, Redis, K
 - Make
 - Docker & Docker Compose
 
+## Using this as a template
+
+Oil is designed to be bootstrapped into a new, independent project without
+forking or cloning. Two supported paths:
+
+### Option 1: GitHub "Use this template"
+
+Open [github.com/savioruz/oil](https://github.com/savioruz/oil), click
+**Use this template** → **Create a new repository**, and pick a name. You get
+a new repo with the same file structure and a clean git history (no fork
+link, no upstream).
+
+### Option 2: `gonew` (terminal / scriptable)
+
+[gonew](https://pkg.go.dev/golang.org/x/tools/cmd/gonew) copies this module
+and rewrites every `github.com/savioruz/oil/...` import path to your new
+module path automatically:
+
+```sh
+go install golang.org/x/tools/cmd/gonew@latest
+gonew github.com/savioruz/oil@latest github.com/<user>/<new-project>
+cd new-project
+```
+
+The result has no oil git history, a correct `go.mod` module path, and all
+imports already rewritten — no manual find-and-replace.
+
+### Post-bootstrap checklist
+
+1. **Generate project files**: `make generate` (regenerates `di/wire_gen.go`,
+   `permissions/permissions.json`, and swagger docs) and `make generate.mock`
+   (mocks). `make test` runs both as prerequisites.
+2. **README.md**: replace the project name, tagline, and description.
+3. **`.env.example`**: update secrets, URLs, and service names for your
+   environment.
+4. **CI workflows** (`.github/workflows/`): rename jobs/steps if they
+   reference "oil" explicitly.
+5. **LICENSE**: update the copyright holder if you keep the license.
+6. **Commit the bootstrap** (including the generated files above) and push.
+
 ## Getting Started
 
 ### 1. Clone and setup

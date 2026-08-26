@@ -2,8 +2,8 @@ package errkey_test
 
 import (
 	"encoding/json"
-	"oil/shared/errkey"
-	"oil/transport/http/response"
+	"github.com/savioruz/oil/shared/errkey"
+	"github.com/savioruz/oil/transport/http/response"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

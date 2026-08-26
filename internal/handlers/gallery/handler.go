@@ -1,18 +1,18 @@
 package gallery
 
 import (
+	"github.com/savioruz/oil/infras/otel"
+	"github.com/savioruz/oil/infras/s3"
+	"github.com/savioruz/oil/internal/modules/gallery/model"
+	"github.com/savioruz/oil/internal/modules/gallery/model/dto"
+	"github.com/savioruz/oil/internal/modules/gallery/service"
+	"github.com/savioruz/oil/shared"
+	"github.com/savioruz/oil/shared/constant"
+	gDto "github.com/savioruz/oil/shared/dto"
+	"github.com/savioruz/oil/shared/validator"
+	"github.com/savioruz/oil/transport/http/response"
 	"mime/multipart"
 	"net/http"
-	"oil/infras/otel"
-	"oil/infras/s3"
-	"oil/internal/modules/gallery/model"
-	"oil/internal/modules/gallery/model/dto"
-	"oil/internal/modules/gallery/service"
-	"oil/shared"
-	"oil/shared/constant"
-	gDto "oil/shared/dto"
-	"oil/shared/validator"
-	"oil/transport/http/response"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"

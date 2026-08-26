@@ -5,7 +5,7 @@ package mocks
 
 import (
 	"context"
-	"oil/infras/otel"
+	"github.com/savioruz/oil/infras/otel"
 )
 
 type otelImpl struct {

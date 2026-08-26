@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"oil/config"
+	"github.com/savioruz/oil/config"
 
 	"github.com/Unleash/unleash-go-sdk/v6"
 	sdkctx "github.com/Unleash/unleash-go-sdk/v6/context"

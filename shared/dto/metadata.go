@@ -1,8 +1,8 @@
 package dto
 
 import (
-	"oil/shared/model"
-	"oil/shared/timezone"
+	"github.com/savioruz/oil/shared/model"
+	"github.com/savioruz/oil/shared/timezone"
 )
 
 // Metadata represents the common metadata fields for all entities in the DTO layer.

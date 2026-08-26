@@ -6,7 +6,7 @@ A production-grade Go REST API boilerplate with chi router, PostgreSQL, Redis, K
 
 | Category | Technology |
 |---|---|
-| Language | Go 1.26 |
+| Language | Go 1.27 |
 | HTTP Router | chi v5 |
 | Database | PostgreSQL with sqlx (read/write separation) |
 | Cache | Redis / DragonflyDB |
@@ -23,7 +23,7 @@ A production-grade Go REST API boilerplate with chi router, PostgreSQL, Redis, K
 
 ## Prerequisites
 
-- Go 1.26+
+- Go 1.27+
 - Node 22+ (for upgrading OpenAPI v2 to v3.1)
 - Make
 - Docker & Docker Compose

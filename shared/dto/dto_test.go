@@ -296,3 +296,220 @@ func BenchmarkFilterIsNull(b *testing.B) {
 		f.GetWhereClause()
 	}
 }
+
+// --- Filter.GetWhereClause unit tests ---
+
+func TestFilter_GetWhereClause(t *testing.T) {
+	tests := []struct {
+		name   string
+		filter dto.Filter
+		want   string
+		args   map[string]any
+	}{
+		{
+			name:   "eq with table prefix",
+			filter: dto.Filter{Field: "id", Operator: dto.FilterOperatorEq, Value: "abc", Table: "users"},
+			want:   "users.id = :id",
+			args:   map[string]any{"id": "abc"},
+		},
+		{
+			name:   "eq without table",
+			filter: dto.Filter{Field: "status", Operator: dto.FilterOperatorEq, Value: "active"},
+			want:   "status = :status",
+			args:   map[string]any{"status": "active"},
+		},
+		{
+			name:   "eq with custom ArgName",
+			filter: dto.Filter{ArgName: "uid", Field: "id", Operator: dto.FilterOperatorEq, Value: "xyz"},
+			want:   "id = :uid",
+			args:   map[string]any{"uid": "xyz"},
+		},
+		{
+			name:   "like with string",
+			filter: dto.Filter{Field: "name", Operator: dto.FilterOperatorLike, Value: "alice", Table: "users"},
+			want:   "LOWER(users.name) LIKE LOWER(:name) ",
+			args:   map[string]any{"name": "%alice%"},
+		},
+		{
+			name:   "like with non-string returns empty",
+			filter: dto.Filter{Field: "name", Operator: dto.FilterOperatorLike, Value: 123},
+			want:   "",
+			args:   map[string]any{},
+		},
+		{
+			name:   "in with []string",
+			filter: dto.Filter{Field: "id", Operator: dto.FilterOperatorIn, Value: []string{"a", "b"}},
+			want:   "id IN (:id_0, :id_1) ",
+			args:   map[string]any{"id_0": "a", "id_1": "b"},
+		},
+		{
+			name:   "in with []int",
+			filter: dto.Filter{Field: "id", Operator: dto.FilterOperatorIn, Value: []int{1, 2}},
+			want:   "id IN (:id_0, :id_1) ",
+			args:   map[string]any{"id_0": 1, "id_1": 2},
+		},
+		{
+			name:   "in with []int64",
+			filter: dto.Filter{Field: "id", Operator: dto.FilterOperatorIn, Value: []int64{10, 20}},
+			want:   "id IN (:id_0, :id_1) ",
+			args:   map[string]any{"id_0": int64(10), "id_1": int64(20)},
+		},
+		{
+			name:   "in with []any",
+			filter: dto.Filter{Field: "id", Operator: dto.FilterOperatorIn, Value: []any{"x", 42}},
+			want:   "id IN (:id_0, :id_1) ",
+			args:   map[string]any{"id_0": "x", "id_1": 42},
+		},
+		{
+			name:   "not_eq",
+			filter: dto.Filter{Field: "status", Operator: dto.FilterOperatorNotEq, Value: "deleted", Table: "t"},
+			want:   "t.status != :status",
+			args:   map[string]any{"status": "deleted"},
+		},
+		{
+			name:   "less_eq",
+			filter: dto.Filter{Field: "age", Operator: dto.FilterOperatorLessEq, Value: 65},
+			want:   "age <= :age",
+			args:   map[string]any{"age": 65},
+		},
+		{
+			name:   "greater_eq",
+			filter: dto.Filter{Field: "score", Operator: dto.FilterOperatorGreaterEq, Value: 10},
+			want:   "score >= :score",
+			args:   map[string]any{"score": 10},
+		},
+		{
+			name:   "plan (plain query)",
+			filter: dto.Filter{Field: "", Operator: dto.FilterPlainQuery, Value: "a = :a AND b = :b"},
+			want:   "(a = :a AND b = :b)",
+			args:   map[string]any{},
+		},
+		{
+			name:   "is_not_null",
+			filter: dto.Filter{Field: "deleted_at", Operator: dto.FilterIsNotNull, Table: "users"},
+			want:   "users.deleted_at IS NOT NULL",
+			args:   map[string]any{},
+		},
+		{
+			name:   "is_null",
+			filter: dto.Filter{Field: "deleted_at", Operator: dto.FilterIsNull},
+			want:   "deleted_at IS NULL",
+			args:   map[string]any{},
+		},
+		{
+			name:   "unknown operator returns empty",
+			filter: dto.Filter{Field: "x", Operator: "bogus", Value: 1},
+			want:   "",
+			args:   map[string]any{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotWhere, gotArgs := tt.filter.GetWhereClause()
+
+			if gotWhere != tt.want {
+				t.Errorf("where = %q, want %q", gotWhere, tt.want)
+			}
+			if len(gotArgs) != len(tt.args) {
+				t.Fatalf("arg count = %d, want %d (got %v)", len(gotArgs), len(tt.args), gotArgs)
+			}
+			for k, v := range tt.args {
+				gv, ok := gotArgs[k]
+				if !ok {
+					t.Errorf("missing arg %q", k)
+				}
+				if gv != v {
+					t.Errorf("arg[%q] = %v, want %v", k, gv, v)
+				}
+			}
+		})
+	}
+}
+
+// --- FilterGroup.GetWhereClause unit tests ---
+
+func TestFilterGroup_GetWhereClause(t *testing.T) {
+	tests := []struct {
+		name   string
+		fg     dto.FilterGroup
+		want   string
+		args   map[string]any
+	}{
+		{
+			name: "empty",
+			fg:   dto.FilterGroup{Operator: dto.FilterGroupOperatorAnd},
+			want: "",
+			args: map[string]any{},
+		},
+		{
+			name: "single filter",
+			fg: dto.FilterGroup{
+				Operator: dto.FilterGroupOperatorAnd,
+				Filters:  []any{dto.Filter{Field: "id", Operator: dto.FilterOperatorEq, Value: "1", Table: "t"}},
+			},
+			want: "(t.id = :id)",
+			args: map[string]any{"id": "1"},
+		},
+		{
+			name: "two filters AND",
+			fg: dto.FilterGroup{
+				Operator: dto.FilterGroupOperatorAnd,
+				Filters: []any{
+					dto.Filter{Field: "a", Operator: dto.FilterOperatorEq, Value: "1"},
+					dto.Filter{Field: "b", Operator: dto.FilterOperatorEq, Value: "2"},
+				},
+			},
+			want: "(a = :a AND b = :b)",
+			args: map[string]any{"a": "1", "b": "2"},
+		},
+		{
+			name: "two filters OR",
+			fg: dto.FilterGroup{
+				Operator: dto.FilterGroupOperatorOr,
+				Filters: []any{
+					dto.Filter{Field: "x", Operator: dto.FilterOperatorEq, Value: "1"},
+					dto.Filter{Field: "y", Operator: dto.FilterOperatorEq, Value: "2"},
+				},
+			},
+			want: "(x = :x OR y = :y)",
+			args: map[string]any{"x": "1", "y": "2"},
+		},
+		{
+			name: "nested FilterGroup",
+			fg: dto.FilterGroup{
+				Operator: dto.FilterGroupOperatorAnd,
+				Filters: []any{
+					dto.Filter{Field: "a", Operator: dto.FilterOperatorEq, Value: "1"},
+					dto.FilterGroup{
+						Operator: dto.FilterGroupOperatorOr,
+						Filters: []any{
+							dto.Filter{Field: "b", Operator: dto.FilterOperatorEq, Value: "2"},
+							dto.Filter{Field: "c", Operator: dto.FilterOperatorEq, Value: "3"},
+						},
+					},
+				},
+			},
+			want: "(a = :a AND (b = :b OR c = :c))",
+			args: map[string]any{"a": "1", "b": "2", "c": "3"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotWhere, gotArgs := tt.fg.GetWhereClause()
+
+			if gotWhere != tt.want {
+				t.Errorf("where = %q, want %q", gotWhere, tt.want)
+			}
+			if len(gotArgs) != len(tt.args) {
+				t.Fatalf("arg count = %d, want %d (got %v)", len(gotArgs), len(tt.args), gotArgs)
+			}
+			for k, v := range tt.args {
+				if gotArgs[k] != v {
+					t.Errorf("arg[%q] = %v, want %v", k, gotArgs[k], v)
+				}
+			}
+		})
+	}
+}

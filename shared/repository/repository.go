@@ -365,6 +365,33 @@ func (repo *Repository[T]) UpdateTx(ctx context.Context, sqltx *sqlx.Tx, mod map
 	return repo.update(ctx, sqltx, mod, filter) //nolint:wrapcheck
 }
 
+// UpdateWithCount modifies records matching the filter and returns the number of affected rows.
+func (repo *Repository[T]) UpdateWithCount(ctx context.Context, mod map[string]any, filter dto.FilterGroup) (int64, error) {
+	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"UpdateWithCount")
+	defer scope.End()
+
+	where, args := repo.BuildWhereClause(ctx, filter)
+	if where == "" {
+		return 0, errRequiredFilter
+	}
+
+	updateQuery, setArgs := buildUpdateAssignments(mod)
+	maps.Copy(args, setArgs)
+
+	query := "UPDATE " + repo.table + " SET " + updateQuery + " " + where
+	scope.SetAttribute(constant.OtelQueryAttributeKey, query)
+
+	result, err := repo.db.Write.NamedExecContext(ctx, query, args)
+	if err != nil {
+		logger.ErrorWithStack(err)
+		scope.TraceError(err)
+
+		return 0, fmt.Errorf("failed to update data (%s): %w", repo.entity, err)
+	}
+
+	return result.RowsAffected()
+}
+
 // InsertBulk inserts multiple records into the database.
 func (repo *Repository[T]) InsertBulk(ctx context.Context, models []T) error {
 	ctx, scope := repo.otel.NewScope(ctx, constant.OtelRepositoryScopeName, repo.scopePrefix+"InsertBulk")
@@ -416,7 +443,7 @@ func buildUpdateAssignments(mod map[string]any) (clause string, args map[string]
 
 	var b strings.Builder
 
-	const estimateLen = 30 // ponytail: "col = :_set_col, " per entry
+	const estimateLen = 30
 	b.Grow(len(mod) * estimateLen)
 
 	first := true
@@ -447,14 +474,29 @@ func (repo *Repository[T]) buildOrderBy(params dto.QueryParams) string {
 		return ""
 	}
 
-	sortable := slices.ContainsFunc(repo.columns, func(c column) bool {
-		return c.name == params.SortBy || c.alias == params.SortBy
+	sortBy := params.SortBy
+	// Strip optional table prefix (e.g. "article_generations.created_at" → "created_at")
+	if idx := strings.LastIndex(sortBy, "."); idx >= 0 {
+		sortBy = sortBy[idx+1:]
+	}
+
+	idx := slices.IndexFunc(repo.columns, func(c column) bool {
+		return c.name == sortBy || c.alias == sortBy
 	})
-	if !sortable {
+	if idx < 0 {
 		return ""
 	}
 
-	return "ORDER BY " + params.SortBy + " " + params.SortDir
+	col := repo.columns[idx]
+
+	var orderCol string
+	if col.table != "" {
+		orderCol = col.table + "." + col.name
+	} else {
+		orderCol = col.name
+	}
+
+	return "ORDER BY " + orderCol + " " + params.SortDir
 }
 
 // buildSelectQuery pre-computes the full SELECT column string from a column list.
@@ -484,7 +526,7 @@ func (repo *Repository[T]) getSelectQuery(ctx context.Context, columnsParam ...s
 
 	columns := make([]string, 0, len(repo.columns))
 	for _, col := range repo.columns {
-		if !slices.Contains(columnsParam, col.name) {
+		if !slices.Contains(columnsParam, col.name) && !slices.Contains(columnsParam, col.alias) {
 			continue
 		}
 
@@ -552,4 +594,14 @@ func getColumns(table string, reflectType reflect.Type) (columns []column, inser
 	}
 
 	return columns, insertColumns
+}
+
+// BindNamedArgs binds named arguments to a SQL query using sqlx.Named and sqlx.Rebind.
+func BindNamedArgs(query string, args map[string]any) (string, []any, error) {
+	bound, positional, err := sqlx.Named(query, args)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return sqlx.Rebind(sqlx.DOLLAR, bound), positional, nil
 }

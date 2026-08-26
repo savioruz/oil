@@ -2,9 +2,9 @@
 package router
 
 import (
-	"oil/internal/handlers/gallery"
-	"oil/internal/handlers/todo"
-	"oil/internal/handlers/userprofile"
+	"github.com/savioruz/oil/internal/handlers/gallery"
+	"github.com/savioruz/oil/internal/handlers/todo"
+	"github.com/savioruz/oil/internal/handlers/userprofile"
 
 	"github.com/go-chi/chi/v5"
 )

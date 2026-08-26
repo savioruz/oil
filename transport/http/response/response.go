@@ -4,10 +4,10 @@ package response
 import (
 	"encoding/json"
 	"errors"
+	"github.com/savioruz/oil/shared/constant"
+	"github.com/savioruz/oil/shared/failure"
+	"github.com/savioruz/oil/shared/logger"
 	"net/http"
-	"oil/shared/constant"
-	"oil/shared/failure"
-	"oil/shared/logger"
 )
 
 // Data represents a generic response structure for successful responses containing data

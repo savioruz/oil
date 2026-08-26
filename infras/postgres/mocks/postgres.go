@@ -5,7 +5,7 @@ package mocks
 
 import (
 	"database/sql"
-	"oil/infras/postgres"
+	"github.com/savioruz/oil/infras/postgres"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"

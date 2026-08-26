@@ -58,7 +58,7 @@ This creates the empty directory structure. Fill in the files following existing
 ```go
 package model
 
-import "oil/shared/model"
+import "github.com/savioruz/oil/shared/model"
 
 const (
     TableName  = "tablename"    // exact SQL table name
@@ -117,10 +117,10 @@ func (a AIChatContent) GetJoinQuery() string {
 package dto
 
 import (
-	"oil/internal/modules/myentity/model"
-	gModel "oil/shared/model"
-	gDto "oil/shared/dto"
-	"oil/shared/timezone"
+	"github.com/savioruz/oil/internal/modules/myentity/model"
+	gModel "github.com/savioruz/oil/shared/model"
+	gDto "github.com/savioruz/oil/shared/dto"
+	"github.com/savioruz/oil/shared/timezone"
 	"time"
 )
 
@@ -179,11 +179,11 @@ package repository
 
 import (
     "context"
-    "oil/infras/otel"
-    "oil/infras/postgres"
-    "oil/internal/modules/myentity/model"
-    gDto "oil/shared/dto"
-    gRepo "oil/shared/repository"
+    "github.com/savioruz/oil/infras/otel"
+    "github.com/savioruz/oil/infras/postgres"
+    "github.com/savioruz/oil/internal/modules/myentity/model"
+    gDto "github.com/savioruz/oil/shared/dto"
+    gRepo "github.com/savioruz/oil/shared/repository"
 )
 
 // MyEntity defines the repository contract for the myentity domain.
@@ -232,16 +232,16 @@ package service
 import (
     "context"
     "fmt"
-    "oil/config"
-    "oil/infras/otel"
-    "oil/internal/modules/myentity/model"
-    "oil/internal/modules/myentity/model/dto"
-    "oil/internal/modules/myentity/repository"
-    "oil/shared"
-    "oil/shared/cache"
-    "oil/shared/constant"
-    "oil/shared/errkey"
-    "oil/shared/failure"
+    "github.com/savioruz/oil/config"
+    "github.com/savioruz/oil/infras/otel"
+    "github.com/savioruz/oil/internal/modules/myentity/model"
+    "github.com/savioruz/oil/internal/modules/myentity/model/dto"
+    "github.com/savioruz/oil/internal/modules/myentity/repository"
+    "github.com/savioruz/oil/shared"
+    "github.com/savioruz/oil/shared/cache"
+    "github.com/savioruz/oil/shared/constant"
+    "github.com/savioruz/oil/shared/errkey"
+    "github.com/savioruz/oil/shared/failure"
 )
 
 // Cache key prefixes — keep them unique across domains.
@@ -295,12 +295,12 @@ package myentity
 
 import (
     "net/http"
-    "oil/infras/otel"
-    "oil/internal/modules/myentity/model/dto"
-    "oil/internal/modules/myentity/service"
-    "oil/shared/constant"
-    "oil/shared/validator"
-    "oil/transport/http/response"
+    "github.com/savioruz/oil/infras/otel"
+    "github.com/savioruz/oil/internal/modules/myentity/model/dto"
+    "github.com/savioruz/oil/internal/modules/myentity/service"
+    "github.com/savioruz/oil/shared/constant"
+    "github.com/savioruz/oil/shared/validator"
+    "github.com/savioruz/oil/transport/http/response"
 
     "github.com/go-chi/chi/v5"
     "github.com/rs/zerolog/log"

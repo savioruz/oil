@@ -1,7 +1,7 @@
 package model
 
 import (
-	"oil/shared/model"
+	"github.com/savioruz/oil/shared/model"
 
 	"github.com/lib/pq"
 )

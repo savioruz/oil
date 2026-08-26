@@ -2,10 +2,10 @@ package shared_test
 
 import (
 	"context"
-	"oil/shared"
-	"oil/shared/cache/mocks"
-	"oil/shared/constant"
-	"oil/shared/dto"
+	"github.com/savioruz/oil/shared"
+	"github.com/savioruz/oil/shared/cache/mocks"
+	"github.com/savioruz/oil/shared/constant"
+	"github.com/savioruz/oil/shared/dto"
 	"reflect"
 	"strings"
 	"testing"

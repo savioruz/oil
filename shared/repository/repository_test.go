@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	otelMocks "oil/infras/otel/mocks"
-	postgresMocks "oil/infras/postgres/mocks"
-	"oil/shared/dto"
-	sharedModel "oil/shared/model"
+	otelMocks "github.com/savioruz/oil/infras/otel/mocks"
+	postgresMocks "github.com/savioruz/oil/infras/postgres/mocks"
+	"github.com/savioruz/oil/shared/dto"
+	sharedModel "github.com/savioruz/oil/shared/model"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"

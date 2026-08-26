@@ -7,7 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"oil/infras/otel"
+	"github.com/savioruz/oil/infras/otel"
 	"time"
 
 	"github.com/redis/go-redis/v9"

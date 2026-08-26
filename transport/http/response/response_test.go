@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"oil/shared/errkey"
-	"oil/shared/failure"
-	"oil/transport/http/response"
+	"github.com/savioruz/oil/shared/errkey"
+	"github.com/savioruz/oil/shared/failure"
+	"github.com/savioruz/oil/transport/http/response"
 )
 
 func TestWithError_AlwaysReturnsErrorKey(t *testing.T) {

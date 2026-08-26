@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	otelMocks "oil/infras/otel/mocks"
-	"oil/shared/cache"
-	"oil/shared/singleflight"
+	otelMocks "github.com/savioruz/oil/infras/otel/mocks"
+	"github.com/savioruz/oil/shared/cache"
+	"github.com/savioruz/oil/shared/singleflight"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"

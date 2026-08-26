@@ -5,7 +5,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"oil/config"
+	"github.com/savioruz/oil/config"
 	"os"
 	"time"
 )

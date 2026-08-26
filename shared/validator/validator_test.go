@@ -1,7 +1,7 @@
 package validator_test
 
 import (
-	"oil/shared/validator"
+	"github.com/savioruz/oil/shared/validator"
 	"strings"
 	"testing"
 )

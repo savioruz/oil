@@ -9,7 +9,7 @@ import (
 	"fmt"
 	goRedis "github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
-	"oil/config"
+	"github.com/savioruz/oil/config"
 )
 
 // New creates a new Redis client with the provided configuration.

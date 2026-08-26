@@ -1,7 +1,7 @@
 package base64_test
 
 import (
-	"oil/shared/base64"
+	"github.com/savioruz/oil/shared/base64"
 	"testing"
 )
 

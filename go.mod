@@ -1,4 +1,4 @@
-module oil
+module github.com/savioruz/oil
 
 go 1.27.0
 

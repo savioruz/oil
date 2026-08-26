@@ -4,33 +4,33 @@
 package di
 
 import (
-	"oil/config"
-	"oil/infras/jwt"
-	"oil/infras/otel"
-	"oil/infras/postgres"
-	"oil/infras/redis"
-	"oil/infras/s3"
-	"oil/infras/unleash"
-	todoHandler "oil/internal/handlers/todo"
-	userprofileHandler "oil/internal/handlers/userprofile"
-	"oil/permissions"
-	"oil/shared/cache"
-	"oil/shared/singleflight"
-	"oil/transport/http"
-	"oil/transport/http/middleware"
-	"oil/transport/http/router"
+	"github.com/savioruz/oil/config"
+	"github.com/savioruz/oil/infras/jwt"
+	"github.com/savioruz/oil/infras/otel"
+	"github.com/savioruz/oil/infras/postgres"
+	"github.com/savioruz/oil/infras/redis"
+	"github.com/savioruz/oil/infras/s3"
+	"github.com/savioruz/oil/infras/unleash"
+	todoHandler "github.com/savioruz/oil/internal/handlers/todo"
+	userprofileHandler "github.com/savioruz/oil/internal/handlers/userprofile"
+	"github.com/savioruz/oil/permissions"
+	"github.com/savioruz/oil/shared/cache"
+	"github.com/savioruz/oil/shared/singleflight"
+	"github.com/savioruz/oil/transport/http"
+	"github.com/savioruz/oil/transport/http/middleware"
+	"github.com/savioruz/oil/transport/http/router"
 
 	"github.com/google/wire"
 
-	todoRepository "oil/internal/modules/todo/repository"
-	todoService "oil/internal/modules/todo/service"
+	todoRepository "github.com/savioruz/oil/internal/modules/todo/repository"
+	todoService "github.com/savioruz/oil/internal/modules/todo/service"
 
-	userprofileRepository "oil/internal/modules/userprofile/repository"
-	userprofileService "oil/internal/modules/userprofile/service"
+	userprofileRepository "github.com/savioruz/oil/internal/modules/userprofile/repository"
+	userprofileService "github.com/savioruz/oil/internal/modules/userprofile/service"
 
-	galleryRepository "oil/internal/modules/gallery/repository"
-	galleryService "oil/internal/modules/gallery/service"
-	galleryHandler "oil/internal/handlers/gallery"
+	galleryHandler "github.com/savioruz/oil/internal/handlers/gallery"
+	galleryRepository "github.com/savioruz/oil/internal/modules/gallery/repository"
+	galleryService "github.com/savioruz/oil/internal/modules/gallery/service"
 )
 
 var configurations = wire.NewSet(

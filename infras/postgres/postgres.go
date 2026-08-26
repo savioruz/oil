@@ -6,8 +6,8 @@ package postgres
 //nolint:revive
 import (
 	"fmt"
+	"github.com/savioruz/oil/config"
 	"net"
-	"oil/config"
 	"time"
 
 	"github.com/jmoiron/sqlx"

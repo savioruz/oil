@@ -9,8 +9,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/savioruz/oil/config"
 	"net"
-	"oil/config"
 
 	"github.com/rs/zerolog/log"
 	kafkaGo "github.com/segmentio/kafka-go"

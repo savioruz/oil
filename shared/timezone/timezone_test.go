@@ -1,7 +1,7 @@
 package timezone_test
 
 import (
-	"oil/shared/timezone"
+	"github.com/savioruz/oil/shared/timezone"
 	"testing"
 	"time"
 )

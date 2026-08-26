@@ -1,12 +1,12 @@
 package dto
 
 import (
-	"oil/internal/modules/userprofile/model"
-	"oil/shared"
-	"oil/shared/constant"
-	gDto "oil/shared/dto"
-	gModel "oil/shared/model"
-	"oil/shared/timezone"
+	"github.com/savioruz/oil/internal/modules/userprofile/model"
+	"github.com/savioruz/oil/shared"
+	"github.com/savioruz/oil/shared/constant"
+	gDto "github.com/savioruz/oil/shared/dto"
+	gModel "github.com/savioruz/oil/shared/model"
+	"github.com/savioruz/oil/shared/timezone"
 
 	"github.com/google/uuid"
 )

@@ -1,9 +1,9 @@
 package main
 
 import (
+	"github.com/savioruz/oil/config"
+	"github.com/savioruz/oil/helper"
 	"log"
-	"oil/config"
-	"oil/helper"
 	"os"
 )
 

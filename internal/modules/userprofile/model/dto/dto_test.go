@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"oil/internal/modules/userprofile/model"
-	gModel "oil/shared/model"
+	"github.com/savioruz/oil/internal/modules/userprofile/model"
+	gModel "github.com/savioruz/oil/shared/model"
 
 	"github.com/stretchr/testify/assert"
 )

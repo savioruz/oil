@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"oil/config"
-	"oil/infras/unleash"
+	"github.com/savioruz/oil/config"
+	"github.com/savioruz/oil/infras/unleash"
 
 	"github.com/stretchr/testify/assert"
 )

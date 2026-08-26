@@ -3,8 +3,8 @@ package logger_test
 import (
 	"bytes"
 	"errors"
-	"oil/config"
-	"oil/shared/logger"
+	"github.com/savioruz/oil/config"
+	"github.com/savioruz/oil/shared/logger"
 	"testing"
 
 	"github.com/rs/zerolog"

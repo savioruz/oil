@@ -1,6 +1,6 @@
 package model
 
-import "oil/shared/model"
+import "github.com/savioruz/oil/shared/model"
 
 const (
 	TableName  = "todos"

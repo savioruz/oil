@@ -4,8 +4,8 @@ package helper
 import (
 	"errors"
 	"fmt"
+	"github.com/savioruz/oil/config"
 	"net"
-	"oil/config"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // nolint:revive

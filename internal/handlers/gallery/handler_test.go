@@ -18,18 +18,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"oil/config"
-	"oil/infras/otel/mocks"
-	postgresMocks "oil/infras/postgres/mocks"
-	s3Mocks "oil/infras/s3/mocks"
-	"oil/internal/modules/gallery/model/dto"
-	"oil/internal/modules/gallery/repository"
-	"oil/internal/modules/gallery/service"
-	"oil/internal/handlers/gallery"
-	cacheMocks "oil/shared/cache/mocks"
-	"oil/shared/constant"
-	"oil/shared/singleflight"
-	"oil/transport/http/response"
+	"github.com/savioruz/oil/config"
+	"github.com/savioruz/oil/infras/otel/mocks"
+	postgresMocks "github.com/savioruz/oil/infras/postgres/mocks"
+	s3Mocks "github.com/savioruz/oil/infras/s3/mocks"
+	"github.com/savioruz/oil/internal/handlers/gallery"
+	"github.com/savioruz/oil/internal/modules/gallery/model/dto"
+	"github.com/savioruz/oil/internal/modules/gallery/repository"
+	"github.com/savioruz/oil/internal/modules/gallery/service"
+	cacheMocks "github.com/savioruz/oil/shared/cache/mocks"
+	"github.com/savioruz/oil/shared/constant"
+	"github.com/savioruz/oil/shared/singleflight"
+	"github.com/savioruz/oil/transport/http/response"
 )
 
 func setup(t *testing.T, ctrl *gomock.Controller) (*httptest.Server, sqlmock.Sqlmock, *cacheMocks.MockRedisCache, *s3Mocks.MockS3) {
@@ -499,9 +499,9 @@ func TestGetGalleryByID(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
 		assert.Equal(t, galleryID, responseData.Data.ID)
-			assert.Equal(t, "Test Gallery", responseData.Data.Title)
-			assert.Equal(t, "Test Description", responseData.Data.Description)
-			assert.Equal(t, 2, len(responseData.Data.Images))
+		assert.Equal(t, "Test Gallery", responseData.Data.Title)
+		assert.Equal(t, "Test Description", responseData.Data.Description)
+		assert.Equal(t, 2, len(responseData.Data.Images))
 	})
 
 	t.Run("Success: cache hit", func(t *testing.T) {
@@ -913,7 +913,7 @@ func TestUploadImage(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode())
 		assert.Empty(t, responseErr.Error)
 		assert.NotEmpty(t, responseData.Data.URL)
-			assert.NotEmpty(t, responseData.Data.FileName)
+		assert.NotEmpty(t, responseData.Data.FileName)
 	})
 }
 

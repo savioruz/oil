@@ -1,16 +1,16 @@
 package todo
 
 import (
+	"github.com/savioruz/oil/infras/otel"
+	"github.com/savioruz/oil/internal/modules/todo/model"
+	"github.com/savioruz/oil/internal/modules/todo/model/dto"
+	"github.com/savioruz/oil/internal/modules/todo/service"
+	"github.com/savioruz/oil/shared"
+	"github.com/savioruz/oil/shared/constant"
+	gDto "github.com/savioruz/oil/shared/dto"
+	"github.com/savioruz/oil/shared/validator"
+	"github.com/savioruz/oil/transport/http/response"
 	"net/http"
-	"oil/infras/otel"
-	"oil/internal/modules/todo/model"
-	"oil/internal/modules/todo/model/dto"
-	"oil/internal/modules/todo/service"
-	"oil/shared"
-	"oil/shared/constant"
-	gDto "oil/shared/dto"
-	"oil/shared/validator"
-	"oil/transport/http/response"
 
 	"github.com/go-chi/chi/v5"
 

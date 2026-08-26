@@ -2,8 +2,8 @@ package failure_test
 
 import (
 	"errors"
+	"github.com/savioruz/oil/shared/failure"
 	"net/http"
-	"oil/shared/failure"
 	"testing"
 )
 

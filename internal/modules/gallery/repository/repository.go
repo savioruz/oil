@@ -6,7 +6,7 @@ import (
 	"context"
 	"oil/infras/otel"
 	"oil/infras/postgres"
-	"oil/internal/domains/gallery/model"
+	"oil/internal/modules/gallery/model"
 	gDto "oil/shared/dto"
 	gRepo "oil/shared/repository"
 )

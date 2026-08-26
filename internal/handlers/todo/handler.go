@@ -3,9 +3,9 @@ package todo
 import (
 	"net/http"
 	"oil/infras/otel"
-	"oil/internal/domains/todo/model"
-	"oil/internal/domains/todo/model/dto"
-	"oil/internal/domains/todo/service"
+	"oil/internal/modules/todo/model"
+	"oil/internal/modules/todo/model/dto"
+	"oil/internal/modules/todo/service"
 	"oil/shared"
 	"oil/shared/constant"
 	gDto "oil/shared/dto"

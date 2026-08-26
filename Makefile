@@ -2,7 +2,7 @@ BINARY=engine
 COMPOSE=docker-compose
 MIGRATION_PATH=migrations/postgres
 
-.PHONY: help test coverage coverage.view coverage.check dev run build clean docker.build docker.start docker.stop lint.prepare lint generate generate.mock migrate.up migrate.down migrate.step-up migrate.drop migrate.create migrate.order setup.githook domains
+.PHONY: help test coverage coverage.view coverage.check dev run build clean docker.build docker.start docker.stop lint.prepare lint generate generate.mock migrate.up migrate.down migrate.step-up migrate.drop migrate.create migrate.order setup.githook modules
 
 help: ## Display this help screen
 	@if [ -z "$(shell which awk)" ]; then \
@@ -98,17 +98,17 @@ migrate.order: ## Order migrations. Usage: make migrate-order table=<table name>
 setup.githook: ## Setup git hooks
 	git config core.hooksPath .githooks
 
-domains: ## Create simple empty domains file. Usage: make domains name=<domains name>
+modules: ## Create simple empty module file. Usage: make modules name=<modules name>
 	@if [ -z "$(name)" ]; then \
     	echo "Please set the name variable"; \
-    	echo "Example: make domains name=service"; \
+    	echo "Example: make modules name=service"; \
     	exit 1; \
     fi
-	@mkdir -p ./internal/domains/$(name)/model/dto
-	@echo "package model" > ./internal/domains/$(name)/model/model.go
-	@echo "package dto" > ./internal/domains/$(name)/model/dto/dto.go
-	@mkdir -p ./internal/domains/$(name)/repository
-	@echo "package repository" > ./internal/domains/$(name)/repository/repository.go
-	@mkdir -p ./internal/domains/$(name)/service
-	@echo "package service" > ./internal/domains/$(name)/service/service.go
-	@echo "Domain $(name) created successfully"
+	@mkdir -p ./internal/modules/$(name)/model/dto
+	@echo "package model" > ./internal/modules/$(name)/model/model.go
+	@echo "package dto" > ./internal/modules/$(name)/model/dto/dto.go
+	@mkdir -p ./internal/modules/$(name)/repository
+	@echo "package repository" > ./internal/modules/$(name)/repository/repository.go
+	@mkdir -p ./internal/modules/$(name)/service
+	@echo "package service" > ./internal/modules/$(name)/service/service.go
+	@echo "Module $(name) created successfully"

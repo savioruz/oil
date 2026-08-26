@@ -111,7 +111,7 @@ Scalar Documentation is available at `http://localhost:8080/docs` (development o
 | `make migrate.step-up` | Apply one migration |
 | `make migrate.drop` | Drop all migrations |
 | `make migrate.create name=<name>` | Create a new migration file |
-| `make domains name=<name>` | Scaffold a new domain (model, repository, service) |
+| `make modules name=<name>` | Scaffold a new module (model, repository, service) |
 | `make docker.build` | Build the Docker image |
 | `make docker.start` | Start Docker containers |
 | `make docker.stop` | Stop Docker containers |
@@ -137,11 +137,11 @@ oil/
 │   ├── redis/                  # Redis client setup
 │   └── s3/                     # S3 upload, presign, delete
 ├── internal/
-│   ├── domains/                # Business logic by domain
+│   ├── modules/                # Business logic by module
 │   │   ├── gallery/            # Image albums backed by S3
-│   │   ├── todo/               # Todo CRUD (example domain)
+│   │   ├── todo/               # Todo CRUD (example module)
 │   │   └── user/               # User model + repository
-│   └── handlers/               # HTTP handlers (one per domain)
+│   └── handlers/               # HTTP handlers (one per module)
 ├── migrations/postgres/        # Sequential SQL migration files
 ├── permissions/                # Embedded RBAC permissions JSON
 ├── shared/                     # Reusable packages
@@ -165,25 +165,25 @@ oil/
 
 ## Architecture
 
-Oil follows a strict three-layer architecture within each domain:
+Oil follows a strict three-layer architecture within each module:
 
 ```
-Handler (transport) → Service (domain logic) → Repository (data access)
+Handler (transport) → Service (module logic) → Repository (data access)
 ```
 
 Each layer depends only on interfaces, making every layer independently testable and mockable. Google Wire generates the full dependency graph at compile time with no runtime reflection.
 
 ### Generic Repository
 
-`shared/repository/Repository[T]` uses Go generics and `reflect` to auto-build SQL from struct tags. All domains get `Insert`, `Get`, `GetAll`, `Count`, `Update`, `Delete`, and transaction variants with zero boilerplate SQL. Read operations are always routed to the read replica and writes to the primary.
+`shared/repository/Repository[T]` uses Go generics and `reflect` to auto-build SQL from struct tags. All modules get `Insert`, `Get`, `GetAll`, `Count`, `Update`, `Delete`, and transaction variants with zero boilerplate SQL. Read operations are always routed to the read replica and writes to the primary.
 
-### Adding a New Domain
+### Adding a New Module
 
 ```bash
-make domains name=product
+make modules name=product
 ```
 
-This scaffolds `internal/domains/product/` with the model, repository, and service packages. Wire up the new providers in `di/wire.go` and register your handler in `transport/http/router/`.
+This scaffolds `internal/modules/product/` with the model, repository, and service packages. Wire up the new providers in `di/wire.go` and register your handler in `transport/http/router/`.
 
 ## Authentication
 

@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"oil/internal/domains/todo/model"
-	"oil/internal/domains/todo/model/dto"
+	"oil/internal/modules/todo/model"
+	"oil/internal/modules/todo/model/dto"
 	gModel "oil/shared/model"
 
 	"github.com/stretchr/testify/assert"

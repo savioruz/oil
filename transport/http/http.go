@@ -327,7 +327,7 @@ func (h *HTTP) serverStateMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(writer, request)
 		case ServerStateInCleanupPeriod:
 			// Server is in cleanup period. Stop the request from actually
-			// invoking any domain services and respond appropriately.
+			// invoking any module services and respond appropriately.
 			response.WithPreparingShutdown(writer)
 		}
 	})

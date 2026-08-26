@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"oil/internal/domains/gallery/model"
-	"oil/internal/domains/gallery/model/dto"
+	"oil/internal/modules/gallery/model"
+	"oil/internal/modules/gallery/model/dto"
 	gModel "oil/shared/model"
 
 	"github.com/lib/pq"

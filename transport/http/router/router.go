@@ -9,26 +9,26 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type DomainHandlers struct {
+type ModuleHandlers struct {
 	Todo        todo.Handler
 	Gallery     gallery.Handler
 	Userprofile userprofile.Handler
 }
 
 type Router struct {
-	DomainHandlers DomainHandlers
+	ModuleHandlers ModuleHandlers
 }
 
 func (r *Router) SetupRoutes(router chi.Router) {
 	router.Route("/api", func(routerGroup chi.Router) {
-		r.DomainHandlers.Todo.Router(routerGroup)
-		r.DomainHandlers.Gallery.Router(routerGroup)
-		r.DomainHandlers.Userprofile.Router(routerGroup)
+		r.ModuleHandlers.Todo.Router(routerGroup)
+		r.ModuleHandlers.Gallery.Router(routerGroup)
+		r.ModuleHandlers.Userprofile.Router(routerGroup)
 	})
 }
 
-func New(domainHandlers DomainHandlers) Router {
+func New(moduleHandlers ModuleHandlers) Router {
 	return Router{
-		DomainHandlers: domainHandlers,
+		ModuleHandlers: moduleHandlers,
 	}
 }

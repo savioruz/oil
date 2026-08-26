@@ -23,7 +23,7 @@ These rules govern all code written in the Oil repository. They reflect the esta
 Every business domain **must** follow the exact same three-layer structure, no exceptions.
 
 ```
-internal/domains/<name>/
+internal/modules/<name>/
   model/
     model.go          ← DB model struct + table/field constants
     dto/
@@ -117,7 +117,7 @@ func (a AIChatContent) GetJoinQuery() string {
 package dto
 
 import (
-	"oil/internal/domains/myentity/model"
+	"oil/internal/modules/myentity/model"
 	gModel "oil/shared/model"
 	gDto "oil/shared/dto"
 	"oil/shared/timezone"
@@ -181,7 +181,7 @@ import (
     "context"
     "oil/infras/otel"
     "oil/infras/postgres"
-    "oil/internal/domains/myentity/model"
+    "oil/internal/modules/myentity/model"
     gDto "oil/shared/dto"
     gRepo "oil/shared/repository"
 )
@@ -234,9 +234,9 @@ import (
     "fmt"
     "oil/config"
     "oil/infras/otel"
-    "oil/internal/domains/myentity/model"
-    "oil/internal/domains/myentity/model/dto"
-    "oil/internal/domains/myentity/repository"
+    "oil/internal/modules/myentity/model"
+    "oil/internal/modules/myentity/model/dto"
+    "oil/internal/modules/myentity/repository"
     "oil/shared"
     "oil/shared/cache"
     "oil/shared/constant"
@@ -296,8 +296,8 @@ package myentity
 import (
     "net/http"
     "oil/infras/otel"
-    "oil/internal/domains/myentity/model/dto"
-    "oil/internal/domains/myentity/service"
+    "oil/internal/modules/myentity/model/dto"
+    "oil/internal/modules/myentity/service"
     "oil/shared/constant"
     "oil/shared/validator"
     "oil/transport/http/response"
@@ -532,7 +532,7 @@ All Kafka operations use the `kafka.Client` interface — never import `kafkaGo`
 ## 18. S3 / File Storage
 
 - The `infras/s3` package provides the S3 client. Inject it into services that handle file uploads.
-- The gallery domain is the reference implementation — consult `internal/domains/gallery/` for patterns.
+- The gallery domain is the reference implementation — consult `internal/modules/gallery/` for patterns.
 - Use `shared.GenerateUniqueFilename(originalName)` to generate collision-safe filenames before upload.
 - Store only the S3 key or public URL in the database — never the full presigned URL (those expire).
 

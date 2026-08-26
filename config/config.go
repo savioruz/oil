@@ -1,0 +1,166 @@
+// Package config provides a centralized way to manage application configuration settings.
+package config
+
+import (
+	"fmt"
+	"sync"
+	"sync/atomic"
+
+	"github.com/joho/godotenv"
+	"github.com/kelseyhightower/envconfig"
+	"github.com/rs/zerolog/log"
+)
+
+// Config holds all the configuration settings for the application.
+type Config struct {
+	Server struct {
+		Env      string `envconfig:"ENV"`
+		LogLevel string `envconfig:"LOG_LEVEL"`
+		Port     string `envconfig:"PORT"`
+		Host     string `envconfig:"HOST"`
+		Shutdown struct {
+			CleanupPeriodSeconds int64 `envconfig:"CLEANUP_PERIOD_SECONDS"`
+			GracePeriodSeconds   int64 `envconfig:"GRACE_PERIOD_SECONDS"`
+		} `envconfig:"SHUTDOWN"`
+	} `envconfig:"SERVER"`
+
+	App struct {
+		Name string `envconfig:"APP_NAME"`
+		CORS struct {
+			AllowCredentials bool     `envconfig:"ALLOW_CREDENTIALS"`
+			AllowedHeaders   []string `envconfig:"ALLOWED_HEADERS"`
+			AllowedMethods   []string `envconfig:"ALLOWED_METHODS"`
+			AllowedOrigins   []string `envconfig:"ALLOWED_ORIGINS"`
+			Enable           bool     `envconfig:"ENABLE"`
+			MaxAgeSeconds    int      `envconfig:"MAX_AGE_SECONDS"`
+		} `envconfig:"CORS"`
+		RateLimiter struct {
+			Enable        bool `envconfig:"ENABLE"`
+			MaxRequests   int  `envconfig:"MAX_REQUESTS"`
+			WindowSeconds int  `envconfig:"WINDOW_SECONDS"`
+		} `envconfig:"RATE_LIMITER"`
+		APIKey string `envconfig:"API_KEY"`
+	} `envconfig:"APP"`
+
+	Cache struct {
+		Redis struct {
+			Primary struct {
+				Host     string `envconfig:"HOST"`
+				Port     string `envconfig:"PORT"`
+				Password string `envconfig:"PASSWORD"`
+				DB       int    `envconfig:"DB"`
+				TLS      bool   `envconfig:"TLS"`
+			} `envconfig:"PRIMARY"`
+		} `envconfig:"REDIS"`
+		TTL int `envconfig:"TTL"`
+	} `envconfig:"CACHE"`
+
+	AuthService struct {
+		URL string `envconfig:"URL"`
+	} `envconfig:"AUTH_SERVICE"`
+
+	DB struct {
+		Postgres struct {
+			MaxRetry       int    `envconfig:"MAX_RETRY"`
+			RetryWaitTime  int    `envconfig:"RETRY_WAIT_TIME"`
+			MigrationTable string `envconfig:"MIGRATION_TABLE"`
+			AutoMigrate    bool   `envconfig:"AUTO_MIGRATE"`
+			Prefix         string `envconfig:"PREFIX"`
+			Read           struct {
+				Host     string `envconfig:"HOST"`
+				Port     string `envconfig:"PORT"`
+				Username string `envconfig:"USER"`
+				Password string `envconfig:"PASSWORD"`
+				Name     string `envconfig:"NAME"`
+				Timezone string `envconfig:"TIMEZONE"`
+				SSLMode  string `envconfig:"SSL_MODE"`
+			} `envconfig:"READ"`
+			Write struct {
+				Host     string `envconfig:"HOST"`
+				Port     string `envconfig:"PORT"`
+				Username string `envconfig:"USER"`
+				Password string `envconfig:"PASSWORD"`
+				Name     string `envconfig:"NAME"`
+				Timezone string `envconfig:"TIMEZONE"`
+				SSLMode  string `envconfig:"SSL_MODE"`
+			} `envconfig:"WRITE"`
+		} `envconfig:"POSTGRES"`
+	} `envconfig:"DB"`
+
+	Kafka struct {
+		SASL struct {
+			Username string `envconfig:"USERNAME"`
+			Password string `envconfig:"PASSWORD"`
+		} `envconfig:"SASL"`
+		Brokers       []string `envconfig:"BROKERS"`
+		ConsumerGroup string   `envconfig:"CONSUMER_GROUP"`
+		Topics        struct{} `envconfig:"TOPICS"`
+	} `envconfig:"KAFKA"`
+
+	External struct {
+		S3 struct {
+			APIEndpoint     string `envconfig:"API_ENDPOINT"`
+			AccessKeyID     string `envconfig:"ACCESS_KEY_ID"`
+			SecretAccessKey string `envconfig:"SECRET_ACCESS_KEY"`
+			BucketName      string `envconfig:"BUCKET_NAME"`
+			PublicDomain    string `envconfig:"PUBLIC_DOMAIN"`
+		} `envconfig:"S3"`
+		Otel struct {
+			Endpoint string `envconfig:"ENDPOINT"`
+		} `envconfig:"OTEL"`
+	} `envconfig:"EXTERNAL"`
+
+	Unleash struct {
+		URL         string `envconfig:"URL"`
+		AppName     string `envconfig:"APP_NAME"`
+		InstanceID  string `envconfig:"INSTANCE_ID"`
+		Secret      string `envconfig:"SECRET"`
+		Environment string `envconfig:"ENVIRONMENT"`
+	} `envconfig:"UNLEASH"`
+}
+
+var (
+	conf        Config
+	once        sync.Once
+	initialized atomic.Bool
+)
+
+// Init loads the configuration from environment variables and .env file (if present) and processes it into the Config struct.
+func Init() error {
+	var err error
+
+	once.Do(func() {
+		err = godotenv.Load(".env")
+		if err != nil {
+			log.Warn().Err(err).Msg("Could not load .env file, continuing with existing environment variables")
+		} else {
+			log.Info().Msg("Successfully loaded variables from .env file into environment")
+		}
+
+		err = envconfig.Process("", &conf)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to process environment variables")
+		}
+
+		initialized.Store(true)
+
+		log.Info().Msg("Service configuration initialized successfully")
+	})
+
+	if err != nil {
+		return fmt.Errorf("loading .env file: %w", err)
+	}
+
+	return nil
+}
+
+// Get returns a pointer to the Config struct. If the configuration has not been initialized yet, it will call Init() to load the configuration first.
+func Get() *Config {
+	if !initialized.Load() {
+		if err := Init(); err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize configuration")
+		}
+	}
+
+	return &conf
+}

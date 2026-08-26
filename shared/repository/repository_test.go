@@ -1,0 +1,562 @@
+package repository
+
+import (
+	"context"
+	"reflect"
+	"testing"
+	"time"
+
+	otelMocks "github.com/savioruz/oil/infras/otel/mocks"
+	postgresMocks "github.com/savioruz/oil/infras/postgres/mocks"
+	"github.com/savioruz/oil/shared/dto"
+	sharedModel "github.com/savioruz/oil/shared/model"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+const (
+	testEntityName = "test"
+	testTableName  = "test_table"
+	testPrimaryCol = "id"
+)
+
+type testEntity struct {
+	ID   string `db:"id"`
+	Name string `db:"name"`
+	sharedModel.Metadata
+}
+
+// GetJoinQuery satisfies the optional join hook used by NewRepository.
+func (testEntity) GetJoinQuery() string { return "" }
+
+func newTestRepo(t *testing.T) (Repository[testEntity], sqlmock.Sqlmock) {
+	t.Helper()
+
+	_, mock, conn := postgresMocks.SetupPostgresConnection(t)
+	repo := NewRepository[testEntity](testEntityName, testTableName, testPrimaryCol, conn, otelMocks.NewOtel())
+
+	return repo, mock
+}
+
+func idFilter(id string) dto.FilterGroup {
+	return dto.FilterGroup{
+		Operator: dto.FilterGroupOperatorAnd,
+		Filters: []any{
+			dto.Filter{Field: "id", Operator: dto.FilterOperatorEq, Value: id, Table: testTableName},
+		},
+	}
+}
+
+func testRows() *sqlmock.Rows {
+	return sqlmock.NewRows([]string{"id", "name", "created_at", "modified_at", "created_by", "modified_by"})
+}
+
+func testRows2Col() *sqlmock.Rows {
+	return sqlmock.NewRows([]string{"id", "name"})
+}
+
+// --- M3: reads must not prepare-then-discard a statement ---
+
+func TestGetReadsWithoutPrepare(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	rows := testRows().AddRow("1", "alice", time.Time{}, time.Time{}, "", "")
+	mock.ExpectQuery("SELECT .* FROM test_table").WillReturnRows(rows)
+
+	got, err := repo.Get(context.Background(), idFilter("1"))
+	require.NoError(t, err)
+	assert.Equal(t, "1", got.ID)
+	assert.Equal(t, "alice", got.Name)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetAllReadsWithoutPrepare(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	rows := testRows().
+		AddRow("1", "alice", time.Time{}, time.Time{}, "", "").
+		AddRow("2", "bob", time.Time{}, time.Time{}, "", "")
+	mock.ExpectQuery("SELECT .* FROM test_table").WillReturnRows(rows)
+
+	got, err := repo.GetAll(context.Background(), dto.QueryParams{Page: 1, Limit: 10}, dto.FilterGroup{})
+	require.NoError(t, err)
+	assert.Len(t, got, 2)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCountReadsWithoutPrepare(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectQuery("SELECT COUNT").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(5))
+
+	got, err := repo.Count(context.Background(), dto.FilterGroup{})
+	require.NoError(t, err)
+	assert.Equal(t, 5, got)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestExistReadsWithoutPrepare(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+
+	got, err := repo.Exist(context.Background(), idFilter("1"))
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// --- M2 regression anchor: SortBy injection ---
+
+func TestBuildOrderBy(t *testing.T) {
+	repo, _ := newTestRepo(t)
+
+	tests := []struct {
+		name   string
+		params dto.QueryParams
+		want   string
+	}{
+		{"known column asc", dto.QueryParams{SortBy: "name", SortDir: dto.SortDirAsc}, "ORDER BY " + testTableName + ".name ASC"},
+		{"known column desc", dto.QueryParams{SortBy: "id", SortDir: dto.SortDirDesc}, "ORDER BY " + testTableName + ".id DESC"},
+		{"embedded metadata column", dto.QueryParams{SortBy: "created_at", SortDir: dto.SortDirDesc}, "ORDER BY " + testTableName + ".created_at DESC"},
+		{"table-prefixed column", dto.QueryParams{SortBy: testTableName + ".name", SortDir: dto.SortDirAsc}, "ORDER BY " + testTableName + ".name ASC"},
+		{"empty params", dto.QueryParams{}, ""},
+		{"missing direction", dto.QueryParams{SortBy: "name"}, ""},
+		{"unknown column", dto.QueryParams{SortBy: "nope", SortDir: dto.SortDirAsc}, ""},
+		{"sql injection attempt", dto.QueryParams{SortBy: "id; DROP TABLE users", SortDir: dto.SortDirAsc}, ""},
+		{"injection via subquery", dto.QueryParams{SortBy: "(SELECT pg_sleep(10))", SortDir: dto.SortDirAsc}, ""},
+		{"injection via table prefix", dto.QueryParams{SortBy: "x;DROP.nope", SortDir: dto.SortDirAsc}, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := repo.buildOrderBy(tt.params)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// --- M1 regression anchor: update param collision ---
+
+func TestBuildUpdateAssignments(t *testing.T) {
+	t.Run("prefixes set params so they do not collide with filter args", func(t *testing.T) {
+		clause, args := buildUpdateAssignments(map[string]any{"status": "active"})
+
+		assert.Equal(t, "status = :_set_status", clause)
+		assert.Equal(t, "active", args["_set_status"])
+
+		_, collides := args["status"]
+		assert.False(t, collides, "set arg must not use the bare column name")
+	})
+
+	t.Run("keeps set and filter values distinct when column names match", func(t *testing.T) {
+		// Filter says status = "pending"; update sets status = "active".
+		filterArgs := map[string]any{"status": "pending"}
+
+		clause, setArgs := buildUpdateAssignments(map[string]any{"status": "active"})
+		for k, v := range setArgs {
+			filterArgs[k] = v
+		}
+
+		assert.Contains(t, clause, "_set_status")
+		assert.Equal(t, "pending", filterArgs["status"], "filter value must survive")
+		assert.Equal(t, "active", filterArgs["_set_status"], "set value must survive")
+	})
+}
+
+// --- Safety-net characterization tests (existing behavior) ---
+
+func TestGetColumns(t *testing.T) {
+	columns, insertColumns := getColumns(testTableName, reflect.TypeOf(testEntity{}))
+
+	names := make([]string, 0, len(columns))
+	for _, c := range columns {
+		names = append(names, c.name)
+	}
+
+	assert.Contains(t, names, "id")
+	assert.Contains(t, names, "name")
+	assert.Contains(t, names, "created_at")
+	assert.Contains(t, insertColumns, "id")
+	assert.Contains(t, insertColumns, "name")
+}
+
+func TestGetSelectQuery(t *testing.T) {
+	repo, _ := newTestRepo(t)
+	ctx := context.Background()
+
+	all := repo.getSelectQuery(ctx)
+	assert.Contains(t, all, testTableName+".id")
+	assert.Contains(t, all, testTableName+".name")
+
+	subset := repo.getSelectQuery(ctx, "id")
+	assert.Contains(t, subset, testTableName+".id")
+	assert.NotContains(t, subset, testTableName+".name")
+}
+
+func TestBuildWhereClause(t *testing.T) {
+	repo, _ := newTestRepo(t)
+	ctx := context.Background()
+
+	emptyWhere, emptyArgs := repo.BuildWhereClause(ctx, dto.FilterGroup{})
+	assert.Equal(t, "", emptyWhere)
+	assert.Empty(t, emptyArgs)
+
+	filter := dto.FilterGroup{
+		Operator: dto.FilterGroupOperatorAnd,
+		Filters: []any{
+			dto.Filter{Field: "id", Operator: dto.FilterOperatorEq, Value: "abc", Table: testTableName},
+		},
+	}
+	where, args := repo.BuildWhereClause(ctx, filter)
+	assert.Contains(t, where, "WHERE")
+	assert.Contains(t, where, "test_table.id = :id")
+	assert.Equal(t, "abc", args["id"])
+}
+
+func TestExistRequiresFilter(t *testing.T) {
+	repo, _ := newTestRepo(t)
+
+	_, err := repo.Exist(context.Background(), dto.FilterGroup{})
+	assert.ErrorIs(t, err, errRequiredFilter)
+}
+
+func TestDeleteRequiresFilter(t *testing.T) {
+	repo, _ := newTestRepo(t)
+
+	err := repo.Delete(context.Background(), dto.FilterGroup{})
+	assert.ErrorIs(t, err, errRequiredFilter)
+}
+
+func TestInsertHappyPath(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectExec("INSERT INTO test_table").WillReturnResult(sqlmock.NewResult(1, 1))
+
+	err := repo.Insert(context.Background(), testEntity{ID: "1", Name: "x"})
+	require.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func BenchmarkGetSelectQuery_zeroParams(b *testing.B) {
+	repo := makeTestRepo()
+	ctx := context.Background()
+	b.ResetTimer()
+	for range b.N {
+		_ = repo.getSelectQuery(ctx)
+	}
+}
+
+func BenchmarkGetSelectQuery_withParams(b *testing.B) {
+	repo := makeTestRepo()
+	ctx := context.Background()
+	b.ResetTimer()
+	for range b.N {
+		_ = repo.getSelectQuery(ctx, "id", "name")
+	}
+}
+
+func BenchmarkBuildWhereClause_singleEq(b *testing.B) {
+	repo := makeTestRepo()
+	fg := dto.FilterGroup{
+		Operator: dto.FilterGroupOperatorAnd,
+		Filters: []any{
+			dto.Filter{Field: "id", Operator: dto.FilterOperatorEq, Value: "abc", Table: testTableName},
+		},
+	}
+	ctx := context.Background()
+	b.ResetTimer()
+	for range b.N {
+		repo.BuildWhereClause(ctx, fg)
+	}
+}
+
+func BenchmarkBuildWhereClause_singleIn(b *testing.B) {
+	repo := makeTestRepo()
+	fg := dto.FilterGroup{
+		Operator: dto.FilterGroupOperatorAnd,
+		Filters: []any{
+			dto.Filter{Field: "id", Operator: dto.FilterOperatorIn, Value: []string{"a", "b", "c", "d", "e"}, Table: testTableName},
+		},
+	}
+	ctx := context.Background()
+	b.ResetTimer()
+	for range b.N {
+		repo.BuildWhereClause(ctx, fg)
+	}
+}
+
+func BenchmarkBuildUpdateAssignments_3cols(b *testing.B) {
+	mod := map[string]any{"name": "alice", "email": "a@b.com", "status": "active"}
+	b.ResetTimer()
+	for range b.N {
+		_, _ = buildUpdateAssignments(mod)
+	}
+}
+
+func BenchmarkBuildUpdateAssignments_1col(b *testing.B) {
+	mod := map[string]any{"name": "alice"}
+	b.ResetTimer()
+	for range b.N {
+		_, _ = buildUpdateAssignments(mod)
+	}
+}
+
+// makeTestRepo creates a lightweight Repository for micro-benchmarks.
+func makeTestRepo() *Repository[testEntity] {
+	return &Repository[testEntity]{
+		otel:          otelMocks.NewOtel(),
+		table:         testTableName,
+		entity:        testEntityName,
+		primaryColumn: testPrimaryCol,
+		selectQuery:   "test_table.id AS id, test_table.name AS name",
+		columns: []column{
+			{table: testTableName, name: "id", alias: "id"},
+			{table: testTableName, name: "name", alias: "name"},
+		},
+	}
+}
+
+// --- Error path and coverage tests ---
+
+func TestInsertError(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectExec("INSERT INTO test_table").WillReturnError(assert.AnError)
+
+	err := repo.Insert(context.Background(), testEntity{ID: "1", Name: "x"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to insert data")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestExistError(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectQuery("SELECT EXISTS").WillReturnError(assert.AnError)
+
+	_, err := repo.Exist(context.Background(), idFilter("1"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to check exist data")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetNoRows(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectQuery("SELECT .* FROM test_table").WillReturnRows(testRows()) // no rows
+
+	got, err := repo.Get(context.Background(), idFilter("1"))
+	require.NoError(t, err)
+
+	var zero testEntity
+	assert.Equal(t, zero, got) // zero value
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetError(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectQuery("SELECT .* FROM test_table").WillReturnError(assert.AnError)
+
+	_, err := repo.Get(context.Background(), idFilter("1"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get data")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetWithParamColumns(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	rows := sqlmock.NewRows([]string{"id"}).AddRow("1")
+	mock.ExpectQuery("SELECT .* FROM test_table").WillReturnRows(rows)
+
+	got, err := repo.Get(context.Background(), idFilter("1"), "id")
+	require.NoError(t, err)
+	assert.Equal(t, "1", got.ID)
+	assert.Equal(t, "", got.Name)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetAllWithPagination(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectQuery("SELECT .* FROM test_table.*").WillReturnRows(testRows().AddRow("1", "x", time.Time{}, time.Time{}, "", ""))
+
+	params := dto.QueryParams{Page: 2, Limit: 3}
+	got, err := repo.GetAll(context.Background(), params, dto.FilterGroup{})
+	require.NoError(t, err)
+	assert.Len(t, got, 1)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetAllOnlyLimit(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectQuery("SELECT .* FROM test_table.*").WillReturnRows(testRows().AddRow("1", "x", time.Time{}, time.Time{}, "", ""))
+
+	params := dto.QueryParams{Limit: 5}
+	got, err := repo.GetAll(context.Background(), params, dto.FilterGroup{})
+	require.NoError(t, err)
+	assert.Len(t, got, 1)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetAllError(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectQuery("SELECT .* FROM test_table").WillReturnError(assert.AnError)
+
+	_, err := repo.GetAll(context.Background(), dto.QueryParams{Page: 1, Limit: 10}, dto.FilterGroup{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get all data")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCountError(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectQuery("SELECT COUNT").WillReturnError(assert.AnError)
+
+	_, err := repo.Count(context.Background(), dto.FilterGroup{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to count data")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestDeleteError(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectExec("DELETE FROM test_table").WillReturnError(assert.AnError)
+
+	err := repo.Delete(context.Background(), idFilter("1"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to delete data")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUpdateHappyPath(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectExec("UPDATE test_table SET .* WHERE").WillReturnResult(sqlmock.NewResult(0, 1))
+
+	mod := map[string]any{"name": "bob"}
+	err := repo.Update(context.Background(), mod, idFilter("1"))
+	require.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUpdateError(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectExec("UPDATE test_table SET .* WHERE").WillReturnError(assert.AnError)
+
+	err := repo.Update(context.Background(), map[string]any{"name": "bob"}, idFilter("1"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update data")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestInsertBulkHappyPath(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectExec("INSERT INTO test_table").WillReturnResult(sqlmock.NewResult(2, 2))
+
+	models := []testEntity{
+		{ID: "1", Name: "alice"},
+		{ID: "2", Name: "bob"},
+	}
+	err := repo.InsertBulk(context.Background(), models)
+	require.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestInsertBulkError(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectExec("INSERT INTO test_table").WillReturnError(assert.AnError)
+
+	err := repo.InsertBulk(context.Background(), []testEntity{{ID: "1", Name: "x"}})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to bulk insert")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUpdateWithCountHappyPath(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectExec("UPDATE test_table SET .* WHERE").WillReturnResult(sqlmock.NewResult(0, 2))
+
+	affected, err := repo.UpdateWithCount(context.Background(), map[string]any{"name": "bob"}, idFilter("1"))
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), affected)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUpdateWithCountRequiresFilter(t *testing.T) {
+	repo, _ := newTestRepo(t)
+
+	_, err := repo.UpdateWithCount(context.Background(), map[string]any{"name": "bob"}, dto.FilterGroup{})
+	assert.ErrorIs(t, err, errRequiredFilter)
+}
+
+func TestUpdateWithCountError(t *testing.T) {
+	repo, mock := newTestRepo(t)
+
+	mock.ExpectExec("UPDATE test_table SET .* WHERE").WillReturnError(assert.AnError)
+
+	_, err := repo.UpdateWithCount(context.Background(), map[string]any{"name": "bob"}, idFilter("1"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update data")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBindNamedArgs(t *testing.T) {
+	t.Run("binds named args to positional", func(t *testing.T) {
+		query, args, err := BindNamedArgs("SELECT * FROM t WHERE id = :id", map[string]any{"id": "1"})
+		require.NoError(t, err)
+		assert.Contains(t, query, "$1")
+		assert.Equal(t, []any{"1"}, args)
+	})
+
+	t.Run("errors on missing arg", func(t *testing.T) {
+		_, _, err := BindNamedArgs("SELECT * FROM t WHERE id = :id", nil)
+		require.Error(t, err)
+	})
+}
+
+func TestBuildSelectQueryVariants(t *testing.T) {
+	plain := buildSelectQuery([]column{{name: "id"}})
+	assert.Equal(t, "id", plain)
+
+	qualified := buildSelectQuery([]column{{name: "id", table: "t"}})
+	assert.Equal(t, "t.id", qualified)
+
+	aliased := buildSelectQuery([]column{{name: "id", table: "t", alias: "id"}})
+	assert.Equal(t, "t.id AS id", aliased)
+}
+
+func TestGetSelectQueryMatchesAlias(t *testing.T) {
+	repo := &Repository[testEntity]{
+		otel:        otelMocks.NewOtel(),
+		table:       testTableName,
+		entity:      testEntityName,
+		selectQuery: "t.id AS uid, t.name AS name",
+		columns: []column{
+			{table: "t", name: "id", alias: "uid"},
+			{table: "t", name: "name", alias: "name"},
+		},
+	}
+	ctx := context.Background()
+
+	// Selecting by alias ("uid") must work even though the column name is "id".
+	byAlias := repo.getSelectQuery(ctx, "uid")
+	assert.Contains(t, byAlias, "t.id AS uid")
+	assert.NotContains(t, byAlias, "t.name")
+
+	// Selecting by column name works too.
+	byName := repo.getSelectQuery(ctx, "id")
+	assert.Contains(t, byName, "t.id AS uid")
+}

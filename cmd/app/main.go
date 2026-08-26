@@ -7,7 +7,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	migration "github.com/savioruz/oil/helper"
+	migration "github.com/savioruz/oil/migrations"
 )
 
 // @title API Reference

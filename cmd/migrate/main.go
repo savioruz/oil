@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/savioruz/oil/config"
-	"github.com/savioruz/oil/helper"
+	"github.com/savioruz/oil/migrations"
 	"log"
 	"os"
 )
@@ -20,19 +20,19 @@ func main() {
 
 	switch os.Args[1] {
 	case "up":
-		if err := helper.Up(cfg); err != nil {
+		if err := migrations.Up(cfg); err != nil {
 			log.Fatal(err)
 		}
 	case "down":
-		if err := helper.Down(cfg); err != nil {
+		if err := migrations.Down(cfg); err != nil {
 			log.Fatal(err)
 		}
 	case "drop":
-		if err := helper.Drop(cfg); err != nil {
+		if err := migrations.Drop(cfg); err != nil {
 			log.Fatal(err)
 		}
 	case "step-up":
-		if err := helper.StepUp(cfg); err != nil {
+		if err := migrations.StepUp(cfg); err != nil {
 			log.Fatal(err)
 		}
 	default:

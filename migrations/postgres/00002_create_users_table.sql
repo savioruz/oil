@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS user_profiles (
     id VARCHAR(36) PRIMARY KEY,
     auth_user_id TEXT NOT NULL UNIQUE,
@@ -11,3 +12,6 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     created_by VARCHAR(36) NOT NULL,
     modified_by VARCHAR(36) NOT NULL
 );
+
+-- +goose Down
+DROP TABLE IF EXISTS user_profiles;

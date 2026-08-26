@@ -1,17 +1,20 @@
-// Package helper provides functions to manage database migrations using the golang-migrate library.
-package helper
+// Package migrations provides database migration functions using goose.
+package migrations
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/savioruz/oil/config"
 	"net"
 
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres" // nolint:revive
-	_ "github.com/golang-migrate/migrate/v4/source/file"       // nolint:revive
+	"github.com/pressly/goose/v3"
 	"github.com/rs/zerolog/log"
+	"github.com/savioruz/oil/config"
+
+	_ "github.com/lib/pq" // nolint:revive
 )
+
+const migrationsDir = "migrations/postgres"
 
 func getDBName(config *config.Config, baseName string) string {
 	if config.DB.Postgres.Prefix != "" {
@@ -21,74 +24,67 @@ func getDBName(config *config.Config, baseName string) string {
 	return baseName
 }
 
-func getConnection(config *config.Config) (*migrate.Migrate, error) {
-	connectionString := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s&x-migrations-table=%s",
+func getConnection(config *config.Config) (*sql.DB, error) {
+	connectionString := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s",
 		config.DB.Postgres.Write.Username,
 		config.DB.Postgres.Write.Password,
 		net.JoinHostPort(config.DB.Postgres.Write.Host, config.DB.Postgres.Write.Port),
 		getDBName(config, config.DB.Postgres.Write.Name),
 		config.DB.Postgres.Write.SSLMode,
-		config.DB.Postgres.MigrationTable,
 	)
 
-	mig, err := migrate.New(
-		"file://migrations/postgres",
-		connectionString,
-	)
+	db, err := sql.Open("postgres", connectionString)
 	if err != nil {
-		return nil, fmt.Errorf("error creating migrate instance: %w", err)
+		return nil, fmt.Errorf("error opening database connection: %w", err)
 	}
 
-	return mig, nil
+	return db, nil
 }
 
 // Runner executes the specified migration action (up, down, step-up, drop) using the provided configuration.
 func Runner(config *config.Config, action string) error {
-	mig, err := getConnection(config)
+	db, err := getConnection(config)
 	if err != nil {
-		return fmt.Errorf("error creating migrate instance: %w", err)
+		return fmt.Errorf("error creating migration runner: %w", err)
 	}
 
-	defer func(mig *migrate.Migrate) {
-		err, _ := mig.Close()
-		if err != nil {
-			log.Error().Err(err).Msg("error closing migrate instance")
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Error().Err(err).Msg("error closing database connection")
 		}
-	}(mig)
+	}()
+
+	if err := goose.SetDialect("postgres"); err != nil {
+		return fmt.Errorf("error setting postgres dialect: %w", err)
+	}
+
+	goose.SetTableName(config.DB.Postgres.MigrationTable)
 
 	switch action {
 	case "up":
-		if err := mig.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		if err := goose.Up(db, migrationsDir); err != nil && !errors.Is(err, goose.ErrNoNextVersion) {
 			return fmt.Errorf("error running migrations: %w", err)
 		}
 
 		log.Info().Msg("Database migrations completed successfully")
-
-		return nil
 	case "down":
-		if err := mig.Steps(-1); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		if err := goose.Down(db, migrationsDir); err != nil {
 			return fmt.Errorf("error rolling back migrations: %w", err)
 		}
 
 		log.Info().Msg("Database migrations rolled back successfully")
-
-		return nil
 	case "step-up":
-		if err := mig.Steps(1); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		if err := goose.UpByOne(db, migrationsDir); err != nil && !errors.Is(err, goose.ErrNoNextVersion) {
 			return fmt.Errorf("error running migrations: %w", err)
 		}
 
 		log.Info().Msg("Database migrations completed successfully")
-
-		return nil
 	case "drop":
-		if err := mig.Down(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		if err := goose.DownTo(db, migrationsDir, 0); err != nil {
 			return fmt.Errorf("error rolling back migrations: %w", err)
 		}
 
 		log.Info().Msg("Database migrations rolled back successfully")
-
-		return nil
 	}
 
 	return nil

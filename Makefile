@@ -2,7 +2,7 @@ BINARY=engine
 COMPOSE=docker-compose
 MIGRATION_PATH=migrations/postgres
 
-.PHONY: help test coverage coverage.view coverage.check dev run build clean docker.build docker.start docker.stop lint.prepare lint generate generate.mock migrate.up migrate.down migrate.step-up migrate.drop migrate.create migrate.order setup.githook modules
+.PHONY: help test coverage coverage.view coverage.check dev run build clean docker.build docker.start docker.stop setup.linter lint generate generate.mock migrate.up migrate.down migrate.step-up migrate.drop migrate.create setup.githook setup modules
 
 help: ## Display this help screen
 	@if [ -z "$(shell which awk)" ]; then \
@@ -46,7 +46,7 @@ docker.start: ## Start the docker container
 docker.stop: ## Stop the docker container
 	$(COMPOSE) compose down
 
-lint.prepare: ## Prepare the environment for linting
+setup.linter: ## Install golangci-lint
 	@echo "Installing golangci-lint"
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin latest
 
@@ -85,18 +85,14 @@ migrate.create: ## Create a new migration file. Usage: make migrate.create name=
 		echo "Example: make migrate.create name=add_users_table"; \
 		exit 1; \
 	fi
-	go run github.com/golang-migrate/migrate/v4/cmd/migrate@latest create -ext sql -dir $(MIGRATION_PATH) -seq $(name)
-
-migrate.order: ## Order migrations. Usage: make migrate-order table=<table name> n=<order number>
-	@if [ -z "$(table)" ] || [ -z "$(n)" ]; then \
-		echo "Please set the table and n variables"; \
-		echo "Example: make migrate.order table=users n=2"; \
-		exit 1; \
-	fi
-	cmd/migrate/order.sh $(table) $(n)
+	go run github.com/pressly/goose/v3/cmd/goose@latest create -s --dir $(MIGRATION_PATH) $(name) sql
 
 setup.githook: ## Setup git hooks
 	git config core.hooksPath .githooks
+
+setup: setup.githook setup.linter ## Setup the project (git hooks, linter, scalar CLI)
+	@echo "Installing Scalar CLI"
+	npm install -g @scalar/cli
 
 modules: ## Create simple empty module file. Usage: make modules name=<modules name>
 	@if [ -z "$(name)" ]; then \

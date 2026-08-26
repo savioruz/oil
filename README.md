@@ -120,9 +120,21 @@ This starts PostgreSQL, Redis, Jaeger, Kafka, and Kafka UI locally.
 
 ### 6. Run migrations
 
+Migrations use [goose](https://github.com/pressly/goose) with single-file SQL
+migrations (each file has `-- +goose Up` / `-- +goose Down` directives) and
+sequential naming (`00001_create_todos_table.sql`), stored under
+`migrations/postgres/`.
+
 ```bash
 make migrate.up
 ```
+
+Applied versions are tracked in the table configured by
+`DB_POSTGRES_MIGRATION_TABLE` (default `oil_migrations`).
+
+> **Existing environments migrated from golang-migrate?** See
+> [docs/goose-cutover.md](docs/goose-cutover.md) for the one-time cutover
+> procedure — run it before deploying the goose-based version.
 
 ### 5. Start the server
 
@@ -163,12 +175,12 @@ Scalar Documentation is available at `http://localhost:8080/docs` (development o
 oil/
 ├── cmd/
 │   ├── app/                    # Main server binary
-│   └── migrate/                # Standalone migration CLI
+│   └── migrate/                # Standalone migration CLI (goose)
 ├── config/                     # Config struct (envconfig + godotenv)
 ├── deployments/                # Production Docker Compose files
 ├── di/                         # Google Wire wiring (wire.go + wire_gen.go)
 ├── docs/                       # Generated Swagger output
-├── helper/                     # Migration runner helpers
+├── migrations/postgres/        # Goose SQL migration files
 ├── infras/                     # Infrastructure adapters
 │   ├── jwt/                    # JWT sign, verify, revoke, refresh
 │   ├── kafka/                  # Kafka producer + consumer
@@ -182,7 +194,6 @@ oil/
 │   │   ├── todo/               # Todo CRUD (example module)
 │   │   └── user/               # User model + repository
 │   └── handlers/               # HTTP handlers (one per module)
-├── migrations/postgres/        # Sequential SQL migration files
 ├── permissions/                # Embedded RBAC permissions JSON
 ├── shared/                     # Reusable packages
 │   ├── cache/                  # Redis cache abstraction

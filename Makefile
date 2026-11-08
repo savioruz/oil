@@ -2,7 +2,7 @@ BINARY=engine
 COMPOSE=docker-compose
 MIGRATION_PATH=migrations/postgres
 
-.PHONY: help test coverage coverage.view coverage.check dev run build clean docker.build docker.start docker.stop setup.linter lint generate generate.mock migrate.up migrate.down migrate.step-up migrate.drop migrate.create setup.githook setup modules
+.PHONY: help test coverage coverage.view coverage.check dev run build clean docker.build docker.start docker.stop setup.linter lint generate generate.openapi generate.mock migrate.up migrate.down migrate.step-up migrate.drop migrate.create setup.githook setup modules
 
 help: ## Display this help screen
 	@if [ -z "$(shell which awk)" ]; then \
@@ -23,10 +23,10 @@ coverage.view: ## View coverage report
 coverage.check: ## Check coverage
 	go tool cover -func tmp/cover.out
 
-dev: setup.githook generate ## Run the application in development mode
+dev: setup.githook generate.openapi ## Run the application in development mode
 	go run github.com/air-verse/air
 
-run: generate ## Run the application
+run: generate.openapi ## Run the application
 	go run .
 
 build: generate ## Build the application
@@ -56,13 +56,21 @@ lint: generate generate.mock ## Run linters
 lint.fix: generate generate.mock ## Run linters and fix issues
 	golangci-lint run ./... --fix
 
-generate: ## Generate code
+generate: ## Generate Go code (swag + wire), no network dependency
 	go generate -skip="mockgen" ./...
 	@if [ ! -f permissions/permissions.json ]; then \
 		echo '{"skip": true, "endpoints": []}' > permissions/permissions.json; \
 	fi
+
+generate.openapi: generate ## Convert swagger.json into OpenAPI 3.1 (downloads @scalar/cli)
 	@echo "Upgrading to OpenAPI 3.1..."
-	@npx @scalar/cli document upgrade docs/swagger.json --output docs/openapi.json
+	@if command -v bunx >/dev/null 2>&1; then \
+		bunx @scalar/cli document upgrade docs/swagger.json --output docs/openapi.json; \
+	elif command -v npx >/dev/null 2>&1; then \
+		npx -y @scalar/cli document upgrade docs/swagger.json --output docs/openapi.json; \
+	else \
+		echo "Warning: neither bunx nor npx found, skipping scalar openapi upgrade"; \
+	fi
 
 generate.mock: ## Generate mock code
 	go generate -run="mockgen" ./...

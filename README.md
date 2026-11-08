@@ -24,7 +24,7 @@ A production-grade Go REST API boilerplate with chi router, PostgreSQL, Redis, K
 ## Prerequisites
 
 - Go 1.27+
-- Node 22+ (for upgrading OpenAPI v2 to v3.1)
+- Node 22+ (optional, only for `make generate.openapi`)
 - Make
 - Docker & Docker Compose
 
@@ -268,11 +268,7 @@ The project uses [Scalar](https://scalar.com/) for API documentation, generated 
 
 ### Requirements
 
-Install the Scalar CLI for OpenAPI 3.1 generation:
-
-```bash
-npm install -g @scalar/cli
-```
+`make generate` needs only the Go toolchain. Generating the OpenAPI 3.1 file needs Node.js, because the Scalar CLI is fetched through `npx` / `bunx`.
 
 ### Generation
 
@@ -280,10 +276,17 @@ npm install -g @scalar/cli
 make generate
 ```
 
-This generates:
+This runs `swag` and `wire` only, requires no network access, and generates:
 - `docs/swagger.json` - Swagger 2.0 (OpenAPI v2)
-- `docs/openapi.json` - OpenAPI 3.1
 - `permissions/permissions.json` - RBAC permissions (initialize if not exists)
+
+The OpenAPI 3.1 file used by the `/docs` page is a separate, optional step because it downloads the Scalar CLI:
+
+```bash
+make generate.openapi
+```
+
+It writes `docs/openapi.json` and is already part of `make dev` / `make run`. Docker images do not need it, because `/docs` is only served when `SERVER_ENV=development`.
 
 ### Viewing Docs
 
